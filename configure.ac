@@ -10,7 +10,11 @@ AC_CHECK_COLM([0.13.0])
 AC_SUBST(SED_SUBST)
 
 AC_CONFIG_HEADERS(src/config.h)
-AC_CONFIG_FILES(Makefile)
-AC_CONFIG_FILES(src/Makefile)
+AC_CONFIG_FILES([
+	Makefile
+	src/Makefile
+	test/Makefile
+	test/bare1/Makefile
+])
 
 AC_OUTPUT

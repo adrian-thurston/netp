@@ -1,4 +1,6 @@
-bin_PROGRAMS = servdef
+bin_PROGRAMS = servgen
 
-servdef$(EXEEXT): servdef.lm
-	$(COLM) -o servdef $<
+LM_DEPS = args.lm out_c.lm main.lm
+
+servgen$(EXEEXT): servgen.lm $(LM_DEPS)
+	$(COLM) -o servgen $<

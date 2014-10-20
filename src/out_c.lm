@@ -1,0 +1,8 @@
+namespace out_c
+	lex
+		token line /[^\n]* '\n'/
+	end
+
+	def out_c
+		[line*]
+end

@@ -1,0 +1,37 @@
+include 'args.lm'
+include 'out_c.lm'
+include 'main.lm'
+
+void writeOutput( Output: out_c::out_c Fn: str )
+{
+	S: stream = open( Fn 'w' )
+	send S [Output] eos
+}
+
+void generateAutomake()
+{
+	print "generate Makefile.am
+}
+
+void printHelp()
+{
+	print "print help
+}
+
+void generateCode()
+{
+	generateMainHeader()
+	generateMainCode()
+}
+
+void main()
+{
+	if ( OptAutomake )
+		generateAutomake()
+	elsif ( OptHelp )
+		printHelp()
+	else
+		generateCode()
+}
+
+main()

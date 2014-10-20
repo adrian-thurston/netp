@@ -1,0 +1,36 @@
+void generateMainHeader()
+{
+	cons Output: parser<out_c::out_c>[]
+
+	send Output
+		'/*
+		' * main_gen.h
+		' */
+
+	send Output [] eos
+	writeOutput( Output.tree 'main_gen.h' )
+}
+
+void generateMainCode()
+{
+	cons Output: parser<out_c::out_c>[]
+
+	send Output
+		'/*
+		' * main_gen.cc
+		' */
+		'
+
+	send Output
+		'#include <iostream>
+		'
+
+	send Output
+		'int main()
+		'{
+		'	std::cout << "main()" << std::endl;
+		'}
+
+	send Output [] eos
+	writeOutput( Output.tree 'main_gen.cc' )
+}
