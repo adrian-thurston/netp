@@ -1,6 +1,8 @@
 # Common
 Makefile.in
 Makefile
+*.o
+.deps
 
 # Root only.
 /m4
@@ -12,7 +14,5 @@ Makefile
 /install-sh
 /missing
 /build
-/src/config.h
-/src/config.h.in
-/src/config.h.in~
-/src/stamp-h1
+/compile
+/depcomp
