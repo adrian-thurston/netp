@@ -1,0 +1,29 @@
+
+lex
+	literal `option `bool
+	literal `; `- `--
+
+	token id /[_a-zA-Z][_a-zA-Z0-9]*/
+
+	ignore /[ \t\n\r]+/
+end
+
+token short /[a-zA-Z]/
+token long /[a-zA-Z\-]+/
+
+def option_type
+	[`bool]
+
+def option_spec
+	Ind: int
+	[`- short]
+|	[`-- long]
+
+def option_def
+	[`option option_spec+ option_type id `;]
+
+def definition
+	[option_def]
+
+def program
+	[definition*]

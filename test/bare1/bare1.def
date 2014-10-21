@@ -1,0 +1,4 @@
+
+option -b --background bool background;
+option -f -g --foo bool foo;
+

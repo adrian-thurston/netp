@@ -1,5 +1,6 @@
 global OptAutomake: bool = false
 global OptHelp: bool = false
+global OptInputFn: str
 
 namespace args
 
@@ -31,26 +32,32 @@ namespace args
 		[item*]
 end
 
-cons ArgParser: parser<args::args>[]
+void parseArgs()
+{
+	cons ArgParser: parser<args::args>[]
 
-# Parse the args and extract the result into Args.
-ArgV: list<str> = argv
-for A: str in ArgV
-	send ArgParser [A '\0']
-Args: args::args = ArgParser()
+	# Parse the args and extract the result into Args.
+	ArgV: list<str> = argv
+	for A: str in ArgV
+		send ArgParser [A '\0']
+	Args: args::args = ArgParser.finish()
 
-if !Args {
-	send stderr "servdef: arg parsing failed
-	exit(1)
-}
-
-# Process the args.
-for Item: args::item in Args {
-	switch Item
-	case ["--automake" args::zero] {
-		OptAutomake = true
+	if !Args {
+		send stderr "servdef: arg parsing failed
+		exit(1)
 	}
-	case ["--help" args::zero] {
-		OptHelp = true
+
+	# Process the args.
+	for Item: args::item in Args {
+		switch Item
+		case ["--automake" args::zero] {
+			OptAutomake = true
+		}
+		case ["--help" args::zero] {
+			OptHelp = true
+		}
+		case [file zero] {
+			OptInputFn = $Item.file
+		}
 	}
 }

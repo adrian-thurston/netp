@@ -1,6 +1,9 @@
+include 'grammar.lm'
 include 'args.lm'
 include 'out_c.lm'
 include 'main.lm'
+
+global Output: parser<out_c::out_c>
 
 void writeOutput( Output: out_c::out_c Fn: str )
 {
@@ -15,23 +18,45 @@ void generateAutomake()
 
 void printHelp()
 {
-	print "print help
+	print "servgen \[options\] serv.def
 }
 
-void generateCode()
+void generateCode( P: program )
 {
-	generateMainHeader()
-	generateMainCode()
+	generateMainHeader( P )
+	generateMainCode( P )
 }
 
 void main()
 {
+	parseArgs()
+
+	if ( OptHelp ) {
+		printHelp()
+		exit(0)
+	}
+
+	if ( !OptInputFn ) {
+		send stderr "ERROR: input file not given
+		exit( 1 )
+	}
+
+	Input: stream = open( OptInputFn 'r' )
+	if ( !Input ) {
+		send stderr "ERROR: could not open input file: [$OptInputFn]
+		exit( 1 )
+	}
+
+	P: program = parse program [Input]
+	if ( !P ) {
+		send stderr "ERROR: could not parse input: [error]
+		exit( 1 )
+	}
+
 	if ( OptAutomake )
 		generateAutomake()
-	elsif ( OptHelp )
-		printHelp()
 	else
-		generateCode()
+		generateCode( P )
 }
 
 main()

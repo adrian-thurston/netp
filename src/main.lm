@@ -1,6 +1,6 @@
-void generateMainHeader()
+void generateMainHeader( P: program )
 {
-	cons Output: parser<out_c::out_c>[]
+	Output = cons parser<out_c::out_c>[]
 
 	send Output
 		'/*
@@ -11,25 +11,121 @@ void generateMainHeader()
 	writeOutput( Output.tree 'main_gen.h' )
 }
 
-void generateMainCode()
+void optString( P: program )
 {
-	cons Output: parser<out_c::out_c>[]
+	send Output
+		"const char optstring\[\] = \":"
+
+	for OD: option_def in P {
+		for OS: option_spec in OD {
+			require OS [`- short]
+			send Output [OS.short]
+		}
+	}
 
 	send Output
-		'/*
-		' * main_gen.cc
-		' */
-		'
+		"\";
+		"
+}
+
+void longOpts( P: ref<program> )
+{
+	send Output
+		"const option longopts\[\] = {
+
+	Ind: int = 0
+	for OD: option_def in P {
+		for OS: option_spec in OD {
+			require OS [`-- long]
+			send Output
+				"	{ \"[OS.long]\", no_argument, 0, 0 },
+
+			# Save the index.
+			OS.Ind = Ind
+			Ind = Ind + 1
+		}
+	}
 
 	send Output
-		'#include <iostream>
-		'
+		"	{ 0, 0, 0, 0 }
+		"};
+		"
+}
+
+void generateMainCode( P: ref<program> )
+{
+	Output = cons parser<out_c::out_c>[]
 
 	send Output
-		'int main()
-		'{
-		'	std::cout << "main()" << std::endl;
-		'}
+		~/*
+		~ * main_gen.cc
+		~ */
+		~
+
+	send Output
+		~#include <iostream>
+		~#include <unistd.h>
+		~#include <getopt.h>
+		~
+	
+	optString( P )
+	longOpts( P )
+
+	send Output
+		"int main( int argc, char **argv )
+		"{
+		"	while ( true ) {
+		"		int option_index = 0;
+		"		int c = getopt_long( argc, argv, optstring, longopts, &option_index );
+		"		if ( c == -1 )
+		"			break;
+		"		switch ( c ) {
+
+	for OD: option_def in P {
+		for OS: option_spec in OD {
+			require OS [`- short]
+			send Output
+				"			case '[OS.short]':
+				"				std::cout << \"short opt: -\" << '[OS.short]' << std::endl;
+				"				break;
+		}
+	}
+	
+	send Output
+		"			case 0: {
+		"				switch ( option_index ) {
+
+	for OD: option_def in P {
+		for OS: option_spec in OD {
+			require OS [`-- long]
+			send Output
+				"				case [OS.Ind]:
+				"					std::cout << \"long opt: --\" <<
+				"						longopts\[[OS.Ind]\].name << std::endl;
+				"					break;
+		}
+	}
+
+	send Output
+		"				}
+		"				break;
+		"			}
+		"			case ':': 
+		"			case '?': {
+		"				if ( c == '?' )
+		"					std::cerr << \"ERROR: unknown option: \";
+		"				else
+		"					std::cerr << \"ERROR: missing argument for option: \";
+		"
+		"				if ( optopt == 0 )
+		"					std::cerr << argv\[optind-1\] << std::endl;
+		"				else 
+		"					std::cerr << \"-\" << (char)optopt << std::endl;
+		"				break;
+		"			}
+		"		}
+		"	}
+		"}
 
 	send Output [] eos
 	writeOutput( Output.tree 'main_gen.cc' )
