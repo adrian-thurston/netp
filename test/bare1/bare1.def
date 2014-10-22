@@ -1,4 +1,4 @@
 
-option -b --background bool background;
-option -l --long long l;
+option bool background: -d --background;
+option long l: -l --long;
 

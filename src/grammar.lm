@@ -1,15 +1,22 @@
 
 lex
 	literal `option `bool `string `long
-	literal `; `- `--
+	literal `: `;
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
 
 	ignore /[ \t\n\r]+/
 end
 
+lex
+	literal `- -ni
+	literal `-- -ni
+
+	ignore /[ \t\n\r]+/
+end
+
 token short /[a-zA-Z]/
-token long /[a-zA-Z\-]+/
+token long /[a-zA-Z][a-zA-Z\-]*/
 
 def option_type
 	[`bool]
@@ -22,7 +29,7 @@ def option_spec
 |	[`-- long]
 
 def option_def
-	[`option option_spec+ option_type id `;]
+	[`option option_type id `: option_spec+`;]
 
 def definition
 	[option_def]
