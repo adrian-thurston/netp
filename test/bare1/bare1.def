@@ -1,4 +1,4 @@
 
 option -b --background bool background;
-option -f -g --foo bool foo;
+option -l --long long l;
 

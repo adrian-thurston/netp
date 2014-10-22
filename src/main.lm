@@ -19,7 +19,10 @@ void optString( P: program )
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`- short]
+
 			send Output [OS.short]
+			if !match OD.option_type [`bool]
+				send Output ":"
 		}
 	}
 
@@ -38,7 +41,16 @@ void longOpts( P: ref<program> )
 		for OS: option_spec in OD {
 			require OS [`-- long]
 			send Output
-				"	{ \"[OS.long]\", no_argument, 0, 0 },
+				"	{ \"[OS.long]\", "
+
+			if match OD.option_type [`bool]
+				send Output "no_argument"
+			else
+				send Output "required_argument"
+
+			send Output
+				", 0, 0 },
+
 
 			# Save the index.
 			OS.Ind = Ind
@@ -50,6 +62,66 @@ void longOpts( P: ref<program> )
 		"	{ 0, 0, 0, 0 }
 		"};
 		"
+}
+
+void optValues( P: program )
+{
+	Ind: int = 0
+	for OD: option_def in P {
+		switch OD.option_type
+		case [`bool] {
+			send Output
+				"bool [OD.id] = false;
+		}
+		case [`string] {
+			send Output
+				"std::string [OD.id];
+
+		}
+		case [`long] {
+			send Output
+				"long [OD.id];
+		}
+	}
+
+	send Output "
+}
+
+void parseOption( OD: option_def Src: str )
+{
+	switch OD.option_type
+	case [`bool] {
+		send Output
+			"[OD.id] = true;
+	}
+	case [`string] {
+		send Output
+			"[OD.id] = [Src];
+
+	}
+	case [`long] {
+		send Output
+			"char *eptr;
+			"if ( *[Src] == 0 ) {
+			"	std::cerr << \"ERROR: no characters found in [OD.id] (long) \"
+			"		\"value\" << std::endl;
+			"}
+			"
+			"[OD.id] = strtol( [Src], &eptr, 10 );
+			"
+			"if ( *eptr != 0 ) {
+			"	std::cerr << \"ERROR: invalid characters in [OD.id] (long) \"
+			"		\"value: \" << [Src] << std::endl;
+			"}
+			"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE ) {
+			"	std::cerr << \"ERROR: \"
+			"		\"[OD.id] (long) out of range: \" << [Src] << std::endl;
+			"}
+			"if ( [OD.id] == 0 && errno != 0 ) {
+			"	std::cerr << \"ERROR: \"
+			"		\"failed to parse [OD.id] (long): \" << [Src] << std::endl;
+			"}
+	}	
 }
 
 void generateMainCode( P: ref<program> )
@@ -66,10 +138,14 @@ void generateMainCode( P: ref<program> )
 		~#include <iostream>
 		~#include <unistd.h>
 		~#include <getopt.h>
+		~#include <errno.h>
+		~#include <stdlib.h>
+		~#include <limits.h>
 		~
 	
 	optString( P )
 	longOpts( P )
+	optValues( P )
 
 	send Output
 		"int main( int argc, char **argv )
@@ -84,10 +160,12 @@ void generateMainCode( P: ref<program> )
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`- short]
+
 			send Output
-				"			case '[OS.short]':
-				"				std::cout << \"short opt: -\" << '[OS.short]' << std::endl;
+				"			case '[OS.short]': {
+				"				[parseOption( OD 'optarg' )]
 				"				break;
+				"			}
 		}
 	}
 	
@@ -100,8 +178,7 @@ void generateMainCode( P: ref<program> )
 			require OS [`-- long]
 			send Output
 				"				case [OS.Ind]:
-				"					std::cout << \"long opt: --\" <<
-				"						longopts\[[OS.Ind]\].name << std::endl;
+				"					[parseOption( OD '(argv[optind-1])' )]
 				"					break;
 		}
 	}
