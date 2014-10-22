@@ -7,7 +7,10 @@ void generateMainHeader( P: program )
 		~ * main_gen.h
 		~ */
 		~
+		~#include "thread.h"
+		~
 		~struct MainGen
+		~	: public Thread
 		~{
 		~	void init( int argc, char *const*argv )
 		~	{
@@ -118,25 +121,17 @@ void parseOption( OD: option_def Src: str )
 	case [`long] {
 		send Output
 			"char *eptr;
-			"if ( *[Src] == 0 ) {
-			"	std::cerr << \"ERROR: no characters found in [OD.id] (long) \"
-			"		\"value\" << std::endl;
-			"}
+			"if ( *[Src] == 0 )
+			"	log_FATAL( \"no characters found in [OD.id] (long) value\" );
 			"
 			"[OD.id] = strtol( [Src], &eptr, 10 );
 			"
-			"if ( *eptr != 0 ) {
-			"	std::cerr << \"ERROR: invalid characters in [OD.id] (long) \"
-			"		\"value: \" << [Src] << std::endl;
-			"}
-			"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE ) {
-			"	std::cerr << \"ERROR: \"
-			"		\"[OD.id] (long) out of range: \" << [Src] << std::endl;
-			"}
-			"if ( [OD.id] == 0 && errno != 0 ) {
-			"	std::cerr << \"ERROR: \"
-			"		\"failed to parse [OD.id] (long): \" << [Src] << std::endl;
-			"}
+			"if ( *eptr != 0 )
+			"	log_FATAL( \"invalid characters in [OD.id] (long) value: \" << [Src] );
+			"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE )
+			"	log_FATAL( \"[OD.id] (long) out of range: \" << [Src] );
+			"if ( [OD.id] == 0 && errno != 0 )
+			"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
 	}	
 }
 
@@ -184,15 +179,14 @@ void parseOptions( P: ref<program> )
 		"			}
 		"			case ':': 
 		"			case '?': {
-		"				if ( c == '?' )
-		"					std::cerr << \"ERROR: unknown option: \";
-		"				else
-		"					std::cerr << \"ERROR: missing argument for option: \";
+		"				const char *msg = ( c == '?' ) ? 
+		"						\"unknown option: \" :
+		"						\"missing argument for option: \";
 		"
 		"				if ( optopt == 0 )
-		"					std::cerr << argv\[optind-1\] << std::endl;
+		"					log_FATAL( msg << argv\[optind-1\] );
 		"				else 
-		"					std::cerr << \"-\" << (char)optopt << std::endl;
+		"					log_FATAL( msg << \"-\" << (char)optopt );
 		"				break;
 		"			}
 		"		}
