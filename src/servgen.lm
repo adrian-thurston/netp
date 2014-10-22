@@ -31,7 +31,7 @@ void addDefaultDefs( P: ref<program> )
 {
 	require P [DefList: definition*]
 	P = cons program [
-		"option bool background: -d --background;
+		"option bool background: -b --background;
 		DefList
 	]
 }

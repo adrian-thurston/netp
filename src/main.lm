@@ -3,9 +3,25 @@ void generateMainHeader( P: program )
 	Output = cons parser<out_c::out_c>[]
 
 	send Output
-		'/*
-		' * main_gen.h
-		' */
+		~/*
+		~ * main_gen.h
+		~ */
+		~
+		~struct MainGen
+		~{
+		~	void init( int argc, char *const*argv )
+		~	{
+		~		this->argc = argc;
+		~		this->argv = argv;
+		~	}
+		~
+		~	int argc;
+		~	char *const*argv;
+		~
+		~	void parseOptions();
+		~	void maybeBackground();
+		~	int run();
+		~};
 
 	send Output [] eos
 	writeOutput( Output.tree 'main_gen.h' )
@@ -124,31 +140,10 @@ void parseOption( OD: option_def Src: str )
 	}	
 }
 
-void generateMainCode( P: ref<program> )
+void parseOptions( P: ref<program> )
 {
-	Output = cons parser<out_c::out_c>[]
-
 	send Output
-		~/*
-		~ * main_gen.cc
-		~ */
-		~
-
-	send Output
-		~#include <iostream>
-		~#include <unistd.h>
-		~#include <getopt.h>
-		~#include <errno.h>
-		~#include <stdlib.h>
-		~#include <limits.h>
-		~
-	
-	optString( P )
-	longOpts( P )
-	optValues( P )
-
-	send Output
-		"int main( int argc, char **argv )
+		"void MainGen::parseOptions()
 		"{
 		"	while ( true ) {
 		"		int option_index = 0;
@@ -202,6 +197,62 @@ void generateMainCode( P: ref<program> )
 		"			}
 		"		}
 		"	}
+		"}
+}
+
+void generateMainCode( P: ref<program> )
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		~/*
+		~ * main_gen.cc
+		~ */
+		~
+
+	send Output
+		~#include <iostream>
+		~#include <unistd.h>
+		~#include <getopt.h>
+		~#include <errno.h>
+		~#include <stdlib.h>
+		~#include <limits.h>
+		~#include <string.h>
+		~
+		~#include "main.h"
+		~
+	
+	optString( P )
+	longOpts( P )
+	optValues( P )
+	parseOptions( P )
+
+	send Output
+		~void MainGen::maybeBackground()
+		~{
+		~	if ( background ) {
+		~		int result = daemon( 0, 0 );
+		~		if ( result == -1 ) {
+		~			std::cerr << "ERROR: damonize: " << strerror(errno) << std::endl;
+		~			exit( 1 );
+		~		}
+		~	}
+		~}
+
+	send Output
+		~int MainGen::run()
+		~{
+		~	parseOptions();
+		~	maybeBackground();
+		~	while ( true ) {}
+		~}
+
+	send Output
+		"int main( int argc, char *const*argv )
+		"{
+		"	MainThread main;
+		"	main.init( argc, argv );
+		"	return main.run();
 		"}
 
 	send Output [] eos
