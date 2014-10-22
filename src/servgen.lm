@@ -27,6 +27,15 @@ void generateCode( P: program )
 	generateMainCode( P )
 }
 
+void addDefaultDefs( P: ref<program> )
+{
+	require P [DefList: definition*]
+	P = cons program [
+		"option bool background: -d --background;
+		DefList
+	]
+}
+
 void main()
 {
 	parseArgs()
@@ -52,6 +61,8 @@ void main()
 		send stderr "ERROR: could not parse input: [error]
 		exit( 1 )
 	}
+
+	addDefaultDefs( P )
 
 	if ( OptAutomake )
 		generateAutomake()
