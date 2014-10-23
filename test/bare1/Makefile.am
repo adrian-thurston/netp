@@ -8,6 +8,8 @@ bare1_SOURCES = \
 	main_gen.h \
 	main_gen.cc
 
+bare1_LDADD = $(top_srcdir)/src/libservgen.a
+
 BUILT_SOURCES = \
 	main_gen.cc \
 	main_gen.h

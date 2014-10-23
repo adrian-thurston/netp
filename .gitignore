@@ -16,3 +16,7 @@ Makefile
 /build
 /compile
 /depcomp
+/ltmain.sh
+/libtool
+/config.guess
+/config.sub

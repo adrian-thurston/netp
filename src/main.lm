@@ -70,7 +70,6 @@ void longOpts( P: ref<program> )
 			send Output
 				", 0, 0 },
 
-
 			# Save the index.
 			OS.Ind = Ind
 			Ind = Ind + 1
@@ -226,10 +225,8 @@ void generateMainCode( P: ref<program> )
 		~{
 		~	if ( background ) {
 		~		int result = daemon( 0, 0 );
-		~		if ( result == -1 ) {
-		~			std::cerr << "ERROR: damonize: " << strerror(errno) << std::endl;
-		~			exit( 1 );
-		~		}
+		~		if ( result == -1 )
+		~			log_FATAL( "damonize: " << strerror(errno) );
 		~	}
 		~}
 

@@ -2,7 +2,6 @@
 #define _SERVGEN_THREAD_H
 
 #include <iostream>
-#include <stdlib.h>
 
 struct Thread
 {
@@ -14,13 +13,18 @@ struct Thread
 	struct endp {};
 };
 
-
-inline std::ostream &operator <<( std::ostream &out, const Thread::endp & )
-{
-	exit( 1 );
-}
+std::ostream &operator <<( std::ostream &out, const Thread::endp & );
 
 #define log_FATAL(msg) \
 	*logFile << "FATAL: " << msg << std::endl << endp()
+
+#define log_ERROR(msg) \
+	*logFile << "ERROR: " << msg << std::endl;
+	
+#define log_message(msg) \
+	*logFile << "msg: " << msg << std::endl;
+
+#define log_warning(msg) \
+	*logFile << "warning: " << msg << std::endl;
 
 #endif
