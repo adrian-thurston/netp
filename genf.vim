@@ -9,7 +9,7 @@ syntax keyword Type
 	\ bool string long
 
 syntax keyword Keyword
-	\ thread
+	\ thread starts
 
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 

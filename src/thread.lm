@@ -1,17 +1,32 @@
 def thread
 	Id: str
 	Lower: str
+	Starts: thread_list
+	StartedBy: ptr<thread>
 	[]
 
 alias thread_map
 	map<str ptr<thread>>
 
+alias thread_list
+	list<ptr<thread>>
+
 global ThreadMap: thread_map = cons thread_map[]
+
+ptr<thread> findThread( Id: id )
+{
+	Thread: ptr<thread> = ThreadMap.find( $Id )
+	if ! Thread {
+		send stderr "inp:[Id.line]: failed to locate thread [Id]
+		exit( 1 )
+	}
+}
 
 ptr<thread> consThread( ThreadDef: thread_def )
 {
 	Thread: ptr<thread> = new cons thread( $ThreadDef.id )[]
 	Thread->Lower = tolower( Thread->Id )
+	Thread->Starts = cons thread_list[]
 	return Thread
 }
 

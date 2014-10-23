@@ -29,8 +29,10 @@ void generateCode( P: program )
 	generateMainCode( P )
 
 	for Thread: ptr<thread> in ThreadMap {
-		generateThreadHeader( Thread )
-		generateThreadCode( Thread )
+		if ( Thread->Id != 'Main' ) {
+			generateThreadHeader( Thread )
+			generateThreadCode( Thread )
+		}
 	}
 }
 
@@ -39,6 +41,7 @@ void addDefaultDefs( P: ref<program> )
 	require P [DefList: definition*]
 	P = cons program [
 		"option bool background: -b --background;
+		"thread Main;
 		DefList
 	]
 }
