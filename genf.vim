@@ -1,6 +1,6 @@
 " Vim syntax file
 "
-" Language: servdef
+" Language: genf
 " Author: Adrian Thurston
 
 syntax clear
@@ -18,4 +18,4 @@ syntax region optionSpec
 hi link kw_option Keyword
 hi link optlit String
  
-let b:current_syntax = "servdef"
+let b:current_syntax = "genf"

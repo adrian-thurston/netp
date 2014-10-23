@@ -1,10 +1,10 @@
-bin_PROGRAMS = servgen
+bin_PROGRAMS = genf
 
-lib_LIBRARIES = libservgen.a
+lib_LIBRARIES = libgenf.a
 
-libservgen_a_SOURCES = thread.cc
+libgenf_a_SOURCES = thread.cc
 
 LM_DEPS = grammar.lm args.lm out_c.lm main.lm
 
-servgen$(EXEEXT): servgen.lm $(LM_DEPS)
-	$(COLM) -o servgen $<
+genf$(EXEEXT): genf.lm $(LM_DEPS)
+	$(COLM) -o genf $<

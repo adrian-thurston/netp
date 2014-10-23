@@ -1,4 +1,4 @@
-SERVGEN = ../../src/servgen
+GENF = ../../src/genf
 
 bin_PROGRAMS = bare1
 
@@ -8,14 +8,14 @@ bare1_SOURCES = \
 	main_gen.h \
 	main_gen.cc
 
-bare1_LDADD = $(top_srcdir)/src/libservgen.a
+bare1_LDADD = $(top_srcdir)/src/libgenf.a
 
 BUILT_SOURCES = \
 	main_gen.cc \
 	main_gen.h
 
 main_gen.cc: bare1.srd
-	$(SERVGEN) $<
+	$(GENF) $<
 
-main_gen.cc: $(SERVGEN)
+main_gen.cc: $(GENF)
 main_gen.h: main_gen.cc

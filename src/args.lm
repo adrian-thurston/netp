@@ -43,7 +43,7 @@ void parseArgs()
 	Args: args::args = ArgParser.finish()
 
 	if !Args {
-		send stderr "servdef: arg parsing failed
+		send stderr "genf: arg parsing failed
 		exit(1)
 	}
 

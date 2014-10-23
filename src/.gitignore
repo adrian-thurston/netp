@@ -2,6 +2,6 @@
 /config.h.in
 /config.h.in~
 /stamp-h1
-/servgen
-/servgen.c
-/libservgen.a
+/genf
+/genf.c
+/libgenf.a
