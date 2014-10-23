@@ -14,7 +14,7 @@ BUILT_SOURCES = \
 	main_gen.cc \
 	main_gen.h
 
-main_gen.cc: bare1.def
+main_gen.cc: bare1.srd
 	$(SERVGEN) $<
 
 main_gen.cc: $(SERVGEN)
