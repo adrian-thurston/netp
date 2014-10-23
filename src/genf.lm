@@ -2,6 +2,8 @@ include 'grammar.lm'
 include 'args.lm'
 include 'out_c.lm'
 include 'main.lm'
+include 'thread.lm'
+include 'semantic.lm'
 
 global Output: parser<out_c::out_c>
 
@@ -25,6 +27,11 @@ void generateCode( P: program )
 {
 	generateMainHeader( P )
 	generateMainCode( P )
+
+	for Thread: ptr<thread> in ThreadMap {
+		generateThreadHeader( Thread )
+		generateThreadCode( Thread )
+	}
 }
 
 void addDefaultDefs( P: ref<program> )
@@ -63,6 +70,7 @@ void main()
 	}
 
 	addDefaultDefs( P )
+	semanticAnalysis( P )
 
 	if ( OptAutomake )
 		generateAutomake()

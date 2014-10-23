@@ -1,0 +1,67 @@
+def thread
+	Id: str
+	Lower: str
+	[]
+
+alias thread_map
+	map<str ptr<thread>>
+
+global ThreadMap: thread_map = cons thread_map[]
+
+ptr<thread> consThread( ThreadDef: thread_def )
+{
+	Thread: ptr<thread> = new cons thread( $ThreadDef.id )[]
+	Thread->Lower = tolower( Thread->Id )
+	return Thread
+}
+
+void generateThreadHeader( Thread: ptr<thread> )
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		"/*
+		" * [Thread->Lower]_gen.h
+		" */
+		"
+
+	send Output
+		~#include "thread.h"
+		~
+
+	send Output
+		"struct [Thread->Id]Gen
+		"	: public Thread
+		"{
+		"	void init() { }
+		"	int run();
+		"};
+
+	send Output [] eos
+	writeOutput( Output.tree "[Thread->Lower]_gen.h" )
+}
+
+void generateThreadCode( Thread: ptr<thread> )
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		"/*
+		" * [Thread->Lower]_gen.cc
+		" */
+		"
+
+	send Output
+		"#include \"[Thread->Lower].h\"
+		"
+
+	send Output
+		"int [Thread->Id]Gen::run()
+		"{
+		"	return 0;
+		"};
+
+	send Output [] eos
+	writeOutput( Output.tree "[Thread->Lower]_gen.cc" )
+}
+

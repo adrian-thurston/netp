@@ -1,0 +1,8 @@
+
+void semanticAnalysis( P: program )
+{
+	for TD: thread_def in P {
+		Thread: ptr<thread> = consThread( TD )[]
+		ThreadMap.insert( $TD.id Thread )
+	}
+}

@@ -8,6 +8,9 @@ syntax clear
 syntax keyword Type
 	\ bool string long
 
+syntax keyword Keyword
+	\ thread
+
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 
 syntax region optionSpec

@@ -5,16 +5,19 @@ bin_PROGRAMS = bare1
 bare1_SOURCES = \
 	main.h \
 	main.cc \
-	main_gen.h \
-	main_gen.cc
+	bare.h \
+	bare.cc \
+	$(BUILT_SOURCES)
 
 bare1_LDADD = $(top_srcdir)/src/libgenf.a
 
 BUILT_SOURCES = \
 	main_gen.cc \
-	main_gen.h
+	main_gen.h \
+	bare_gen.cc \
+	bare_gen.h
 
-main_gen.cc: bare1.srd
+main_gen.cc: bare1.gf
 	$(GENF) $<
 
 main_gen.cc: $(GENF)

@@ -1,6 +1,6 @@
 
 lex
-	literal `option `bool `string `long
+	literal `thread `option `bool `string `long
 	literal `: `;
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -31,8 +31,12 @@ def option_spec
 def option_def
 	[`option option_type id `: option_spec+`;]
 
+def thread_def
+	[`thread id `;]
+
 def definition
 	[option_def]
+|	[thread_def]
 
 def program
 	[definition*]
