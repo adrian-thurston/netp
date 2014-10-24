@@ -4,6 +4,9 @@ AM_INIT_AUTOMAKE()
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/common.m4])
 
+: ${CFLAGS="-Wall -g"}
+: ${CXXFLAGS="-Wall -g"}
+
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_LIBTOOL
