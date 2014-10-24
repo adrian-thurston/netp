@@ -6,6 +6,7 @@
 struct MainThread
 	: public MainGen
 {
+	int main();
 };
 
 #endif

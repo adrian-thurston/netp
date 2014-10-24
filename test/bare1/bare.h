@@ -6,6 +6,7 @@
 struct BareThread
 	: public BareGen
 {
+	int main();
 };
 
 #endif

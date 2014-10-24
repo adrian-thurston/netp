@@ -49,11 +49,31 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"	: public Thread
 		"{
 		"	void init() { }
-		"	int run();
+		"	void create();
+		"	int start();
+		"	virtual int main() {}
 		"};
 
 	send Output [] eos
 	writeOutput( Output.tree "[Thread->Lower]_gen.h" )
+}
+
+void createThread( Thread: ptr<thread> )
+{
+	send Output
+		"void *[Thread->Lower]_start_routine( void *arg )
+		"{
+		"	[Thread->Id]Gen *thread = ([Thread->Id]Gen*)arg;
+		"	return (void*)thread->start();
+		"}
+		"
+
+	send Output
+		"void [Thread->Id]Gen::create()
+		"{
+		"	pthread_create( &pthread, 0, [Thread->Lower]_start_routine, this );
+		"}
+		"
 }
 
 void generateThreadCode( Thread: ptr<thread> )
@@ -70,11 +90,14 @@ void generateThreadCode( Thread: ptr<thread> )
 		"#include \"[Thread->Lower].h\"
 		"
 
+	createThread( Thread )
+
 	send Output
-		"int [Thread->Id]Gen::run()
+		"int [Thread->Id]Gen::start()
 		"{
-		"	return 0;
+		"	return main();
 		"};
+		"
 
 	send Output [] eos
 	writeOutput( Output.tree "[Thread->Lower]_gen.cc" )

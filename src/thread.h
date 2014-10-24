@@ -2,12 +2,17 @@
 #define _SERVGEN_THREAD_H
 
 #include <iostream>
+#include <pthread.h>
 
 struct Thread
 {
 	Thread()
-		: logFile( &std::cerr ) {}
+	:
+		logFile( &std::cerr )
+	{
+	}
 
+	pthread_t pthread;
 	std::ostream *logFile;
 
 	struct endp {};

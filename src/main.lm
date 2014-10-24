@@ -23,7 +23,8 @@ void generateMainHeader( P: program )
 		~
 		~	void parseOptions();
 		~	void maybeBackground();
-		~	int run();
+		~	int start();
+		~	virtual int main() {}
 		~};
 
 	send Output [] eos
@@ -231,11 +232,11 @@ void generateMainCode( P: ref<program> )
 		~}
 
 	send Output
-		~int MainGen::run()
+		~int MainGen::start()
 		~{
 		~	parseOptions();
 		~	maybeBackground();
-		~	while ( true ) {}
+		~	return main();
 		~}
 
 	send Output
@@ -243,7 +244,7 @@ void generateMainCode( P: ref<program> )
 		"{
 		"	MainThread main;
 		"	main.init( argc, argv );
-		"	return main.run();
+		"	return main.start();
 		"}
 
 	send Output [] eos
