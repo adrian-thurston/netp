@@ -52,11 +52,10 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"	: public Thread
 		"{
 		"	void init() { }
-		"	void create();
 		"	int start();
 		"	virtual int main() { return 0; }
 
-	registerChildDefs( Thread )
+	createChildDecls( Thread )
 
 	send Output
 		"};
@@ -65,40 +64,22 @@ void generateThreadHeader( Thread: ptr<thread> )
 	writeOutput( Output.tree "[Thread->Lower]_gen.h" )
 }
 
-void createThread( Thread: ptr<thread> )
-{
-	send Output
-		"void *[Thread->Lower]_start_routine( void *arg )
-		"{
-		"	[Thread->Id]Gen *thread = ([Thread->Id]Gen*)arg;
-		"	long r = thread->start();
-		"	return (void*)r;
-		"}
-		"
-
-	send Output
-		"void [Thread->Id]Gen::create()
-		"{
-		"	pthread_create( &pthread, 0, [Thread->Lower]_start_routine, this );
-		"}
-		"
-}
-
-void registerChildDecls( Thread: ptr<thread> )
+void createChildDecls( Thread: ptr<thread> )
 {
 	for Child: ptr<thread> in Thread->Starts {
 		send Output
-			"	void registerChild( [Child->Id]Thread *child );
+			"	void create( [Child->Id]Thread *child );
 	}
 }
 
-void registerChildDefs( Thread: ptr<thread> )
+void createChildDefs( Thread: ptr<thread> )
 {
 	for Child: ptr<thread> in Thread->Starts {
 		send Output
-			"void [Thread->Id]Gen::registerChild( [Child->Id]Thread *child )
+			"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
 			"{
 			"	childList.append( child );
+			"	pthread_create( &pthread, 0, thread_start_routine, child );
 			"}
 			"
 	}
@@ -139,8 +120,7 @@ void generateThreadCode( Thread: ptr<thread> )
 
 	send Output ~
 
-	createThread( Thread )
-	registerChildDefs( Thread )
+	createChildDefs( Thread )
 
 	send Output
 		"int [Thread->Id]Gen::start()

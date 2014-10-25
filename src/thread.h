@@ -22,7 +22,11 @@ struct Thread
 	Thread *prev, *next;
 
 	ThreadList childList;
+
+	virtual int start() = 0;
 };
+
+void *thread_start_routine( void *arg );
 
 std::ostream &operator <<( std::ostream &out, const Thread::endp & );
 

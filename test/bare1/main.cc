@@ -5,8 +5,8 @@ int MainThread::main()
 {
 	log_message( "main" );
 	BareThread *bare = new BareThread;
-	registerChild( bare );
-	bare->create();
+	create( bare );
+
 	while ( true ) {}
 	return 0;
 }

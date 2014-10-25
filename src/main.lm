@@ -31,7 +31,7 @@ void generateMainHeader( P: program )
 		~	int start();
 		~	virtual int main() { return 0; }
 
-	registerChildDecls( Thread )
+	createChildDecls( Thread )
 
 	send Output
 		~};
@@ -243,7 +243,7 @@ void generateMainCode( P: ref<program> )
 		~	}
 		~}
 
-	registerChildDefs( Thread )
+	createChildDefs( Thread )
 
 	send Output
 		~int MainGen::start()
