@@ -5,9 +5,34 @@
 #include <pthread.h>
 #include "list.h"
 
+#define IT_BLOCK_SZ 4098
+
+struct ItBlock
+{
+	ItBlock( int size );
+
+	char data[IT_BLOCK_SZ];
+
+	int size;
+	ItBlock *prev, *next;
+};
+
+struct ItWriter
+{
+	ItWriter();
+
+	ItBlock *head;
+	ItBlock *tail;
+	int nextWrite;
+
+	ItWriter *prev, *next;
+};
+
+typedef List<ItWriter> ItWriterList;
+
 struct ItQueue
 {
-	ItQueue();
+	ItQueue( int blockSz = IT_BLOCK_SZ );
 
 	void wait();
 	void notify();
@@ -15,6 +40,15 @@ struct ItQueue
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
 	int messages;
+	int blockSz;
+
+	/* Call when more space is required. */
+	void allocateBlock();
+	void freeBlock();
+
+	/* Free list for blocks. */
+	ItBlock *free;
+	ItWriterList writerList;
 };
 
 struct Thread

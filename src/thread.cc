@@ -1,11 +1,27 @@
 #include "thread.h"
 #include <stdlib.h>
 
-ItQueue::ItQueue()
-	: messages(0)
+ItBlock::ItBlock( int size )
+:
+	size(size)
+{
+}
+
+ItWriter::ItWriter()
+{
+	head = tail = 0;
+	nextWrite = 0;
+}
+
+ItQueue::ItQueue( int blockSz )
+:
+	messages(0),
+	blockSz(blockSz)
 {
 	pthread_mutex_init( &mutex, 0 );
 	pthread_cond_init( &cond, 0 );
+
+	free = 0;
 }
 
 void ItQueue::wait()
