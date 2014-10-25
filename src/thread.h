@@ -5,6 +5,18 @@
 #include <pthread.h>
 #include "list.h"
 
+struct ItQueue
+{
+	ItQueue();
+
+	void wait();
+	void notify();
+
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	int messages;
+};
+
 struct Thread
 {
 	Thread()
@@ -18,6 +30,7 @@ struct Thread
 
 	pthread_t pthread;
 	std::ostream *logFile;
+	ItQueue control;
 
 	Thread *prev, *next;
 
