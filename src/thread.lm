@@ -20,6 +20,7 @@ ptr<thread> findThread( Id: id )
 		send stderr "inp:[Id.line]: failed to locate thread [Id]
 		exit( 1 )
 	}
+	return Thread
 }
 
 ptr<thread> consThread( ThreadDef: thread_def )
@@ -44,6 +45,8 @@ void generateThreadHeader( Thread: ptr<thread> )
 		~#include "thread.h"
 		~
 
+	childDecls( Thread )
+
 	send Output
 		"struct [Thread->Id]Gen
 		"	: public Thread
@@ -51,7 +54,11 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"	void init() { }
 		"	void create();
 		"	int start();
-		"	virtual int main() {}
+		"	virtual int main() { return 0; }
+
+	registerChildDefs( Thread )
+
+	send Output
 		"};
 
 	send Output [] eos
@@ -64,7 +71,8 @@ void createThread( Thread: ptr<thread> )
 		"void *[Thread->Lower]_start_routine( void *arg )
 		"{
 		"	[Thread->Id]Gen *thread = ([Thread->Id]Gen*)arg;
-		"	return (void*)thread->start();
+		"	long r = thread->start();
+		"	return (void*)r;
 		"}
 		"
 
@@ -74,6 +82,44 @@ void createThread( Thread: ptr<thread> )
 		"	pthread_create( &pthread, 0, [Thread->Lower]_start_routine, this );
 		"}
 		"
+}
+
+void registerChildDecls( Thread: ptr<thread> )
+{
+	for Child: ptr<thread> in Thread->Starts {
+		send Output
+			"	void registerChild( [Child->Id]Thread *child );
+	}
+}
+
+void registerChildDefs( Thread: ptr<thread> )
+{
+	for Child: ptr<thread> in Thread->Starts {
+		send Output
+			"void [Thread->Id]Gen::registerChild( [Child->Id]Thread *child )
+			"{
+			"	childList.append( child );
+			"}
+			"
+	}
+}
+
+void childIncludes( Thread: ptr<thread> )
+{
+	for Child: ptr<thread> in Thread->Starts {
+		send Output
+			"#include \"[Child->Lower].h\"
+	}
+}
+
+void childDecls( Thread: ptr<thread> )
+{
+	for Child: ptr<thread> in Thread->Starts {
+		send Output
+			"struct [Child->Id]Gen;
+			"struct [Child->Id]Thread;
+	}
+	send Output "
 }
 
 void generateThreadCode( Thread: ptr<thread> )
@@ -88,9 +134,13 @@ void generateThreadCode( Thread: ptr<thread> )
 
 	send Output
 		"#include \"[Thread->Lower].h\"
-		"
+
+	childIncludes( Thread )
+
+	send Output ~
 
 	createThread( Thread )
+	registerChildDefs( Thread )
 
 	send Output
 		"int [Thread->Id]Gen::start()

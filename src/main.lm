@@ -1,6 +1,7 @@
 void generateMainHeader( P: program )
 {
 	Output = cons parser<out_c::out_c>[]
+	Thread: ptr<thread> = ThreadMap.find( 'Main' )
 
 	send Output
 		~/*
@@ -9,6 +10,10 @@ void generateMainHeader( P: program )
 		~
 		~#include "thread.h"
 		~
+
+	childDecls( Thread )
+
+	send Output
 		~struct MainGen
 		~	: public Thread
 		~{
@@ -24,7 +29,11 @@ void generateMainHeader( P: program )
 		~	void parseOptions();
 		~	void maybeBackground();
 		~	int start();
-		~	virtual int main() {}
+		~	virtual int main() { return 0; }
+
+	registerChildDecls( Thread )
+
+	send Output
 		~};
 
 	send Output [] eos
@@ -197,6 +206,7 @@ void parseOptions( P: ref<program> )
 void generateMainCode( P: ref<program> )
 {
 	Output = cons parser<out_c::out_c>[]
+	Thread: ptr<thread> = ThreadMap.find( 'Main' )
 
 	send Output
 		~/*
@@ -214,7 +224,9 @@ void generateMainCode( P: ref<program> )
 		~#include <string.h>
 		~
 		~#include "main.h"
-		~
+
+	childIncludes( Thread )
+	send Output ~
 	
 	optString( P )
 	longOpts( P )
@@ -230,6 +242,8 @@ void generateMainCode( P: ref<program> )
 		~			log_FATAL( "damonize: " << strerror(errno) );
 		~	}
 		~}
+
+	registerChildDefs( Thread )
 
 	send Output
 		~int MainGen::start()

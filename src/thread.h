@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <pthread.h>
+#include "list.h"
 
 struct Thread
 {
@@ -12,10 +13,15 @@ struct Thread
 	{
 	}
 
+	struct endp {};
+	typedef DList<Thread> ThreadList;
+
 	pthread_t pthread;
 	std::ostream *logFile;
 
-	struct endp {};
+	Thread *prev, *next;
+
+	ThreadList childList;
 };
 
 std::ostream &operator <<( std::ostream &out, const Thread::endp & );

@@ -9,5 +9,6 @@ void semanticAnalysis( P: program )
 	for StartsDecl: starts_decl in P {
 		Owner: ptr<thread> = findThread( StartsDecl.Owner )
 		Thread: ptr<thread> = findThread( StartsDecl.Thread )
+		Owner->Starts.push_tail( Thread )
 	}
 }
