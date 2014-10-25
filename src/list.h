@@ -8,7 +8,7 @@
 #define BASE_EL(name) name
 #define DLMEL_TEMPDEF class Element
 #define DLMEL_TEMPUSE Element
-#define DList DList
+#define DList List
 
 /**
  * \addtogroup dlist

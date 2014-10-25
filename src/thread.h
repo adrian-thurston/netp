@@ -26,7 +26,7 @@ struct Thread
 	}
 
 	struct endp {};
-	typedef DList<Thread> ThreadList;
+	typedef List<Thread> ThreadList;
 
 	pthread_t pthread;
 	std::ostream *logFile;
