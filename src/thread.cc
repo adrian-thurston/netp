@@ -81,22 +81,24 @@ void *ItQueue::allocBytes( ItWriter *writer, int size )
 
 		/* Move to the next block? */
 		if ( size > avail ) {
-			/* Move */
 			ItBlock *block = allocateBlock();
 			writer->tail->next = block;
 			writer->tail = block;
 			writer->toff = 0;
+
+			/* Need to track the padding in the message length. */
+			writer->mlen += avail;
 		}
 	}
 
 	void *ret = writer->tail->data + writer->toff;
 	writer->toff += size;
+	writer->mlen += size;
 	return ret;
 }
 
-void ItQueue::send( ItHeader *header )
+void ItQueue::send( ItWriter *writer )
 {
-	ItWriter *writer = writerVect[header->writerId];
 	pthread_mutex_lock( &mutex );
 
 	/* Put on the end of the message list. */
@@ -120,13 +122,13 @@ ItHeader *ItQueue::wait()
 	while ( head == 0 )
 		pthread_cond_wait( &cond, &mutex );
 
-	ItHeader *msg = head;
+	ItHeader *header = head;
 	head = head->next;
 
 	pthread_mutex_unlock( &mutex );
 
-	msg->next = 0;
-	return msg;
+	header->next = 0;
+	return header;
 }
 
 void ItQueue::release( ItHeader *header )

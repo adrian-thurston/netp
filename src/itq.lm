@@ -11,9 +11,12 @@ void generateItqHeader( P: program )
 		~#ifndef __ITQ_GEN_H
 		~#define __ITQ_GEN_H
 		~
-		~struct ItWriter;
 		~struct ItHeader;
+		~struct ItWriter;
+		~struct ItQueue;
 		~
+
+	MessageId: int = 1
 
 	for MD: message_def in P {
 		send Output
@@ -32,15 +35,18 @@ void generateItqHeader( P: program )
 			}
 			case [`string] {
 				send Output
-					"	char *[FD.id];
+					"	const char *[FD.id];
 			}
 		}
 
-
 		send Output
-			"	static ItHeader *open( ItWriter *writer );
+			"	static [MD.id] *open( ItWriter *writer );
+			"	static [MD.id] *read( ItQueue *queue, ItHeader *header );
+			"	static const unsigned short ID = [MessageId];
 			"};
 			"
+
+		MessageId = MessageId + 1
 	}
 
 	send Output
@@ -65,21 +71,51 @@ void generateItqCode( P: program )
 
 	for MD: message_def in P {
 		send Output
-			"ItHeader *[MD.id]::open( ItWriter *writer )
+			"[MD.id] *[MD.id]::open( ItWriter *writer )
 			"{
+			"	writer->mlen = 0;
+			"
 			"	/* Place the header. */
-			"	ItHeader *header = (ItHeader*)writer->queue->allocBytes(
+			"	ItHeader *header = (ItHeader*) writer->queue->allocBytes(
 			"			writer, sizeof(ItHeader) );
 			"	
-			"	static int msgId = 1;
-			"	header->msgId = msgId++;
+			"	header->msgId = [MD.id]::ID;
 			"	header->writerId = writer->id;
-			"	header->length = sizeof(ItHeader);
 			"
+			"	/* Place the struct. */
+			"	[MD.id] *msg = ([MD.id]*) writer->queue->allocBytes(
+			"			writer, sizeof([MD.id]) );
+			"
+			"	header->length = writer->mlen;
 			"	writer->toSend = header;
 			"
-			"	return header;
+			"	return msg;
 			"}
+			"
+
+		send Output
+			"[MD.id] *[MD.id]::read( ItQueue *queue, ItHeader *header )
+			"{
+			"	ItWriter *writer = queue->writerVect\[header->writerId\];
+			"	ItBlock *head = writer->head;
+			"	int offset = writer->hoff;
+			"
+			"	if ( offset + sizeof(ItHeader) > head->size ) {
+			"		head = head->next;
+			"		offset = 0;
+			"	}
+			"	offset += sizeof( ItHeader );
+			"
+			"	if ( offset + sizeof([MD.id]) > head->size ) {
+			"		head = head->next;
+			"		offset = 0;
+			"	}
+			"	[MD.id] *msg = ([MD.id]*)(head->data + offset);
+			"	offset += sizeof( [MD.id] );
+			"
+			"	return msg;
+			"}
+			"
 	}
 
 	send Output [] eos

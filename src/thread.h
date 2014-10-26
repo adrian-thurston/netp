@@ -26,7 +26,7 @@ struct ItBlock
 
 	char data[IT_BLOCK_SZ];
 
-	int size;
+	unsigned int size;
 	ItBlock *prev, *next;
 };
 
@@ -46,6 +46,8 @@ struct ItWriter
 	int hoff;
 	int toff;
 
+	int mlen;
+
 	ItHeader *toSend;
 
 	ItWriter *prev, *next;
@@ -59,7 +61,7 @@ struct ItQueue
 	ItQueue( int blockSz = IT_BLOCK_SZ );
 
 	void *allocBytes( ItWriter *writer, int size );
-	void send( ItHeader *header );
+	void send( ItWriter *writer );
 
 	ItHeader *wait();
 	void release( ItHeader *header );

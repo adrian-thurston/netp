@@ -6,8 +6,6 @@
 
 int MainThread::main()
 {
-	log_message( "main" );
-
 	BareThread *bare = new BareThread;
 	create( bare );
 
@@ -17,8 +15,13 @@ int MainThread::main()
 	while ( i > 0 ) {
 		sleep( 1 );
 
-		ItHeader *header = Hello::open( writer );
-		bare->control.send( header );
+		static long l = 1;
+
+		Hello *hello = Hello::open( writer );
+		hello->b = true;
+		hello->l = l++;
+		hello->s = "hello";
+		bare->control.send( writer );
 
 		i -= 1;
 	}
