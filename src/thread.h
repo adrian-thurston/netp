@@ -12,9 +12,12 @@ struct ItWriter;
 struct ItQueue;
 struct Thread;
 
-struct ItMsgHeader
+struct ItHeader
 {
-	int msgId;
+	unsigned short msgId;
+	unsigned char writerId;
+	unsigned int length;
+	ItHeader *next;
 };
 
 struct ItBlock
@@ -35,9 +38,15 @@ struct ItWriter
 	ItQueue *queue;
 	int id;
 
+	/* Write to the tail block, at tail offset. */
 	ItBlock *head;
 	ItBlock *tail;
-	int nextWrite;
+
+	/* Head and tail offset. */
+	int hoff;
+	int toff;
+
+	ItHeader *toSend;
 
 	ItWriter *prev, *next;
 };
@@ -49,17 +58,21 @@ struct ItQueue
 {
 	ItQueue( int blockSz = IT_BLOCK_SZ );
 
-	void wait();
-	void notify();
+	void *allocBytes( ItWriter *writer, int size );
+	ItHeader *startMessage( ItWriter *writer );
+	void send( ItHeader *header );
+
+	ItHeader *wait();
+	void release( ItHeader *header );
 
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
-	int messages;
+
+	ItHeader *head, *tail;
 	int blockSz;
 
-	/* Call when more space is required. */
-	void allocateBlock();
-	void freeBlock();
+	ItBlock *allocateBlock();
+	void freeBlock( ItBlock *block );
 
 	ItWriter *registerWriter( Thread *writer );
 
