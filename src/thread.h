@@ -3,9 +3,19 @@
 
 #include <iostream>
 #include <pthread.h>
+#include <vector>
 #include "list.h"
 
 #define IT_BLOCK_SZ 4098
+
+struct ItWriter;
+struct ItQueue;
+struct Thread;
+
+struct ItMsgHeader
+{
+	int msgId;
+};
 
 struct ItBlock
 {
@@ -21,6 +31,10 @@ struct ItWriter
 {
 	ItWriter();
 
+	Thread *thread;
+	ItQueue *queue;
+	int id;
+
 	ItBlock *head;
 	ItBlock *tail;
 	int nextWrite;
@@ -29,6 +43,7 @@ struct ItWriter
 };
 
 typedef List<ItWriter> ItWriterList;
+typedef std::vector<ItWriter*> ItWriterVect;
 
 struct ItQueue
 {
@@ -46,9 +61,17 @@ struct ItQueue
 	void allocateBlock();
 	void freeBlock();
 
+	ItWriter *registerWriter( Thread *writer );
+
 	/* Free list for blocks. */
 	ItBlock *free;
+
+	/* The list of writers in the order of registration. */
 	ItWriterList writerList;
+
+	/* A vector for finding writers. This lets us identify the writer in the
+	 * message header with only a byte. */
+	ItWriterVect writerVect;
 };
 
 struct Thread

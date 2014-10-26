@@ -10,6 +10,8 @@ int MainThread::main()
 	BareThread *bare = new BareThread;
 	create( bare );
 
+	bare->control.registerWriter( this );
+
 	int i = 10;
 	while ( i > 0 ) {
 		sleep( 1 );

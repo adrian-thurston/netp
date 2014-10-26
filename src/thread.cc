@@ -8,9 +8,13 @@ ItBlock::ItBlock( int size )
 }
 
 ItWriter::ItWriter()
+:
+	thread(0),
+	queue(0),
+	id(-1),
+	head(0), tail(0),
+	nextWrite(0)
 {
-	head = tail = 0;
-	nextWrite = 0;
 }
 
 ItQueue::ItQueue( int blockSz )
@@ -22,6 +26,36 @@ ItQueue::ItQueue( int blockSz )
 	pthread_cond_init( &cond, 0 );
 
 	free = 0;
+}
+
+ItWriter *ItQueue::registerWriter( Thread *thread )
+{
+	ItWriter *writer = new ItWriter;
+	writer->thread = thread;
+	writer->queue = this;
+
+	/* Reigster under lock. */
+	pthread_mutex_lock( &mutex );
+
+	/* Allocate an id (index into the vector of writers). */
+	for ( int i = 0; i < (int)writerVect.size(); i++ ) {
+		/* If there is a free spot, use it. */
+		if ( writerVect[i] == 0 ) {
+			writerVect[i] = writer;
+			writer->id = i;
+			goto set;
+		}
+	}
+
+	/* No Existing index to use. Append. */
+	writer->id = writerVect.size();
+	writerVect.push_back( writer );
+
+set:
+	writerList.append( writer );
+
+	pthread_mutex_unlock( &mutex );
+	return writer;
 }
 
 void ItQueue::wait()
