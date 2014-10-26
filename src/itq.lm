@@ -1,0 +1,88 @@
+
+void generateItqHeader( P: program )
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		~/*
+		~ * itq_gen.h
+		~ */
+		~
+		~#ifndef __ITQ_GEN_H
+		~#define __ITQ_GEN_H
+		~
+		~struct ItWriter;
+		~struct ItHeader;
+		~
+
+	for MD: message_def in P {
+		send Output
+			"struct [MD.id]
+			"{
+
+		for FD: field_def in MD {
+			switch FD.field_type
+			case [`bool] {
+				send Output
+					"	bool [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	char *[FD.id];
+			}
+		}
+
+
+		send Output
+			"	static ItHeader *open( ItWriter *writer );
+			"};
+			"
+	}
+
+	send Output
+		~#endif
+		eos
+
+	writeOutput( Output.tree 'itq_gen.h' )
+}
+
+void generateItqCode( P: program )
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		~/*
+		~ * itq_gen.cc
+		~ */
+		~
+		~#include "itq_gen.h"
+		~#include "thread.h"
+		~
+
+	for MD: message_def in P {
+		send Output
+			"ItHeader *[MD.id]::open( ItWriter *writer )
+			"{
+			"	/* Place the header. */
+			"	ItHeader *header = (ItHeader*)writer->queue->allocBytes(
+			"			writer, sizeof(ItHeader) );
+			"	
+			"	static int msgId = 1;
+			"	header->msgId = msgId++;
+			"	header->writerId = writer->id;
+			"	header->length = sizeof(ItHeader);
+			"
+			"	writer->toSend = header;
+			"
+			"	return header;
+			"}
+	}
+
+	send Output [] eos
+
+	writeOutput( Output.tree 'itq_gen.cc' )
+}

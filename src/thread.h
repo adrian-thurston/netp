@@ -59,7 +59,6 @@ struct ItQueue
 	ItQueue( int blockSz = IT_BLOCK_SZ );
 
 	void *allocBytes( ItWriter *writer, int size );
-	ItHeader *startMessage( ItWriter *writer );
 	void send( ItHeader *header );
 
 	ItHeader *wait();

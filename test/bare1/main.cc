@@ -1,5 +1,6 @@
 #include "main.h"
 #include "bare.h"
+#include "itq_gen.h"
 
 #include <unistd.h>
 
@@ -16,7 +17,7 @@ int MainThread::main()
 	while ( i > 0 ) {
 		sleep( 1 );
 
-		ItHeader *header = bare->control.startMessage( writer );
+		ItHeader *header = Hello::open( writer );
 		bare->control.send( header );
 
 		i -= 1;

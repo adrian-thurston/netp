@@ -1,8 +1,9 @@
 
 lex
-	literal `thread `option `bool `string `long
-	literal `starts
-	literal `: `;
+	literal `thread `message `option
+	literal `bool `string `long
+	literal `starts 
+	literal `: `; `{ `}
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
 
@@ -35,12 +36,24 @@ def option_def
 def thread_def
 	[`thread id `;]
 
+def field_type
+	[`bool]
+|	[`string]
+|	[`long]
+
+def field_def
+	[field_type id `;]
+
+def message_def
+	[`message id `{ field_def* `} `;]
+
 def starts_decl
 	[Owner: id `starts Thread: id `;]
 
 def definition
 	[option_def]
 |	[thread_def]
+|	[message_def]
 |	[starts_decl]
 
 def program

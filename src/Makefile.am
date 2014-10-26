@@ -10,7 +10,8 @@ LM_DEPS = \
 	out_c.lm \
 	main.lm \
 	semantic.lm \
-	thread.lm
+	thread.lm \
+	itq.lm
 
 genf$(EXEEXT): genf.lm $(LM_DEPS)
 	$(COLM) -o genf $<

@@ -12,10 +12,12 @@ bare1_SOURCES = \
 bare1_LDADD = $(top_srcdir)/src/libgenf.a
 
 BUILT_SOURCES = \
-	main_gen.cc \
 	main_gen.h \
+	main_gen.cc \
+	bare_gen.h \
 	bare_gen.cc \
-	bare_gen.h
+	itq_gen.h \
+	itq_gen.cc
 
 main_gen.cc: bare1.gf
 	$(GENF) $<

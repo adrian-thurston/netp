@@ -8,6 +8,9 @@ syntax clear
 syntax keyword Type
 	\ bool string long
 
+syntax keyword Type
+	\ message
+
 syntax keyword Keyword
 	\ thread starts
 

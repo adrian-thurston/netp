@@ -94,22 +94,6 @@ void *ItQueue::allocBytes( ItWriter *writer, int size )
 	return ret;
 }
 
-ItHeader *ItQueue::startMessage( ItWriter *writer )
-{
-	/* Place the header. */
-	ItHeader *header = (ItHeader*)allocBytes(
-			writer, sizeof(ItHeader) );
-	
-	static int msgId = 1;
-	header->msgId = msgId++;
-	header->writerId = writer->id;
-	header->length = sizeof(ItHeader);
-
-	writer->toSend = header;
-
-	return header;
-}
-
 void ItQueue::send( ItHeader *header )
 {
 	ItWriter *writer = writerVect[header->writerId];
