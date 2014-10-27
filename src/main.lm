@@ -17,6 +17,8 @@ void generateMainHeader( P: program )
 		~struct MainGen
 		~	: public Thread
 		~{
+		~	MainGen() : Thread("main") {}
+		~
 		~	void init( int argc, char *const*argv )
 		~	{
 		~		this->argc = argc;

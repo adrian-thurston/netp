@@ -28,7 +28,7 @@ int MainThread::main()
 
 	join();
 
-	log_message( "main exiting" );
+	log_message( "exiting" );
 
 	return 0;
 }

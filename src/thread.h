@@ -90,12 +90,14 @@ struct ItQueue
 
 struct Thread
 {
-	Thread()
+	Thread( const char *type )
 	:
+		type( type ),
 		logFile( &std::cerr )
 	{
 	}
 
+	const char *type;
 	struct endp {};
 	typedef List<Thread> ThreadList;
 
@@ -108,22 +110,34 @@ struct Thread
 	ThreadList childList;
 
 	virtual int start() = 0;
+
+	const Thread &log_prefix() { return *this; }
 };
 
 void *thread_start_routine( void *arg );
 
+struct log_prefix { };
+struct log_time { };
+
 std::ostream &operator <<( std::ostream &out, const Thread::endp & );
+std::ostream &operator <<( std::ostream &out, const log_prefix & );
+std::ostream &operator <<( std::ostream &out, const log_time & );
+std::ostream &operator <<( std::ostream &out, const Thread &thread );
 
-#define log_FATAL(msg) \
-	*logFile << "FATAL: " << msg << std::endl << endp()
+/* The log_prefix() expression can reference a struct or a function that
+ * returns something used to write a different prefix. The macros don't care.
+ * This allows for context-dependent log messages. */
 
-#define log_ERROR(msg) \
-	*logFile << "ERROR: " << msg << std::endl;
+#define log_FATAL( msg ) \
+	*logFile << "FATAL: " << log_prefix() << msg << std::endl << endp()
+
+#define log_ERROR( msg ) \
+	*logFile << "ERROR: " << log_prefix() << msg << std::endl
 	
-#define log_message(msg) \
-	*logFile << "msg: " << msg << std::endl;
+#define log_message( msg ) \
+	*logFile << "message: " << log_prefix() << msg << std::endl
 
-#define log_warning(msg) \
-	*logFile << "warning: " << msg << std::endl;
+#define log_warning( msg ) \
+	*logFile << "warning: " << log_prefix() << msg << std::endl
 
 #endif

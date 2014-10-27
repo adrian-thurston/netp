@@ -51,6 +51,8 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"struct [Thread->Id]Gen
 		"	: public Thread
 		"{
+		"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ) {}
+		"
 		"	void init() { }
 		"	int start();
 		"	void join();

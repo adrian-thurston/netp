@@ -8,13 +8,13 @@ int BareThread::main()
 		ItHeader *header = control.wait();
 
 		Hello *msg = Hello::read( &control, header );
-		log_message( "bare recv: " << msg->s << " - " << msg->l );
+		log_message( "recv: " << msg->s << " - " << msg->l );
 
 		control.release( header );
 		i -= 1;
 	}
 
-	log_message( "bare exiting" );
+	log_message( "exiting" );
 
 	return 0;
 }

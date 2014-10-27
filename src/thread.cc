@@ -1,5 +1,6 @@
 #include "thread.h"
 #include <stdlib.h>
+#include <time.h>
 
 ItBlock::ItBlock( int size )
 :
@@ -166,4 +167,31 @@ void *thread_start_routine( void *arg )
 std::ostream &operator <<( std::ostream &out, const Thread::endp & )
 {
 	exit( 1 );
+}
+
+std::ostream &operator <<( std::ostream &out, const log_time & )
+{
+	time_t epoch;
+	struct tm local;
+	char string[64];
+
+	epoch = time(0);
+	localtime_r( &epoch, &local );
+	int r = strftime( string, sizeof(string), "%Y-%m-%d %H:%M:%S", &local );
+	if ( r > 0 )
+		out << string;
+
+	return out;
+}
+
+std::ostream &operator <<( std::ostream &out, const log_prefix & )
+{
+	out << log_time() << ": ";
+	return out;
+}
+
+std::ostream &operator <<( std::ostream &out, const Thread &thread )
+{
+	out << log_time() << ": " << thread.type << ": ";
+	return out;
 }
