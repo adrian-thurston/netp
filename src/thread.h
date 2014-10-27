@@ -4,6 +4,8 @@
 #include <iostream>
 #include <pthread.h>
 #include <vector>
+#include <stdio.h>
+#include <unistd.h>
 #include "list.h"
 
 #define IT_BLOCK_SZ 4098
@@ -119,25 +121,84 @@ void *thread_start_routine( void *arg );
 struct log_prefix { };
 struct log_time { };
 
+struct fdoutbuf
+:
+	public std::streambuf
+{
+	fdoutbuf( int fd )
+	:
+		fd(fd)
+	{
+	}
+
+	int_type overflow( int_type c )
+	{
+		if ( c != EOF ) {
+			char z = c;
+			if ( write( fd, &z, 1 ) != 1 )
+				return EOF;
+		}
+		return c;
+	}
+
+	std::streamsize xsputn( const char* s, std::streamsize num )
+	{
+		return write(fd,s,num);
+	}
+
+	int fd;
+};
+
+struct lfdostream
+:
+	public std::ostream
+{
+	lfdostream( int fd )
+	:
+		std::ostream( 0 ),
+		buf( fd )
+	{
+		pthread_mutex_init( &mutex, 0 );
+		rdbuf( &buf );
+	}
+
+	pthread_mutex_t mutex;
+	fdoutbuf buf;
+};
+
+struct log_lock {};
+struct log_unlock {};
+
 std::ostream &operator <<( std::ostream &out, const Thread::endp & );
 std::ostream &operator <<( std::ostream &out, const log_prefix & );
+std::ostream &operator <<( std::ostream &out, const log_lock & );
+std::ostream &operator <<( std::ostream &out, const log_unlock & );
 std::ostream &operator <<( std::ostream &out, const log_time & );
 std::ostream &operator <<( std::ostream &out, const Thread &thread );
+
+namespace genf
+{
+	extern lfdostream *lf;
+}
 
 /* The log_prefix() expression can reference a struct or a function that
  * returns something used to write a different prefix. The macros don't care.
  * This allows for context-dependent log messages. */
 
 #define log_FATAL( msg ) \
-	*logFile << "FATAL: " << log_prefix() << msg << std::endl << endp()
+	*genf::lf << log_lock() << "FATAL: " << log_prefix() << \
+	msg << std::endl << log_unlock() << endp()
 
 #define log_ERROR( msg ) \
-	*logFile << "ERROR: " << log_prefix() << msg << std::endl
+	*genf::lf << log_lock() << "ERROR: " << log_prefix() << \
+	msg << std::endl << log_unlock()
 	
 #define log_message( msg ) \
-	*logFile << "message: " << log_prefix() << msg << std::endl
+	*genf::lf << log_lock() << "message: " << log_prefix() << \
+	msg << std::endl << log_unlock()
 
 #define log_warning( msg ) \
-	*logFile << "warning: " << log_prefix() << msg << std::endl
+	*genf::lf << log_lock() << "warning: " << log_prefix() << \
+	msg << std::endl << log_unlock()
 
 #endif

@@ -261,6 +261,7 @@ void generateMainCode( P: ref<program> )
 	send Output
 		"int main( int argc, char *const*argv )
 		"{
+		"	genf::lf = new lfdostream( 2 );
 		"	MainThread main;
 		"	main.init( argc, argv );
 		"	return main.start();

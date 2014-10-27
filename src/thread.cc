@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+namespace genf
+{
+	lfdostream *lf;
+}
+
 ItBlock::ItBlock( int size )
 :
 	size(size)
@@ -162,6 +167,22 @@ void *thread_start_routine( void *arg )
 	Thread *thread = (Thread*)arg;
 	long r = thread->start();
 	return (void*)r;
+}
+
+std::ostream &operator <<( std::ostream &out, const log_lock & )
+{
+	lfdostream *fdo = dynamic_cast<lfdostream*>( &out );
+	if ( fdo )
+		pthread_mutex_lock( &fdo->mutex );
+	return out;
+}
+
+std::ostream &operator <<( std::ostream &out, const log_unlock & )
+{
+	lfdostream *fdo = dynamic_cast<lfdostream*>( &out );
+	if ( fdo )
+		pthread_mutex_unlock( &fdo->mutex );
+	return out;
 }
 
 std::ostream &operator <<( std::ostream &out, const Thread::endp & )
