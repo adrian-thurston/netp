@@ -28,6 +28,8 @@ int MainThread::main()
 
 	join();
 
+	mainSignal();
+
 	log_message( "exiting" );
 
 	return 0;

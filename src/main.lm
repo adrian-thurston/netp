@@ -28,11 +28,15 @@ void generateMainHeader( P: program )
 		~	int argc;
 		~	char *const*argv;
 		~
+		~	int mainSignalLoop();
 		~	void parseOptions();
 		~	void maybeBackground();
 		~	int start();
 		~	void join();
 		~	virtual int main() { return 0; }
+		~
+		~	void sigmaskSetup();
+		~	int mainSignal();
 
 	createChildDecls( Thread )
 
@@ -225,6 +229,7 @@ void generateMainCode( P: ref<program> )
 		~#include <stdlib.h>
 		~#include <limits.h>
 		~#include <string.h>
+		~#include <signal.h>
 		~
 		~#include "main.h"
 
@@ -253,19 +258,91 @@ void generateMainCode( P: ref<program> )
 		~{
 		~	parseOptions();
 		~	maybeBackground();
+		~	sigmaskSetup();
 		~	return main();
 		~}
+		~
+
+	# Mask the signals we wish to funnel to the main thread. This will be the
+	# signal set that all threads should receive.
+	send Output
+		~void MainGen::sigmaskSetup()
+		~{
+		~	sigset_t set;
+		~
+		~	sigemptyset( &set );
+		~	sigaddset( &set, SIGHUP );
+		~	sigaddset( &set, SIGINT );
+		~	sigaddset( &set, SIGQUIT );
+		~	sigaddset( &set, SIGKILL );
+		~	sigaddset( &set, SIGTERM );
+		~	sigaddset( &set, SIGCHLD );
+		~
+		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
+		~}
+		~
+
+	send Output
+		~int MainGen::mainSignal()
+		~{
+		~	sigset_t set;
+		~	sigfillset( &set );
+		~
+		~	sigemptyset( &set );
+		~	sigaddset( &set, SIGHUP );
+		~	sigaddset( &set, SIGINT );
+		~	sigaddset( &set, SIGQUIT );
+		~	sigaddset( &set, SIGKILL );
+		~	sigaddset( &set, SIGTERM );
+		~	sigaddset( &set, SIGUSR1 );
+		~	sigaddset( &set, SIGUSR2 );
+		~	sigaddset( &set, SIGCHLD );
+		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
+		~
+		~	bool cont = true;
+		~	while ( cont ) {
+		~		int sig;
+		~		int r = sigwait( &set, &sig );
+		~		if ( r != 0 ) {
+		~			log_ERROR( "sigwait returned: " << strerror(r) );
+		~			continue;
+		~		}
+		~
+		~		switch ( sig ) {
+		~		case SIGHUP:
+		~		{
+		~			log_message( "received sighup" );
+		~			break;
+		~		}
+		~		case SIGINT:
+		~		case SIGQUIT:
+		~		case SIGKILL:
+		~		case SIGTERM:
+		~		{
+		~			log_message( "breaking from signal loop" );
+		~			cont = false;
+		~			break;
+		~		}
+		~		default: {
+		~			log_message( "received sig: " << sig );
+		~			break;
+		~		}}
+		~	}
+		~	return 0;
+		~}
+		~
 
 	joinDef( Thread )
 
 	send Output
-		"int main( int argc, char *const*argv )
-		"{
-		"	genf::lf = new lfdostream( 2 );
-		"	MainThread main;
-		"	main.init( argc, argv );
-		"	return main.start();
-		"}
+		~int main( int argc, char *const*argv )
+		~{
+		~	genf::lf = new lfdostream( 2 );
+		~	MainThread main;
+		~	main.init( argc, argv );
+		~	return main.start();
+		~}
+		~
 
 	send Output [] eos
 	writeOutput( Output.tree 'main_gen.cc' )
