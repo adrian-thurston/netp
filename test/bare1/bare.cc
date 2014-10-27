@@ -3,7 +3,7 @@
 
 int BareThread::main()
 {
-	int i = 10;
+	int i = 5;
 	while ( i > 0 ) {
 		ItHeader *header = control.wait();
 
@@ -13,5 +13,8 @@ int BareThread::main()
 		control.release( header );
 		i -= 1;
 	}
+
+	log_message( "bare exiting" );
+
 	return 0;
 }

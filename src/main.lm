@@ -29,6 +29,7 @@ void generateMainHeader( P: program )
 		~	void parseOptions();
 		~	void maybeBackground();
 		~	int start();
+		~	void join();
 		~	virtual int main() { return 0; }
 
 	createChildDecls( Thread )
@@ -252,6 +253,8 @@ void generateMainCode( P: ref<program> )
 		~	maybeBackground();
 		~	return main();
 		~}
+
+	joinDef( Thread )
 
 	send Output
 		"int main( int argc, char *const*argv )

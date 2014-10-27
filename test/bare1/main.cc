@@ -11,7 +11,7 @@ int MainThread::main()
 
 	ItWriter *writer = bare->control.registerWriter( this );
 
-	int i = 10;
+	int i = 5;
 	while ( i > 0 ) {
 		sleep( 1 );
 
@@ -25,6 +25,10 @@ int MainThread::main()
 
 		i -= 1;
 	}
+
+	join();
+
+	log_message( "main exiting" );
 
 	return 0;
 }

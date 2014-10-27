@@ -53,6 +53,7 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"{
 		"	void init() { }
 		"	int start();
+		"	void join();
 		"	virtual int main() { return 0; }
 
 	createChildDecls( Thread )
@@ -79,10 +80,26 @@ void createChildDefs( Thread: ptr<thread> )
 			"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
 			"{
 			"	childList.append( child );
-			"	pthread_create( &pthread, 0, thread_start_routine, child );
+			"	pthread_create( &child->pthread, 0, thread_start_routine, child );
 			"}
 			"
 	}
+}
+
+void joinDef( Thread: ptr<thread> )
+{
+	send Output
+		"void [Thread->Id]Gen::join()
+		"{
+		"	for ( Thread *child = childList.head;
+		"			child != 0; child = child->next )
+		"	{
+		"		int res = pthread_join( child->pthread, 0 );
+		"		if ( res != 0 ) {
+		"			log_ERROR( \"join with child failed: strerrno(res)\" );
+		"		}
+		"	}
+		"}
 }
 
 void childIncludes( Thread: ptr<thread> )
@@ -121,6 +138,7 @@ void generateThreadCode( Thread: ptr<thread> )
 	send Output ~
 
 	createChildDefs( Thread )
+	joinDef( Thread )
 
 	send Output
 		"int [Thread->Id]Gen::start()
