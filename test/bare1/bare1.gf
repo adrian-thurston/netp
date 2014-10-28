@@ -3,13 +3,10 @@ option long l: -l --long;
 
 thread Bare;
 
-message Hello
+message Shutdown
 {
-	bool b;
-	long l;
-	string s;
 };
 
 Main starts Bare;
 
-Main sends Hello to Bare;
+Main sends Shutdown to Bare;

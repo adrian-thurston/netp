@@ -8,7 +8,7 @@ struct BareThread
 {
 	int main();
 
-	void recvHello( Hello *msg );
+	void recvShutdown( Shutdown *msg );
 };
 
 #endif

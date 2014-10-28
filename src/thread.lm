@@ -92,7 +92,7 @@ void sendsToDecls( Thread: ptr<thread> )
 		for Message: ptr<message> in Sends->MessageList {
 			send Output
 				"	[Message->Id] *open[Message->Id]()
-				"		{ return Hello::open( writer ); }
+				"		{ return [Message->Id]::open( writer ); }
 		}
 
 		send Output
@@ -275,27 +275,27 @@ void generateThreadCode( Thread: ptr<thread> )
 	
 	send Output
 		"int [Thread->Id]Gen::recv()
-		~{
-		~	breakRecv = false;
-		~	while ( !breakRecv ) {
-		~		ItHeader *header = control.wait();
-		~		switch ( header->msgId ) {
+		"{
+		"	breakRecv = false;
+		"	while ( !breakRecv ) {
+		"		ItHeader *header = control.wait();
+		"		switch ( header->msgId ) {
 
 	for Message: ptr<message> in Thread->RecvsList {
 		send Output
-			~			case Hello::ID: {
-			~				Hello *msg = Hello::read( &control, header );
-			~				recvHello( msg );
-			~				break;
-			~			}
+			"			case [Message->Id]::ID: {
+			"				[Message->Id] *msg = [Message->Id]::read( &control, header );
+			"				recv[Message->Id]( msg );
+			"				break;
+			"			}
 	}
 
 	send Output
-		~		}
-		~		control.release( header );
-		~	}
-		~	return 0;
-		~}
+		"		}
+		"		control.release( header );
+		"	}
+		"	return 0;
+		"}
 
 	send Output [] eos
 	writeOutput( Output.tree "[Thread->Lower]_gen.cc" )

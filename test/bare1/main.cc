@@ -11,24 +11,13 @@ int MainThread::main()
 
 	SendsToBare *sendsToBare = registerSendsToBare( bare );
 
-	int i = 5;
-	while ( i > 0 ) {
-		sleep( 1 );
+	mainSignal();
 
-		static long l = 1;
-
-		Hello *hello = sendsToBare->openHello();
-		hello->b = true;
-		hello->l = l++;
-		hello->s = "hello";
-		bare->control.send( sendsToBare->writer );
-
-		i -= 1;
-	}
+	Shutdown *shutdown = sendsToBare->openShutdown();
+	bare->control.send( sendsToBare->writer );
 
 	join();
 
-	mainSignal();
 
 	log_message( "exiting" );
 

@@ -1,12 +1,10 @@
 #include "bare.h"
 #include "itq_gen.h"
 
-void BareThread::recvHello( Hello *msg )
+void BareThread::recvShutdown( Shutdown *msg )
 {
-	static int i = 1;
-	log_message( "recv: " << msg->s << " - " << msg->l );
-	if ( i++ == 5 )
-		breakRecv = true;
+	log_message( "received shutdown" );
+	breakRecv = true;
 }
 
 int BareThread::main()
