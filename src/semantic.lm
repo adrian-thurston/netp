@@ -6,9 +6,28 @@ void semanticAnalysis( P: program )
 		ThreadMap.insert( $ThreadDef.id Thread )
 	}
 
+	for MessageDef: message_def in P {
+		Message: ptr<message> = consMessage( MessageDef )[]
+		MessageMap.insert( $MessageDef.id Message )
+	}
+
 	for StartsDecl: starts_decl in P {
 		Owner: ptr<thread> = findThread( StartsDecl.Owner )
 		Thread: ptr<thread> = findThread( StartsDecl.Thread )
 		Owner->Starts.push_tail( Thread )
+	}
+
+	for SendsTo: sends_to_decl in P {
+		Sender: ptr<thread> = findThread( SendsTo.Sender )
+		Message: ptr<message> = findMessage( SendsTo.Message )
+		Receiver: ptr<thread> = findThread( SendsTo.Receiver )
+
+		# Record the sender->receiver  relationship
+		Sends: ptr<sends> = Sender->SendsMap.find( Receiver )
+		if ( !Sends ) {
+			Sends = new cons sends( Sender Receiver cons message_list[] )[]
+			Sender->SendsMap.insert( Receiver Sends )
+		}
+		Sends->MessageList.push_tail( Message )
 	}
 }

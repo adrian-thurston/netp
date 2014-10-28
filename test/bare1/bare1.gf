@@ -11,3 +11,5 @@ message Hello
 };
 
 Main starts Bare;
+
+Main sends Hello to Bare;

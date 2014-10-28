@@ -1,8 +1,10 @@
 def thread
 	Id: str
 	Lower: str
+	Upper: str
 	Starts: thread_list
 	StartedBy: ptr<thread>
+	SendsMap: sends_map
 	[]
 
 alias thread_map
@@ -11,8 +13,32 @@ alias thread_map
 alias thread_list
 	list<ptr<thread>>
 
-global ThreadMap: thread_map = cons thread_map[]
+def message
+	Id: str
+	MessageDef: message_def
+	[]
 
+alias message_map
+	map<str ptr<message>>
+
+alias message_list
+	list<ptr<message>>
+
+def sends
+	Sender: ptr<thread>
+	Receiver: ptr<thread>
+	MessageList: message_list
+	[]
+
+alias sends_map
+	map<ptr<thread> ptr<sends>>
+
+global ThreadMap: thread_map = cons thread_map[]
+global MessageMap: message_map = cons message_map[]
+
+#
+# Thread map.
+#
 ptr<thread> findThread( Id: id )
 {
 	Thread: ptr<thread> = ThreadMap.find( $Id )
@@ -27,8 +53,67 @@ ptr<thread> consThread( ThreadDef: thread_def )
 {
 	Thread: ptr<thread> = new cons thread( $ThreadDef.id )[]
 	Thread->Lower = tolower( Thread->Id )
+	Thread->Upper = toupper( Thread->Id )
 	Thread->Starts = cons thread_list[]
+	Thread->SendsMap = cons sends_map[]
 	return Thread
+}
+
+#
+# Message map.
+#
+ptr<message> findMessage( Id: id )
+{
+	Message: ptr<message> = MessageMap.find( $Id )
+	if ! Message {
+		send stderr "inp:[Id.line]: failed to locate message [Id]
+		exit( 1 )
+	}
+	return Message
+}
+
+ptr<message> consMessage( MessageDef: message_def )
+{
+	Message: ptr<message> = new cons message( $MessageDef.id )[]
+	Message->MessageDef = MessageDef
+	return Message
+}
+
+void sendsToDecls( Thread: ptr<thread> )
+{
+	for Sends: ptr<sends> in Thread->SendsMap {
+		send Output
+			"struct SendsTo[Sends->Receiver->Id]
+			"{
+			"	ItWriter *writer;
+
+		for Message: ptr<message> in Sends->MessageList {
+			send Output
+				"	[Message->Id] *open[Message->Id]()
+				"		{ return Hello::open( writer ); }
+		}
+
+		send Output
+			"};
+			"
+			"SendsTo[Sends->Receiver->Id] *registerSendsTo[Sends->Receiver->Id](
+			"		[Sends->Receiver->Id]Thread *recv );
+	}
+}
+
+void sendsToCode( Thread: ptr<thread> )
+{
+	for Sends: ptr<sends> in Thread->SendsMap {
+		send Output
+			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::registerSendsTo[Sends->Receiver->Id](
+			"		[Sends->Receiver->Id]Thread *recv )
+			"{
+			"	SendsTo[Sends->Receiver->Id] *sendsTo = 
+			"		new SendsTo[Sends->Receiver->Id]( );
+			"	sendsTo->writer = recv->control.registerWriter( this );
+			"	return sendsTo;
+			"}
+	}
 }
 
 void generateThreadHeader( Thread: ptr<thread> )
@@ -40,12 +125,16 @@ void generateThreadHeader( Thread: ptr<thread> )
 		" * [Thread->Lower]_gen.h
 		" */
 		"
+		"#ifndef _[Thread->Upper]_GEN_H
+		"#define _[Thread->Upper]_GEN_H
+		"
 
 	send Output
 		~#include "thread.h"
+		~#include "itq_gen.h"
 		~
 
-	childDecls( Thread )
+	threadForwards( Thread )
 
 	send Output
 		"struct [Thread->Id]Gen
@@ -59,9 +148,11 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"	virtual int main() { return 0; }
 
 	createChildDecls( Thread )
+	sendsToDecls( Thread )
 
 	send Output
 		"};
+		"#endif
 
 	send Output [] eos
 	writeOutput( Output.tree "[Thread->Lower]_gen.h" )
@@ -73,6 +164,7 @@ void createChildDecls( Thread: ptr<thread> )
 		send Output
 			"	void create( [Child->Id]Thread *child );
 	}
+	send Output "
 }
 
 void createChildDefs( Thread: ptr<thread> )
@@ -104,21 +196,36 @@ void joinDef( Thread: ptr<thread> )
 		"}
 }
 
-void childIncludes( Thread: ptr<thread> )
+void threadIncludes( Thread: ptr<thread> )
 {
 	for Child: ptr<thread> in Thread->Starts {
 		send Output
 			"#include \"[Child->Lower].h\"
 	}
+
+	for Sends: ptr<sends> in Thread->SendsMap {
+		send Output
+			"#include \"[Sends->Receiver->Lower].h\"
+	}
+
+	send Output "
 }
 
-void childDecls( Thread: ptr<thread> )
+void threadForwards( Thread: ptr<thread> )
 {
 	for Child: ptr<thread> in Thread->Starts {
 		send Output
 			"struct [Child->Id]Gen;
 			"struct [Child->Id]Thread;
 	}
+
+	for Sends: ptr<sends> in Thread->SendsMap {
+		for Message: ptr<message> in Sends->MessageList {
+			send Output
+				"struct [Message->Id];
+		}
+	}
+
 	send Output "
 }
 
@@ -135,12 +242,14 @@ void generateThreadCode( Thread: ptr<thread> )
 	send Output
 		"#include \"[Thread->Lower].h\"
 
-	childIncludes( Thread )
+	threadIncludes( Thread )
+	threadForwards( Thread )
 
 	send Output ~
 
 	createChildDefs( Thread )
 	joinDef( Thread )
+	sendsToCode( Thread )
 
 	send Output
 		"int [Thread->Id]Gen::start()
@@ -152,4 +261,3 @@ void generateThreadCode( Thread: ptr<thread> )
 	send Output [] eos
 	writeOutput( Output.tree "[Thread->Lower]_gen.cc" )
 }
-

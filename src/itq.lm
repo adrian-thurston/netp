@@ -16,14 +16,14 @@ void generateItqHeader( P: program )
 		~struct ItQueue;
 		~
 
-	MessageId: int = 1
+	ID: int = 1
 
-	for MD: message_def in P {
+	for Message: ptr<message> in MessageMap {
 		send Output
-			"struct [MD.id]
+			"struct [Message->Id]
 			"{
 
-		for FD: field_def in MD {
+		for FD: field_def in Message->MessageDef {
 			switch FD.field_type
 			case [`bool] {
 				send Output
@@ -40,13 +40,13 @@ void generateItqHeader( P: program )
 		}
 
 		send Output
-			"	static [MD.id] *open( ItWriter *writer );
-			"	static [MD.id] *read( ItQueue *queue, ItHeader *header );
-			"	static const unsigned short ID = [MessageId];
+			"	static [Message->Id] *open( ItWriter *writer );
+			"	static [Message->Id] *read( ItQueue *queue, ItHeader *header );
+			"	static const unsigned short ID = [ID];
 			"};
 			"
 
-		MessageId = MessageId + 1
+		ID = ID + 1
 	}
 
 	send Output

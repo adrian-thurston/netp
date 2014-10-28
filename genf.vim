@@ -9,10 +9,10 @@ syntax keyword Type
 	\ bool string long
 
 syntax keyword Type
-	\ message
+	\ message thread
 
 syntax keyword Keyword
-	\ thread starts
+	\ starts sends to
 
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 

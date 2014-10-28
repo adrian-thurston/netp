@@ -2,7 +2,7 @@
 lex
 	literal `thread `message `option
 	literal `bool `string `long
-	literal `starts 
+	literal `starts `sends `to
 	literal `: `; `{ `}
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -50,11 +50,15 @@ def message_def
 def starts_decl
 	[Owner: id `starts Thread: id `;]
 
+def sends_to_decl
+	[Sender: id `sends Message: id `to Receiver: id `;]
+
 def definition
 	[option_def]
 |	[thread_def]
 |	[message_def]
 |	[starts_decl]
+|	[sends_to_decl]
 
 def program
 	[definition*]

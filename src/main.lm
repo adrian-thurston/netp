@@ -8,10 +8,14 @@ void generateMainHeader( P: program )
 		~ * main_gen.h
 		~ */
 		~
+		~#ifndef _MAIN_GEN_H
+		~#define _MAIN_GEN_H
+		~
 		~#include "thread.h"
+		~#include "itq_gen.h"
 		~
 
-	childDecls( Thread )
+	threadForwards( Thread )
 
 	send Output
 		~struct MainGen
@@ -39,9 +43,12 @@ void generateMainHeader( P: program )
 		~	int mainSignal();
 
 	createChildDecls( Thread )
+	sendsToDecls( Thread )
 
 	send Output
 		~};
+		~
+		~#endif
 
 	send Output [] eos
 	writeOutput( Output.tree 'main_gen.h' )
@@ -233,7 +240,7 @@ void generateMainCode( P: ref<program> )
 		~
 		~#include "main.h"
 
-	childIncludes( Thread )
+	threadIncludes( Thread )
 	send Output ~
 	
 	optString( P )
@@ -333,6 +340,7 @@ void generateMainCode( P: ref<program> )
 		~
 
 	joinDef( Thread )
+	sendsToCode( Thread )
 
 	send Output
 		~int main( int argc, char *const*argv )
