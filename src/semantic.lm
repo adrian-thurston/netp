@@ -29,5 +29,6 @@ void semanticAnalysis( P: program )
 			Sender->SendsMap.insert( Receiver Sends )
 		}
 		Sends->MessageList.push_tail( Message )
+		Receiver->RecvsList.push_tail( Message )
 	}
 }

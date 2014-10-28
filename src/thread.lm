@@ -5,6 +5,7 @@ def thread
 	Starts: thread_list
 	StartedBy: ptr<thread>
 	SendsMap: sends_map
+	RecvsList: message_list
 	[]
 
 alias thread_map
@@ -56,6 +57,7 @@ ptr<thread> consThread( ThreadDef: thread_def )
 	Thread->Upper = toupper( Thread->Id )
 	Thread->Starts = cons thread_list[]
 	Thread->SendsMap = cons sends_map[]
+	Thread->RecvsList = cons message_list[]
 	return Thread
 }
 
@@ -101,12 +103,21 @@ void sendsToDecls( Thread: ptr<thread> )
 	}
 }
 
+void recvDecls( Thread: ptr<thread> )
+{
+	for Message: ptr<message> in Thread->RecvsList {
+		send Output
+			"	virtual void recv[Message->Id]( [Message->Id] * ) = 0;
+	}
+}
+
 void sendsToCode( Thread: ptr<thread> )
 {
 	for Sends: ptr<sends> in Thread->SendsMap {
 		send Output
-			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::registerSendsTo[Sends->Receiver->Id](
-			"		[Sends->Receiver->Id]Thread *recv )
+			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
+					"registerSendsTo[Sends->Receiver->Id]( "
+					"[Sends->Receiver->Id]Thread *recv )
 			"{
 			"	SendsTo[Sends->Receiver->Id] *sendsTo = 
 			"		new SendsTo[Sends->Receiver->Id]( );
@@ -146,9 +157,13 @@ void generateThreadHeader( Thread: ptr<thread> )
 		"	int start();
 		"	void join();
 		"	virtual int main() { return 0; }
+		"	bool breakRecv;
+		"	int recv();
+		"
 
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
+	recvDecls( Thread )
 
 	send Output
 		"};
@@ -257,6 +272,30 @@ void generateThreadCode( Thread: ptr<thread> )
 		"	return main();
 		"};
 		"
+	
+	send Output
+		"int [Thread->Id]Gen::recv()
+		~{
+		~	breakRecv = false;
+		~	while ( !breakRecv ) {
+		~		ItHeader *header = control.wait();
+		~		switch ( header->msgId ) {
+
+	for Message: ptr<message> in Thread->RecvsList {
+		send Output
+			~			case Hello::ID: {
+			~				Hello *msg = Hello::read( &control, header );
+			~				recvHello( msg );
+			~				break;
+			~			}
+	}
+
+	send Output
+		~		}
+		~		control.release( header );
+		~	}
+		~	return 0;
+		~}
 
 	send Output [] eos
 	writeOutput( Output.tree "[Thread->Lower]_gen.cc" )

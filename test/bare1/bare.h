@@ -7,6 +7,8 @@ struct BareThread
 	: public BareGen
 {
 	int main();
+
+	void recvHello( Hello *msg );
 };
 
 #endif

@@ -1,20 +1,17 @@
 #include "bare.h"
 #include "itq_gen.h"
 
+void BareThread::recvHello( Hello *msg )
+{
+	static int i = 1;
+	log_message( "recv: " << msg->s << " - " << msg->l );
+	if ( i++ == 5 )
+		breakRecv = true;
+}
+
 int BareThread::main()
 {
-	int i = 5;
-	while ( i > 0 ) {
-		ItHeader *header = control.wait();
-
-		Hello *msg = Hello::read( &control, header );
-		log_message( "recv: " << msg->s << " - " << msg->l );
-
-		control.release( header );
-		i -= 1;
-	}
-
+	recv();
 	log_message( "exiting" );
-
 	return 0;
 }
