@@ -96,6 +96,7 @@ void sendsToDecls( Thread: ptr<thread> )
 		}
 
 		send Output
+			"	void send() { writer->queue->send( writer ); }
 			"};
 			"
 			"SendsTo[Sends->Receiver->Id] *registerSendsTo[Sends->Receiver->Id](

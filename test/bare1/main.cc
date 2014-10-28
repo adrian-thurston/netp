@@ -14,7 +14,7 @@ int MainThread::main()
 	mainSignal();
 
 	Shutdown *shutdown = sendsToBare->openShutdown();
-	bare->control.send( sendsToBare->writer );
+	sendsToBare->send();
 
 	join();
 
