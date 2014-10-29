@@ -3,23 +3,47 @@ void module_c()
 	Output = cons parser<out_c::out_c>[]
 
 	send Output
-		"#include <linux/module.h>
 		"#include <linux/kernel.h>
+		"#include <linux/module.h>
 		"#include <linux/init.h>
+		"#include <linux/kobject.h>
 		"
-		"MODULE_LICENSE(\"Colm Networks Proprietary\");
-		"MODULE_AUTHOR(\"Colm Networks\");
-		"MODULE_DESCRIPTION(\"[ModuleName]\");
+		"/* Lie to make it compile. */
+		"MODULE_LICENSE( \"GPL\" );
+		"MODULE_AUTHOR( \"Colm Networks\" );
+		"MODULE_DESCRIPTION( \"[ModuleName]\" );
+		"
+		"static struct kobject *[ModuleName]_kobj;
+		"
+		"static struct attribute *attrs\[\] = {
+		"	NULL,
+		"};
+		"
+		"static struct attribute_group attr_group = {
+		"	.attrs = attrs,
+		"};
 		"
 		"static int __init [ModuleName]_init(void)
 		"{
+		"	int retval;
 		"	printk( KERN_INFO \"[ModuleName] init\\n\" );
+		"
+		"	[ModuleName]_kobj = kobject_create_and_add( \"[ModuleName]\", NULL );
+		"	if ( ![ModuleName]_kobj )
+		"		return -ENOMEM;
+		"
+		"	retval = sysfs_create_group( [ModuleName]_kobj, &attr_group );
+		"	if ( retval )
+		"		kobject_put( [ModuleName]_kobj );
+		"
 		"	return 0;
 		"}
 		"
 		"static void __exit [ModuleName]_exit(void)
 		"{
 		"	printk( KERN_INFO \"[ModuleName] exit\\n\" );
+		"
+		"	kobject_put( [ModuleName]_kobj );
 		"}
 		"
 		"module_init( [ModuleName]_init );
