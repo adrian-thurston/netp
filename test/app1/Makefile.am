@@ -1,25 +1,25 @@
 GENF = ../../src/genf
 
-bin_PROGRAMS = bare1
+bin_PROGRAMS = app1
 
-bare1_SOURCES = \
+app1_SOURCES = \
 	main.h \
 	main.cc \
-	bare.h \
-	bare.cc \
+	user.h \
+	user.cc \
 	$(BUILT_SOURCES)
 
-bare1_LDADD = $(top_srcdir)/src/libgenf.a
+app1_LDADD = $(top_srcdir)/src/libgenf.a
 
 BUILT_SOURCES = \
 	main_gen.h \
 	main_gen.cc \
-	bare_gen.h \
-	bare_gen.cc \
+	user_gen.h \
+	user_gen.cc \
 	itq_gen.h \
 	itq_gen.cc
 
-main_gen.cc: bare1.gf
+main_gen.cc: app1.gf
 	$(GENF) $<
 
 main_gen.cc: $(GENF)

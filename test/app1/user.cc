@@ -1,13 +1,13 @@
-#include "bare.h"
+#include "user.h"
 #include "itq_gen.h"
 
-void BareThread::recvShutdown( Shutdown *msg )
+void UserThread::recvShutdown( Shutdown *msg )
 {
 	log_message( "received shutdown" );
 	breakRecv = true;
 }
 
-int BareThread::main()
+int UserThread::main()
 {
 	recv();
 	log_message( "exiting" );

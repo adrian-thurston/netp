@@ -23,7 +23,7 @@ AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
 	test/Makefile
-	test/bare1/Makefile
+	test/app1/Makefile
 ])
 
 AC_OUTPUT

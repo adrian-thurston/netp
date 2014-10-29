@@ -1,1 +1,1 @@
-SUBDIRS = bare1
+SUBDIRS = app1
