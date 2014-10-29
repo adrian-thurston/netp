@@ -1,0 +1,63 @@
+include 'args.lm'
+include 'out_c.lm'
+
+global Output: parser<out_c::out_c>
+
+void writeOutput( Output: out_c::out_c Fn: str )
+{
+	S: stream = open( Fn 'w' )
+	send S [Output] eos
+}
+
+void module_c()
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		~#include <linux/module.h>
+		~#include <linux/kernel.h>
+		~#include <linux/init.h>
+		~
+		~MODULE_LICENSE("colm networks proprietary");
+		~MODULE_AUTHOR("colm networks");
+		~MODULE_DESCRIPTION("module test");
+		~
+		~static int __init ring_init(void)
+		~{
+		~	printk( KERN_INFO "ring init\n" );
+		~	return 0;
+		~}
+		~
+		~static void __exit ring_exit(void)
+		~{
+		~	printk( KERN_INFO "ring exit\n" );
+		~}
+		~
+		~module_init(ring_init);
+		~module_exit(ring_exit);
+
+	send Output [] eos
+	writeOutput( Output.tree 'module.c' )
+}
+
+void makefile()
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		~obj-m := ring.o
+		~ring-objs := module.o
+
+	send Output [] eos
+	writeOutput( Output.tree 'Makefile' )
+}
+
+void main()
+{
+	parseArgs()
+
+	module_c()
+	makefile()
+}
+
+main()

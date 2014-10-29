@@ -1,4 +1,4 @@
-bin_PROGRAMS = genf
+bin_PROGRAMS = genf kernf
 
 lib_LIBRARIES = libgenf.a
 
@@ -15,3 +15,6 @@ LM_DEPS = \
 
 genf$(EXEEXT): genf.lm $(LM_DEPS)
 	$(COLM) -o genf $<
+
+kernf$(EXEEXT): kernf.lm
+	$(COLM) -o kernf $<

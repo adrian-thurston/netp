@@ -4,4 +4,6 @@
 /stamp-h1
 /genf
 /genf.c
+/kernf
+/kernf.c
 /libgenf.a
