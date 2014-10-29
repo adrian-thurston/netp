@@ -49,7 +49,7 @@ void makefile()
 		~ring-objs := module.o
 
 	send Output [] eos
-	writeOutput( Output.tree 'Makefile' )
+	writeOutput( Output.tree 'Kbuild' )
 }
 
 void main()

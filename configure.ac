@@ -24,6 +24,7 @@ AC_CONFIG_FILES([
 	src/Makefile
 	test/Makefile
 	test/app1/Makefile
+	test/kern1/Makefile
 ])
 
 AC_OUTPUT

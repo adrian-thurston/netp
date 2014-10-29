@@ -1,1 +1,1 @@
-SUBDIRS = app1
+SUBDIRS = app1 kern1
