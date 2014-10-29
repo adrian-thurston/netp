@@ -1,4 +1,27 @@
-void module_c()
+void attribute( Attr: id )
+{
+	send Output
+		"static int [Attr];
+		"
+		"static ssize_t [Attr]_show( struct kobject *kobj, struct 
+		"		kobj_attribute *attr, char *buf )
+		"{
+		"	return sprintf( buf, \"%d\\n\", [Attr] );
+		"}
+		"
+		"static ssize_t [Attr]_store( struct kobject *kobj,
+		"		struct kobj_attribute *attr, const char *buf, size_t count )
+		"{
+		"	sscanf(buf, \"%du\", &[Attr]);
+		"	return count;
+		"}
+		"
+		"static struct kobj_attribute [Attr]_attribute =
+		"	__ATTR( [Attr], 0666, [Attr]_show, [Attr]_store );
+		"
+}
+
+void module_c( P: program )
 {
 	Output = cons parser<out_c::out_c>[]
 
@@ -15,7 +38,25 @@ void module_c()
 		"
 		"static struct kobject *[ModuleName]_kobj;
 		"
+
+	match P [DefList: definition*]
+	for Def: definition in repeat( DefList ) {
+		if match Def [AD: attribute_decl]
+			attribute( AD.id )
+	}
+
+
+	send Output
 		"static struct attribute *attrs\[\] = {
+
+	for Def: definition in repeat( DefList ) {
+		if match Def [AD: attribute_decl] {
+			send Output
+				"	&[AD.id]_attribute.attr,
+		}
+	}
+
+	send Output
 		"	NULL,
 		"};
 		"
@@ -23,6 +64,8 @@ void module_c()
 		"	.attrs = attrs,
 		"};
 		"
+
+	send Output
 		"static int __init [ModuleName]_init(void)
 		"{
 		"	int retval;
@@ -53,7 +96,7 @@ void module_c()
 	writeOutput( Output.tree 'module.c' )
 }
 
-void makefile()
+void makefile( P: program )
 {
 	Output = cons parser<out_c::out_c>[]
 
@@ -72,6 +115,6 @@ void generateKernf( P: program )
 		exit( 1 )
 	}
 
-	module_c()
-	makefile()
+	module_c( P )
+	makefile( P )
 }

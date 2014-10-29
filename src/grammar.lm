@@ -1,7 +1,7 @@
 
 lex
 	literal `thread `message `option `module
-	literal `bool `string `long
+	literal `bool `string `long `attribute
 	literal `starts `sends `to
 	literal `: `; `{ `}
 
@@ -56,6 +56,9 @@ def sends_to_decl
 def module_decl
 	[`module id `;]
 
+def attribute_decl
+	[`attribute id `;]
+
 def definition
 	[option_def]
 |	[thread_def]
@@ -63,6 +66,7 @@ def definition
 |	[starts_decl]
 |	[sends_to_decl]
 |	[module_decl]
+|	[attribute_decl]
 
 def program
 	[definition*]
