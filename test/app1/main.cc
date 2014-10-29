@@ -13,7 +13,7 @@ int MainThread::main()
 
 	mainSignal();
 
-	Shutdown *shutdown = sendsToUser->openShutdown();
+	sendsToUser->openShutdown();
 	sendsToUser->send();
 
 	join();

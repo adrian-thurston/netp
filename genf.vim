@@ -9,7 +9,7 @@ syntax keyword Type
 	\ bool string long
 
 syntax keyword Type
-	\ message thread
+	\ message thread module
 
 syntax keyword Keyword
 	\ starts sends to

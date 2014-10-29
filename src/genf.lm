@@ -5,6 +5,7 @@ include 'main.lm'
 include 'thread.lm'
 include 'semantic.lm'
 include 'itq.lm'
+include 'kernf.lm'
 
 global Output: parser<out_c::out_c>
 
@@ -14,14 +15,14 @@ void writeOutput( Output: out_c::out_c Fn: str )
 	send S [Output] eos
 }
 
-void generateAutomake()
+void generateAutomake( P: program )
 {
 	print "generate Makefile.am
 }
 
 void printHelp()
 {
-	print "servgen \[options\] serv.def
+	print "genf \[options\] serv.gf
 }
 
 void generateCode( P: program )
@@ -38,6 +39,12 @@ void generateCode( P: program )
 
 	generateItqHeader( P )
 	generateItqCode( P )
+}
+
+void generateKernf( P: program )
+{
+	module_c()
+	makefile()
 }
 
 void addDefaultDefs( P: ref<program> )
@@ -80,7 +87,9 @@ void main()
 	semanticAnalysis( P )
 
 	if ( OptAutomake )
-		generateAutomake()
+		generateAutomake( P )
+	else if ( OptKernf )
+		generateKernf( P )
 	else
 		generateCode( P )
 }

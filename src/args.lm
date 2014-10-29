@@ -1,4 +1,5 @@
 global OptAutomake: bool = false
+global OptKernf: bool = false
 global OptHelp: bool = false
 global OptInputFn: str
 
@@ -13,11 +14,12 @@ namespace args
 		token single /[h]/
 		token dash /'-'/
 
-		literal `help `automake
+		literal `help `automake `kernf
 	end
 
 	def long
 		[`automake]
+	|	[`kernf]
 	|	[`help]
 
 	token word /(^0)+/
@@ -55,6 +57,9 @@ void parseArgs()
 		}
 		case ["--help" args::zero] {
 			OptHelp = true
+		}
+		case ["--kernf" args::zero] {
+			OptKernf = true
 		}
 		case [file zero] {
 			OptInputFn = $Item.file

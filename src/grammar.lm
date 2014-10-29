@@ -1,6 +1,6 @@
 
 lex
-	literal `thread `message `option
+	literal `thread `message `option `module
 	literal `bool `string `long
 	literal `starts `sends `to
 	literal `: `; `{ `}
@@ -53,12 +53,16 @@ def starts_decl
 def sends_to_decl
 	[Sender: id `sends Message: id `to Receiver: id `;]
 
+def module_decl
+	[`module id `;]
+
 def definition
 	[option_def]
 |	[thread_def]
 |	[message_def]
 |	[starts_decl]
 |	[sends_to_decl]
+|	[module_decl]
 
 def program
 	[definition*]
