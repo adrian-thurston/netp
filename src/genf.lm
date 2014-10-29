@@ -41,12 +41,6 @@ void generateCode( P: program )
 	generateItqCode( P )
 }
 
-void generateKernf( P: program )
-{
-	module_c()
-	makefile()
-}
-
 void addDefaultDefs( P: ref<program> )
 {
 	require P [DefList: definition*]

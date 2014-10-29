@@ -1,6 +1,12 @@
 
+global ModuleName: id
+
 void semanticAnalysis( P: program )
 {
+	ModuleDecl: module_decl = module_decl in P
+	if ModuleDecl
+		ModuleName = ModuleDecl.id
+	
 	for ThreadDef: thread_def in P {
 		Thread: ptr<thread> = consThread( ThreadDef )[]
 		ThreadMap.insert( $ThreadDef.id Thread )

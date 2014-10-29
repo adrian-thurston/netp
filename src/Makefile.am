@@ -11,7 +11,8 @@ LM_DEPS = \
 	main.lm \
 	semantic.lm \
 	thread.lm \
-	itq.lm
+	itq.lm \
+	kernf.lm
 
 genf$(EXEEXT): genf.lm $(LM_DEPS)
 	$(COLM) -o genf $<

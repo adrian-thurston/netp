@@ -6,3 +6,4 @@ Kbuild
 *.o
 *.mod.c
 .tmp_versions
+module.c

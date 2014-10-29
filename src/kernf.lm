@@ -3,27 +3,27 @@ void module_c()
 	Output = cons parser<out_c::out_c>[]
 
 	send Output
-		~#include <linux/module.h>
-		~#include <linux/kernel.h>
-		~#include <linux/init.h>
-		~
-		~MODULE_LICENSE("colm networks proprietary");
-		~MODULE_AUTHOR("colm networks");
-		~MODULE_DESCRIPTION("module test");
-		~
-		~static int __init ring_init(void)
-		~{
-		~	printk( KERN_INFO "ring init\n" );
-		~	return 0;
-		~}
-		~
-		~static void __exit ring_exit(void)
-		~{
-		~	printk( KERN_INFO "ring exit\n" );
-		~}
-		~
-		~module_init(ring_init);
-		~module_exit(ring_exit);
+		"#include <linux/module.h>
+		"#include <linux/kernel.h>
+		"#include <linux/init.h>
+		"
+		"MODULE_LICENSE(\"Colm Networks Proprietary\");
+		"MODULE_AUTHOR(\"Colm Networks\");
+		"MODULE_DESCRIPTION(\"[ModuleName]\");
+		"
+		"static int __init [ModuleName]_init(void)
+		"{
+		"	printk( KERN_INFO \"[ModuleName] init\\n\" );
+		"	return 0;
+		"}
+		"
+		"static void __exit [ModuleName]_exit(void)
+		"{
+		"	printk( KERN_INFO \"[ModuleName] exit\\n\" );
+		"}
+		"
+		"module_init( [ModuleName]_init );
+		"module_exit( [ModuleName]_exit );
 
 	send Output [] eos
 	writeOutput( Output.tree 'module.c' )
@@ -34,10 +34,20 @@ void makefile()
 	Output = cons parser<out_c::out_c>[]
 
 	send Output
-		~obj-m := ring.o
-		~ring-objs := module.o
+		"obj-m := [ModuleName].o
+		"[ModuleName]-objs := module.o
 
 	send Output [] eos
 	writeOutput( Output.tree 'Kbuild' )
 }
 
+void generateKernf( P: program )
+{
+	if !ModuleName {
+		send stderr "module name not specified in input
+		exit( 1 )
+	}
+
+	module_c()
+	makefile()
+}
