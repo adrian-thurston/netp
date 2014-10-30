@@ -1,5 +1,8 @@
 def attr
 	Name: str
+	Num: int
+	Show: bool
+	Store: bool
 	[]
 
 alias attr_list
@@ -7,9 +10,11 @@ alias attr_list
 
 def kobj
 	TypeName: str
-	ShowAttrs: attr_list
-	StoreAttrs: attr_list
+	Attrs: attr_list
 	[]
+
+alias kobj_list
+	list<ptr<kobj>>
 
 void attribute( Attr: ptr<attr> )
 {
@@ -30,8 +35,9 @@ void attribute( Attr: ptr<attr> )
 		"}
 		"
 		"static struct [ModuleName]_attribute [Attr->Name]_attribute =
-		"	__ATTR( [Attr->Name], 0666, 1, 2 );
+		"	{ { .name = \"[Attr->Name]\", .mode = 0666 }, [Attr->Num] };
 		"
+
 }
 
 void module_c( P: program )
@@ -60,21 +66,23 @@ void module_c( P: program )
 		"struct [ModuleName]_attribute
 		"{
 		"	struct attribute attr;
-		"	unsigned int show;
-		"	unsigned int store;
+		"	unsigned int num;
 		"};
 		"
 
-	match P [DefList: definition*]
-	for Attr: ptr<attr> in RootKobj->ShowAttrs
-		attribute( Attr )
+	for Kobj: ptr<kobj> in KobjList {
+		for Attr: ptr<attr> in Kobj->Attrs
+			attribute( Attr )
+	}
 
-	send Output
-		"static struct attribute *[ModuleName]_attrs\[\] = {
-
-	for Attr: ptr<attr> in RootKobj->ShowAttrs {
+	for Kobj: ptr<kobj> in KobjList {
 		send Output
-			"	&[Attr->Name]_attribute.attr,
+			"static struct attribute *[ModuleName]_attrs\[\] = {
+
+		for Attr: ptr<attr> in Kobj->Attrs {
+			send Output
+				"	&[Attr->Name]_attribute.attr,
+		}
 	}
 
 	send Output
@@ -97,10 +105,19 @@ void module_c( P: program )
 		"	ssize_t ret = -EIO;
 		"
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
-		"	switch ( kattr->show ) {
-		"		case 1:
-		"			ret = fuzz_show( kobj, kattr, buf );
-		"			break;
+		"	switch ( kattr->num ) {
+		
+	for Kobj: ptr<kobj> in KobjList {
+		for Attr: ptr<attr> in Kobj->Attrs {
+			send Output
+				"		case [Attr->Num]: {
+				"			ret = [Attr->Name]_show( kobj, kattr, buf );
+				"			break;
+				"		}
+		}
+	}
+		
+	send Output
 		"	}
 		"	return ret;
 		"}
@@ -112,10 +129,17 @@ void module_c( P: program )
 		"	ssize_t ret = -EIO;
 		" 
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
-		"	switch ( kattr->store ) {
-		"		case 2:
-		"			ret = fuzz_store( kobj, kattr, buf, count );
-		"			break;
+		"	switch ( kattr->num ) {
+
+	for Attr: ptr<attr> in RootKobj->Attrs {
+		send Output
+			"		case [Attr->Num]: {
+			"			ret = [Attr->Name]_store( kobj, kattr, buf, count );
+			"			break;
+			"		}
+	}
+
+	send Output
 		"	}
 		"	return ret;
 		"}

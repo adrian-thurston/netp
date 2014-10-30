@@ -1,6 +1,7 @@
 
 global ModuleName: id
 global RootKobj: ptr<kobj>
+global KobjList: kobj_list = cons kobj_list[]
 
 void semanticAnalysis( P: program )
 {
@@ -41,8 +42,10 @@ void semanticAnalysis( P: program )
 
 	# Make the root kobj.
 	RootKobj = new cons kobj( 'root' )[]
-	RootKobj->ShowAttrs = cons attr_list[]
-	RootKobj->StoreAttrs = cons attr_list[]
+	RootKobj->Attrs = cons attr_list[]
+	KobjList.push_tail( RootKobj )
+
+	AttrNum: int = 1
 
 	# Find the root attributes
 	match P [DefList: definition*]
@@ -52,10 +55,15 @@ void semanticAnalysis( P: program )
 
 			for Mod: attr_modifier in AD {
 				if match Mod [`show]
-					RootKobj->ShowAttrs.push_tail( Attr )
+					Attr->Show = true
 				elsif match Mod [`store]
-					RootKobj->StoreAttrs.push_tail( Attr )
+					Attr->Store = true
 			}
+
+			Attr->Num = AttrNum
+			RootKobj->Attrs.push_tail( Attr )
+
+			AttrNum = AttrNum + 1
 		}
 	}
 }
