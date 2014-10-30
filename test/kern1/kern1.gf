@@ -1,3 +1,3 @@
 module ring;
 
-attribute read write fuzz;
+attribute show store fuzz;

@@ -1,23 +1,36 @@
-void attribute( Attr: id )
+def attr
+	Name: str
+	[]
+
+alias attr_list
+	list<ptr<attr>>
+
+def kobj
+	TypeName: str
+	ShowAttrs: attr_list
+	StoreAttrs: attr_list
+	[]
+
+void attribute( Attr: ptr<attr> )
 {
 	send Output
-		"static int [Attr];
+		"static int [Attr->Name];
 		"
-		"static ssize_t [Attr]_show( struct kobject *kobj, struct 
+		"static ssize_t [Attr->Name]_show( struct kobject *kobj, struct 
 		"		[ModuleName]_attribute *attr, char *buf )
 		"{
-		"	return sprintf( buf, \"%d\\n\", [Attr] );
+		"	return sprintf( buf, \"%d\\n\", [Attr->Name] );
 		"}
 		"
-		"static ssize_t [Attr]_store( struct kobject *kobj,
+		"static ssize_t [Attr->Name]_store( struct kobject *kobj,
 		"		struct [ModuleName]_attribute *attr, const char *buf, size_t count )
 		"{
-		"	sscanf( buf, \"%du\", &[Attr] );
+		"	sscanf( buf, \"%du\", &[Attr->Name] );
 		"	return count;
 		"}
 		"
-		"static struct [ModuleName]_attribute [Attr]_attribute =
-		"	__ATTR( [Attr], 0666, 1, 2 );
+		"static struct [ModuleName]_attribute [Attr->Name]_attribute =
+		"	__ATTR( [Attr->Name], 0666, 1, 2 );
 		"
 }
 
@@ -53,15 +66,15 @@ void module_c( P: program )
 		"
 
 	match P [DefList: definition*]
-	for AD: attr_decl in RootAttrs
-		attribute( AD.id )
+	for Attr: ptr<attr> in RootKobj->ShowAttrs
+		attribute( Attr )
 
 	send Output
 		"static struct attribute *[ModuleName]_attrs\[\] = {
 
-	for AD: attr_decl in repeat( RootAttrs ) {
+	for Attr: ptr<attr> in RootKobj->ShowAttrs {
 		send Output
-			"	&[AD.id]_attribute.attr,
+			"	&[Attr->Name]_attribute.attr,
 	}
 
 	send Output

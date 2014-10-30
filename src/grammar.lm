@@ -2,7 +2,7 @@
 lex
 	literal `thread `message `option `module
 	literal `bool `string `long `attribute
-	literal `starts `sends `to `read `write
+	literal `starts `sends `to `show `store
 	literal `: `; `{ `}
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -57,8 +57,8 @@ def module_decl
 	[`module id `;]
 
 def attr_modifier
-	[`read]
-|	[`write]
+	[`show]
+|	[`store]
 
 def attr_decl
 	[`attribute attr_modifier+ id `;]

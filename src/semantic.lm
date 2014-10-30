@@ -1,7 +1,6 @@
 
 global ModuleName: id
-
-global RootAttrs: attr_decl* = cons attr_decl*[]
+global RootKobj: ptr<kobj>
 
 void semanticAnalysis( P: program )
 {
@@ -40,19 +39,23 @@ void semanticAnalysis( P: program )
 		Receiver->RecvsList.push_tail( Message )
 	}
 
+	# Make the root kobj.
+	RootKobj = new cons kobj( 'root' )[]
+	RootKobj->ShowAttrs = cons attr_list[]
+	RootKobj->StoreAttrs = cons attr_list[]
+
 	# Find the root attributes
 	match P [DefList: definition*]
-	AL: attr_decl* = cons attr_decl*[]
 	for Def: definition in repeat( DefList ) {
 		if match Def [AD: attr_decl] {
-			# This should be an append, doesn't exist in colm.
-			for L: attr_decl* in AL {
-				if match L [] {
-					L = cons attr_decl*[AD]
-					break
-				}
+			Attr: ptr<attr> = new cons attr( $AD.id )[]
+
+			for Mod: attr_modifier in AD {
+				if match Mod [`show]
+					RootKobj->ShowAttrs.push_tail( Attr )
+				elsif match Mod [`store]
+					RootKobj->StoreAttrs.push_tail( Attr )
 			}
 		}
 	}
-	RootAttrs = AL
 }
