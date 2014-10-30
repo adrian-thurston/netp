@@ -16,19 +16,19 @@ def kobj
 alias kobj_list
 	list<ptr<kobj>>
 
-void attribute( Attr: ptr<attr> )
+void attribute( Kobj: ptr<kobj> Attr: ptr<attr> )
 {
 	send Output
 		"static int [Attr->Name];
 		"
-		"static ssize_t [Attr->Name]_show( struct kobject *kobj, struct 
-		"		[ModuleName]_attribute *attr, char *buf )
+		"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
+		"		struct [Kobj->TypeName] *obj, char *buf )
 		"{
 		"	return sprintf( buf, \"%d\\n\", [Attr->Name] );
 		"}
 		"
-		"static ssize_t [Attr->Name]_store( struct kobject *kobj,
-		"		struct [ModuleName]_attribute *attr, const char *buf, size_t count )
+		"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
+		"		struct [Kobj->TypeName] *obj, const char *buf, size_t count )
 		"{
 		"	sscanf( buf, \"%du\", &[Attr->Name] );
 		"	return count;
@@ -37,7 +37,6 @@ void attribute( Attr: ptr<attr> )
 		"static struct [ModuleName]_attribute [Attr->Name]_attribute =
 		"	{ { .name = \"[Attr->Name]\", .mode = 0666 }, [Attr->Num] };
 		"
-
 }
 
 void module_c( P: program )
@@ -72,7 +71,7 @@ void module_c( P: program )
 
 	for Kobj: ptr<kobj> in KobjList {
 		for Attr: ptr<attr> in Kobj->Attrs
-			attribute( Attr )
+			attribute( Kobj Attr )
 	}
 
 	for Kobj: ptr<kobj> in KobjList {
@@ -110,10 +109,12 @@ void module_c( P: program )
 	for Kobj: ptr<kobj> in KobjList {
 		for Attr: ptr<attr> in Kobj->Attrs {
 			send Output
-				"		case [Attr->Num]: {
-				"			ret = [Attr->Name]_show( kobj, kattr, buf );
-				"			break;
-				"		}
+				"case [Attr->Num]: {
+				"	struct [Kobj->TypeName] *obj = container_of( 
+				"			kobj, struct [Kobj->TypeName], kobj );
+				"	ret = [Kobj->TypeName]_[Attr->Name]_show( obj, buf );
+				"	break;
+				"}
 		}
 	}
 		
@@ -131,12 +132,16 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 
-	for Attr: ptr<attr> in RootKobj->Attrs {
-		send Output
-			"		case [Attr->Num]: {
-			"			ret = [Attr->Name]_store( kobj, kattr, buf, count );
-			"			break;
-			"		}
+	for Kobj: ptr<kobj> in KobjList {
+		for Attr: ptr<attr> in Kobj->Attrs {
+			send Output
+				"case [Attr->Num]: {
+				"	struct [Kobj->TypeName] *obj = container_of( 
+				"			kobj, struct [Kobj->TypeName], kobj );
+				"	ret = [Kobj->TypeName]_[Attr->Name]_store( obj, buf, count );
+				"	break;
+				"}
+		}
 	}
 
 	send Output

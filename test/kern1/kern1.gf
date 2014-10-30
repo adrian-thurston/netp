@@ -1,3 +1,4 @@
 module ring;
 
-attribute show store fuzz;
+attribute show store foo;
+attribute show store bar;

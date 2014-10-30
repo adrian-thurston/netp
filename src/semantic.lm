@@ -1,6 +1,5 @@
 
 global ModuleName: id
-global RootKobj: ptr<kobj>
 global KobjList: kobj_list = cons kobj_list[]
 
 void semanticAnalysis( P: program )
@@ -41,7 +40,7 @@ void semanticAnalysis( P: program )
 	}
 
 	# Make the root kobj.
-	RootKobj = new cons kobj( 'root' )[]
+	RootKobj: ptr<kobj> = new cons kobj( $ModuleName )[]
 	RootKobj->Attrs = cons attr_list[]
 	KobjList.push_tail( RootKobj )
 
