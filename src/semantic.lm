@@ -1,7 +1,7 @@
 
 global ModuleName: id
 
-global RootAttrs: attribute_decl* = cons attribute_decl*[]
+global RootAttrs: attr_decl* = cons attr_decl*[]
 
 void semanticAnalysis( P: program )
 {
@@ -42,13 +42,13 @@ void semanticAnalysis( P: program )
 
 	# Find the root attributes
 	match P [DefList: definition*]
-	AL: attribute_decl* = cons attribute_decl*[]
+	AL: attr_decl* = cons attr_decl*[]
 	for Def: definition in repeat( DefList ) {
-		if match Def [AD: attribute_decl] {
+		if match Def [AD: attr_decl] {
 			# This should be an append, doesn't exist in colm.
-			for L: attribute_decl* in AL {
+			for L: attr_decl* in AL {
 				if match L [] {
-					L = cons attribute_decl*[AD]
+					L = cons attr_decl*[AD]
 					break
 				}
 			}

@@ -12,7 +12,7 @@ syntax keyword Type
 	\ message thread module attribute
 
 syntax keyword Keyword
-	\ starts sends to
+	\ starts sends to read write
 
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 

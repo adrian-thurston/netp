@@ -12,7 +12,7 @@ void attribute( Attr: id )
 		"static ssize_t [Attr]_store( struct kobject *kobj,
 		"		struct kobj_attribute *attr, const char *buf, size_t count )
 		"{
-		"	sscanf(buf, \"%du\", &[Attr]);
+		"	sscanf( buf, \"%du\", &[Attr] );
 		"	return count;
 		"}
 		"
@@ -30,23 +30,29 @@ void module_c( P: program )
 		"#include <linux/module.h>
 		"#include <linux/init.h>
 		"#include <linux/kobject.h>
+		"#include <linux/slab.h>
 		"
 		"/* Lie to make it compile. */
 		"MODULE_LICENSE( \"GPL\" );
 		"MODULE_AUTHOR( \"Colm Networks\" );
 		"MODULE_DESCRIPTION( \"[ModuleName]\" );
 		"
-		"static struct kobject *[ModuleName]_kobj;
+		"struct [ModuleName]
+		"{
+		"	struct kobject kobj;
+		"};
+		"
+		"static struct [ModuleName] *root_obj;
 		"
 
 	match P [DefList: definition*]
-	for AD: attribute_decl in RootAttrs
+	for AD: attr_decl in RootAttrs
 		attribute( AD.id )
 
 	send Output
-		"static struct attribute *attrs\[\] = {
+		"static struct attribute *[ModuleName]_attrs\[\] = {
 
-	for AD: attribute_decl in repeat( RootAttrs ) {
+	for AD: attr_decl in repeat( RootAttrs ) {
 		send Output
 			"	&[AD.id]_attribute.attr,
 	}
@@ -55,24 +61,73 @@ void module_c( P: program )
 		"	NULL,
 		"};
 		"
-		"static struct attribute_group attr_group = {
-		"	.attrs = attrs,
+		"static struct attribute_group [ModuleName]_attr_group = {
+		"	.attrs = [ModuleName]_attrs,
+		"};
+		"
+		"static void [ModuleName]_release( struct kobject *kobj )
+		"{
+		"	// kfree(kobj);
+		"}
+		"
+		"static ssize_t [ModuleName]_attr_show( struct kobject *kobj, 
+		"		struct attribute *attr, char *buf)
+		"{
+		"	struct kobj_attribute *kattr;
+		"	ssize_t ret = -EIO;
+		"
+		"	kattr = [ModuleName]_container_of( attr, struct kobj_attribute, attr );
+		"	if ( kattr->show )
+		"		ret = kattr->show( kobj, kattr, buf );
+		"	return ret;
+		"}
+		"
+		"static ssize_t [ModuleName]_attr_store( struct kobject *kobj,
+		"		struct attribute *attr, const char *buf, size_t count )
+		"{
+		"	struct kobj_attribute *kattr;
+		"	ssize_t ret = -EIO;
+		" 
+		"	kattr = [ModuleName]_container_of( attr, struct kobj_attribute, attr );
+		"	if ( kattr->store )
+		"		ret = kattr->store( kobj, kattr, buf, count );
+		"	return ret;
+		"}
+		"
+		"const struct sysfs_ops [ModuleName]_sysfs_ops = {
+		"	.show   = [ModuleName]_attr_show,
+		"	.store  = [ModuleName]_attr_store,
+		"};
+		"EXPORT_SYMBOL_GPL([ModuleName]_sysfs_ops);
+		"
+		"static struct kobj_type [ModuleName]_ktype = {
+		"	.release        = [ModuleName]_release,
+		"	.sysfs_ops      = &[ModuleName]_sysfs_ops,
 		"};
 		"
 
 	send Output
-		"static int __init [ModuleName]_init(void)
+		"static int __init [ModuleName]_init( void )
 		"{
 		"	int retval;
 		"	printk( KERN_INFO \"[ModuleName] init\\n\" );
 		"
-		"	[ModuleName]_kobj = kobject_create_and_add( \"[ModuleName]\", NULL );
-		"	if ( ![ModuleName]_kobj )
+		"	root_obj = kzalloc( sizeof(*root_obj), GFP_KERNEL );
+		"	if ( ! root_obj )
 		"		return -ENOMEM;
 		"
-		"	retval = sysfs_create_group( [ModuleName]_kobj, &attr_group );
+		"	kobject_init( &root_obj->kobj, &[ModuleName]_ktype );
+		" 	kobject_add( &root_obj->kobj, NULL, \"[ModuleName]\" );
+#		" 	if ( retval ) {
+#		"		printk(KERN_WARNING "%s: kobject_add error: %d\n", __func__, retval);
+#		"		kobject_put(kobj);
+#		"		kobj = NULL;
+#		"	}
+#		"	return kobj;
+		"
+		"	retval = sysfs_create_group( &root_obj->kobj, &[ModuleName]_attr_group );
 		"	if ( retval )
-		"		kobject_put( [ModuleName]_kobj );
+		"		kobject_put( &root_obj->kobj );
 		"
 		"	return 0;
 		"}
@@ -81,7 +136,7 @@ void module_c( P: program )
 		"{
 		"	printk( KERN_INFO \"[ModuleName] exit\\n\" );
 		"
-		"	kobject_put( [ModuleName]_kobj );
+		"	kobject_put( &root_obj->kobj );
 		"}
 		"
 		"module_init( [ModuleName]_init );

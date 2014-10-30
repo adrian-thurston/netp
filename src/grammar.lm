@@ -2,7 +2,7 @@
 lex
 	literal `thread `message `option `module
 	literal `bool `string `long `attribute
-	literal `starts `sends `to
+	literal `starts `sends `to `read `write
 	literal `: `; `{ `}
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -56,8 +56,12 @@ def sends_to_decl
 def module_decl
 	[`module id `;]
 
-def attribute_decl
-	[`attribute id `;]
+def attr_modifier
+	[`read]
+|	[`write]
+
+def attr_decl
+	[`attribute attr_modifier+ id `;]
 
 def definition
 	[option_def]
@@ -66,7 +70,7 @@ def definition
 |	[starts_decl]
 |	[sends_to_decl]
 |	[module_decl]
-|	[attribute_decl]
+|	[attr_decl]
 
 def program
 	[definition*]
