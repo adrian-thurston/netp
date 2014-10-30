@@ -1,6 +1,8 @@
 
 global ModuleName: id
 
+global RootAttrs: attribute_decl* = cons attribute_decl*[]
+
 void semanticAnalysis( P: program )
 {
 	ModuleDecl: module_decl = module_decl in P
@@ -28,7 +30,7 @@ void semanticAnalysis( P: program )
 		Message: ptr<message> = findMessage( SendsTo.Message )
 		Receiver: ptr<thread> = findThread( SendsTo.Receiver )
 
-		# Record the sender->receiver  relationship
+		# Record the sender->receiver relationship
 		Sends: ptr<sends> = Sender->SendsMap.find( Receiver )
 		if ( !Sends ) {
 			Sends = new cons sends( Sender Receiver cons message_list[] )[]
@@ -37,4 +39,20 @@ void semanticAnalysis( P: program )
 		Sends->MessageList.push_tail( Message )
 		Receiver->RecvsList.push_tail( Message )
 	}
+
+	# Find the root attributes
+	match P [DefList: definition*]
+	AL: attribute_decl* = cons attribute_decl*[]
+	for Def: definition in repeat( DefList ) {
+		if match Def [AD: attribute_decl] {
+			# This should be an append, doesn't exist in colm.
+			for L: attribute_decl* in AL {
+				if match L [] {
+					L = cons attribute_decl*[AD]
+					break
+				}
+			}
+		}
+	}
+	RootAttrs = AL
 }

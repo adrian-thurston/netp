@@ -40,20 +40,15 @@ void module_c( P: program )
 		"
 
 	match P [DefList: definition*]
-	for Def: definition in repeat( DefList ) {
-		if match Def [AD: attribute_decl]
-			attribute( AD.id )
-	}
-
+	for AD: attribute_decl in RootAttrs
+		attribute( AD.id )
 
 	send Output
 		"static struct attribute *attrs\[\] = {
 
-	for Def: definition in repeat( DefList ) {
-		if match Def [AD: attribute_decl] {
-			send Output
-				"	&[AD.id]_attribute.attr,
-		}
+	for AD: attribute_decl in repeat( RootAttrs ) {
+		send Output
+			"	&[AD.id]_attribute.attr,
 	}
 
 	send Output
