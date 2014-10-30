@@ -9,7 +9,7 @@ syntax keyword Type
 	\ bool string long
 
 syntax keyword Type
-	\ message thread module attribute
+	\ message thread module attribute kobj
 
 syntax keyword Keyword
 	\ starts sends to show store

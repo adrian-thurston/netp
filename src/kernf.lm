@@ -55,10 +55,16 @@ void module_c( P: program )
 		"MODULE_AUTHOR( \"Colm Networks\" );
 		"MODULE_DESCRIPTION( \"[ModuleName]\" );
 		"
-		"struct [ModuleName]
-		"{
-		"	struct kobject kobj;
-		"};
+
+	for Kobj: ptr<kobj> in KobjList {
+		send Output
+			"struct [Kobj->TypeName]
+			"{
+			"	struct kobject kobj;
+			"};
+	}
+
+	send Output
 		"
 		"static struct [ModuleName] *root_obj;
 		"
@@ -76,22 +82,25 @@ void module_c( P: program )
 
 	for Kobj: ptr<kobj> in KobjList {
 		send Output
-			"static struct attribute *[ModuleName]_attrs\[\] = {
+			"static struct attribute *[Kobj->TypeName]_attrs\[\] = {
 
 		for Attr: ptr<attr> in Kobj->Attrs {
 			send Output
 				"	&[Attr->Name]_attribute.attr,
 		}
+
+		send Output
+			"	NULL,
+			"};
+
+		send Output
+			"static struct attribute_group [Kobj->TypeName]_attr_group = {
+			"	.attrs = [Kobj->TypeName]_attrs,
+			"};
+			"
 	}
 
 	send Output
-		"	NULL,
-		"};
-		"
-		"static struct attribute_group [ModuleName]_attr_group = {
-		"	.attrs = [ModuleName]_attrs,
-		"};
-		"
 		"static void [ModuleName]_release( struct kobject *kobj )
 		"{
 		"	// kfree(kobj);

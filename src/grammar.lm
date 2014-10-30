@@ -2,7 +2,7 @@
 lex
 	literal `thread `message `option `module
 	literal `bool `string `long `attribute
-	literal `starts `sends `to `show `store
+	literal `starts `sends `to `show `store `kobj
 	literal `: `; `{ `}
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -63,6 +63,9 @@ def attr_modifier
 def attr_decl
 	[`attribute attr_modifier+ id `;]
 
+def kobj_def
+	[`kobj id `{ attr_decl* `} `;]
+
 def definition
 	[option_def]
 |	[thread_def]
@@ -71,6 +74,7 @@ def definition
 |	[sends_to_decl]
 |	[module_decl]
 |	[attr_decl]
+|	[kobj_def]
 
 def program
 	[definition*]

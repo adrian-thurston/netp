@@ -2,6 +2,25 @@
 global ModuleName: id
 global KobjList: kobj_list = cons kobj_list[]
 
+global AttrNum: int = 1
+
+void attrDecl( Kobj: ptr<kobj> AD: attr_decl )
+{
+	Attr: ptr<attr> = new cons attr( $AD.id )[]
+
+	for Mod: attr_modifier in AD {
+		if match Mod [`show]
+			Attr->Show = true
+		elsif match Mod [`store]
+			Attr->Store = true
+	}
+
+	Attr->Num = AttrNum
+	Kobj->Attrs.push_tail( Attr )
+
+	AttrNum = AttrNum + 1
+}
+
 void semanticAnalysis( P: program )
 {
 	ModuleDecl: module_decl = module_decl in P
@@ -44,25 +63,18 @@ void semanticAnalysis( P: program )
 	RootKobj->Attrs = cons attr_list[]
 	KobjList.push_tail( RootKobj )
 
-	AttrNum: int = 1
-
 	# Find the root attributes
 	match P [DefList: definition*]
 	for Def: definition in repeat( DefList ) {
-		if match Def [AD: attr_decl] {
-			Attr: ptr<attr> = new cons attr( $AD.id )[]
+		if match Def [AD: attr_decl]
+			attrDecl( RootKobj AD )
+	}
 
-			for Mod: attr_modifier in AD {
-				if match Mod [`show]
-					Attr->Show = true
-				elsif match Mod [`store]
-					Attr->Store = true
-			}
-
-			Attr->Num = AttrNum
-			RootKobj->Attrs.push_tail( Attr )
-
-			AttrNum = AttrNum + 1
-		}
+	for KD: kobj_def in P {
+		Kobj: ptr<kobj> = new cons kobj( $KD.id )[]
+		Kobj->Attrs = cons attr_list[]
+		for AD: attr_decl in KD 
+			attrDecl( Kobj AD )
+		KobjList.push_tail( Kobj )
 	}
 }
