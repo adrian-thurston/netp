@@ -4,20 +4,20 @@ void attribute( Attr: id )
 		"static int [Attr];
 		"
 		"static ssize_t [Attr]_show( struct kobject *kobj, struct 
-		"		kobj_attribute *attr, char *buf )
+		"		[ModuleName]_attribute *attr, char *buf )
 		"{
 		"	return sprintf( buf, \"%d\\n\", [Attr] );
 		"}
 		"
 		"static ssize_t [Attr]_store( struct kobject *kobj,
-		"		struct kobj_attribute *attr, const char *buf, size_t count )
+		"		struct [ModuleName]_attribute *attr, const char *buf, size_t count )
 		"{
 		"	sscanf( buf, \"%du\", &[Attr] );
 		"	return count;
 		"}
 		"
-		"static struct kobj_attribute [Attr]_attribute =
-		"	__ATTR( [Attr], 0666, [Attr]_show, [Attr]_store );
+		"static struct [ModuleName]_attribute [Attr]_attribute =
+		"	__ATTR( [Attr], 0666, 1, 2 );
 		"
 }
 
@@ -43,6 +43,13 @@ void module_c( P: program )
 		"};
 		"
 		"static struct [ModuleName] *root_obj;
+		"
+		"struct [ModuleName]_attribute
+		"{
+		"	struct attribute attr;
+		"	unsigned int show;
+		"	unsigned int store;
+		"};
 		"
 
 	match P [DefList: definition*]
@@ -73,24 +80,30 @@ void module_c( P: program )
 		"static ssize_t [ModuleName]_attr_show( struct kobject *kobj, 
 		"		struct attribute *attr, char *buf)
 		"{
-		"	struct kobj_attribute *kattr;
+		"	struct [ModuleName]_attribute *kattr;
 		"	ssize_t ret = -EIO;
 		"
-		"	kattr = [ModuleName]_container_of( attr, struct kobj_attribute, attr );
-		"	if ( kattr->show )
-		"		ret = kattr->show( kobj, kattr, buf );
+		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
+		"	switch ( kattr->show ) {
+		"		case 1:
+		"			ret = fuzz_show( kobj, kattr, buf );
+		"			break;
+		"	}
 		"	return ret;
 		"}
 		"
 		"static ssize_t [ModuleName]_attr_store( struct kobject *kobj,
 		"		struct attribute *attr, const char *buf, size_t count )
 		"{
-		"	struct kobj_attribute *kattr;
+		"	struct [ModuleName]_attribute *kattr;
 		"	ssize_t ret = -EIO;
 		" 
-		"	kattr = [ModuleName]_container_of( attr, struct kobj_attribute, attr );
-		"	if ( kattr->store )
-		"		ret = kattr->store( kobj, kattr, buf, count );
+		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
+		"	switch ( kattr->store ) {
+		"		case 2:
+		"			ret = fuzz_store( kobj, kattr, buf, count );
+		"			break;
+		"	}
 		"	return ret;
 		"}
 		"
@@ -98,6 +111,7 @@ void module_c( P: program )
 		"	.show   = [ModuleName]_attr_show,
 		"	.store  = [ModuleName]_attr_store,
 		"};
+		"
 		"EXPORT_SYMBOL_GPL([ModuleName]_sysfs_ops);
 		"
 		"static struct kobj_type [ModuleName]_ktype = {
