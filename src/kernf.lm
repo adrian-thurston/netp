@@ -19,24 +19,47 @@ alias kobj_list
 void attribute( Kobj: ptr<kobj> Attr: ptr<attr> )
 {
 	send Output
-		"static int [Attr->Name];
-		"
 		"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
-		"		struct [Kobj->TypeName] *obj, char *buf )
-		"{
-		"	return sprintf( buf, \"%d\\n\", [Attr->Name] );
-		"}
+		"		struct [Kobj->TypeName] *obj, char *buf );
 		"
 		"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
-		"		struct [Kobj->TypeName] *obj, const char *buf, size_t count )
-		"{
-		"	sscanf( buf, \"%du\", &[Attr->Name] );
-		"	return count;
-		"}
+		"		struct [Kobj->TypeName] *obj, const char *buf, size_t count );
 		"
-		"static struct [ModuleName]_attribute [Attr->Name]_attribute =
+		"struct [ModuleName]_attribute [Attr->Name]_attribute =
 		"	{ { .name = \"[Attr->Name]\", .mode = 0666 }, [Attr->Num] };
 		"
+}
+
+void attribute2( Kobj: ptr<kobj> Attr: ptr<attr> )
+{
+	send Output
+		"struct [Kobj->TypeName];
+		"
+		"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
+		"		struct [Kobj->TypeName] *obj, char *buf );
+		"
+		"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
+		"		struct [Kobj->TypeName] *obj, const char *buf, size_t count );
+}
+
+void attribute_h( P: program )
+{
+	Output = cons parser<out_c::out_c>[]
+
+	send Output
+		"#ifndef __ATTRIBUTE_H
+		"#define __ATTRIBUTE_H
+
+	for Kobj: ptr<kobj> in KobjList {
+		for Attr: ptr<attr> in Kobj->Attrs
+			attribute2( Kobj Attr )
+	}
+
+	send Output
+		"#endif
+
+	send Output [] eos
+	writeOutput( Output.tree 'attribute.h' )
 }
 
 void module_c( P: program )
@@ -55,14 +78,7 @@ void module_c( P: program )
 		"MODULE_AUTHOR( \"Colm Networks\" );
 		"MODULE_DESCRIPTION( \"[ModuleName]\" );
 		"
-
-	for Kobj: ptr<kobj> in KobjList {
-		send Output
-			"struct [Kobj->TypeName]
-			"{
-			"	struct kobject kobj;
-			"};
-	}
+		"#include \"attribute.h\"
 
 	send Output
 		"
@@ -79,6 +95,9 @@ void module_c( P: program )
 		for Attr: ptr<attr> in Kobj->Attrs
 			attribute( Kobj Attr )
 	}
+
+	send Output
+		"#include \"attribute.c\"
 
 	for Kobj: ptr<kobj> in KobjList {
 		send Output
@@ -218,6 +237,8 @@ void makefile( P: program )
 	send Output
 		"obj-m := [ModuleName].o
 		"[ModuleName]-objs := module.o
+		"
+		"module.o: attribute.h attribute.c
 
 	send Output [] eos
 	writeOutput( Output.tree 'Kbuild' )
@@ -231,5 +252,6 @@ void generateKernf( P: program )
 	}
 
 	module_c( P )
+	attribute_h( P )
 	makefile( P )
 }
