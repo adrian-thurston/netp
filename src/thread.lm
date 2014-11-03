@@ -4,7 +4,7 @@ def thread
 	Upper: str
 	Starts: list2<ptr<thread>>
 	StartedBy: ptr<thread>
-	SendsMap: map<ptr<thread> ptr<sends>>
+	SendsMap: map2<ptr<thread> ptr<sends>>
 	RecvsList: list2<ptr<message>>
 	[]
 
@@ -19,15 +19,15 @@ def sends
 	MessageList: list2<ptr<message>>
 	[]
 
-global ThreadMap: map<str ptr<thread>> = cons map<str ptr<thread>>[]
-global MessageMap: map<str ptr<message>> = cons map<str ptr<message>>[]
+global ThreadMap: map2<str ptr<thread>> = new2 map2<str ptr<thread>>
+global MessageMap: map2<str ptr<message>> = new2 map2<str ptr<message>>
 
 #
 # Thread map.
 #
 ptr<thread> findThread( Id: id )
 {
-	Thread: ptr<thread> = ThreadMap.find( $Id )
+	Thread: ptr<thread> = ThreadMap->find( $Id )
 	if ! Thread {
 		send stderr "inp:[Id.line]: failed to locate thread [Id]
 		exit( 1 )
@@ -41,7 +41,7 @@ ptr<thread> consThread( ThreadDef: thread_def )
 	Thread->Lower = tolower( Thread->Id )
 	Thread->Upper = toupper( Thread->Id )
 	Thread->Starts = new2 list2<ptr<thread>>
-	Thread->SendsMap = cons map<ptr<thread> ptr<sends>>[]
+	Thread->SendsMap = new2 map2<ptr<thread> ptr<sends>>
 	Thread->RecvsList = new2 list2<ptr<message>>
 	return Thread
 }
@@ -51,7 +51,7 @@ ptr<thread> consThread( ThreadDef: thread_def )
 #
 ptr<message> findMessage( Id: id )
 {
-	Message: ptr<message> = MessageMap.find( $Id )
+	Message: ptr<message> = MessageMap->find( $Id )
 	if ! Message {
 		send stderr "inp:[Id.line]: failed to locate message [Id]
 		exit( 1 )
@@ -68,7 +68,7 @@ ptr<message> consMessage( MessageDef: message_def )
 
 void sendsToDecls( Thread: ptr<thread> )
 {
-	for Sends: ptr<sends> in Thread->SendsMap {
+	for Sends: ptr<sends> in deref Thread->SendsMap {
 		send Output
 			"struct SendsTo[Sends->Receiver->Id]
 			"{
@@ -99,7 +99,7 @@ void recvDecls( Thread: ptr<thread> )
 
 void sendsToCode( Thread: ptr<thread> )
 {
-	for Sends: ptr<sends> in Thread->SendsMap {
+	for Sends: ptr<sends> in deref Thread->SendsMap {
 		send Output
 			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
 					"registerSendsTo[Sends->Receiver->Id]( "
@@ -204,7 +204,7 @@ void threadIncludes( Thread: ptr<thread> )
 			"#include \"[Child->Lower].h\"
 	}
 
-	for Sends: ptr<sends> in Thread->SendsMap {
+	for Sends: ptr<sends> in deref Thread->SendsMap {
 		send Output
 			"#include \"[Sends->Receiver->Lower].h\"
 	}
@@ -220,7 +220,7 @@ void threadForwards( Thread: ptr<thread> )
 			"struct [Child->Id]Thread;
 	}
 
-	for Sends: ptr<sends> in Thread->SendsMap {
+	for Sends: ptr<sends> in deref Thread->SendsMap {
 		for Message: ptr<message> in deref Sends->MessageList {
 			send Output
 				"struct [Message->Id];

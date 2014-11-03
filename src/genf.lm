@@ -30,7 +30,7 @@ void generateCode( P: program )
 	generateMainHeader( P )
 	generateMainCode( P )
 
-	for Thread: ptr<thread> in ThreadMap {
+	for Thread: ptr<thread> in deref ThreadMap {
 		if ( Thread->Id != 'Main' ) {
 			generateThreadHeader( Thread )
 			generateThreadCode( Thread )
