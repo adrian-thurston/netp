@@ -2,40 +2,25 @@ def thread
 	Id: str
 	Lower: str
 	Upper: str
-	Starts: thread_list
+	Starts: list2<ptr<thread>>
 	StartedBy: ptr<thread>
-	SendsMap: sends_map
-	RecvsList: message_list
+	SendsMap: map<ptr<thread> ptr<sends>>
+	RecvsList: list2<ptr<message>>
 	[]
-
-alias thread_map
-	map<str ptr<thread>>
-
-alias thread_list
-	list<ptr<thread>>
 
 def message
 	Id: str
 	MessageDef: message_def
 	[]
 
-alias message_map
-	map<str ptr<message>>
-
-alias message_list
-	list<ptr<message>>
-
 def sends
 	Sender: ptr<thread>
 	Receiver: ptr<thread>
-	MessageList: message_list
+	MessageList: list2<ptr<message>>
 	[]
 
-alias sends_map
-	map<ptr<thread> ptr<sends>>
-
-global ThreadMap: thread_map = cons thread_map[]
-global MessageMap: message_map = cons message_map[]
+global ThreadMap: map<str ptr<thread>> = cons map<str ptr<thread>>[]
+global MessageMap: map<str ptr<message>> = cons map<str ptr<message>>[]
 
 #
 # Thread map.
@@ -55,9 +40,9 @@ ptr<thread> consThread( ThreadDef: thread_def )
 	Thread: ptr<thread> = new cons thread( $ThreadDef.id )[]
 	Thread->Lower = tolower( Thread->Id )
 	Thread->Upper = toupper( Thread->Id )
-	Thread->Starts = cons thread_list[]
-	Thread->SendsMap = cons sends_map[]
-	Thread->RecvsList = cons message_list[]
+	Thread->Starts = new2 list2<ptr<thread>>
+	Thread->SendsMap = cons map<ptr<thread> ptr<sends>>[]
+	Thread->RecvsList = new2 list2<ptr<message>>
 	return Thread
 }
 
@@ -89,7 +74,7 @@ void sendsToDecls( Thread: ptr<thread> )
 			"{
 			"	ItWriter *writer;
 
-		for Message: ptr<message> in Sends->MessageList {
+		for Message: ptr<message> in deref Sends->MessageList {
 			send Output
 				"	[Message->Id] *open[Message->Id]()
 				"		{ return [Message->Id]::open( writer ); }
@@ -106,7 +91,7 @@ void sendsToDecls( Thread: ptr<thread> )
 
 void recvDecls( Thread: ptr<thread> )
 {
-	for Message: ptr<message> in Thread->RecvsList {
+	for Message: ptr<message> in deref Thread->RecvsList {
 		send Output
 			"	virtual void recv[Message->Id]( [Message->Id] * ) = 0;
 	}
@@ -176,7 +161,7 @@ void generateThreadHeader( Thread: ptr<thread> )
 
 void createChildDecls( Thread: ptr<thread> )
 {
-	for Child: ptr<thread> in Thread->Starts {
+	for Child: ptr<thread> in deref Thread->Starts {
 		send Output
 			"	void create( [Child->Id]Thread *child );
 	}
@@ -185,7 +170,7 @@ void createChildDecls( Thread: ptr<thread> )
 
 void createChildDefs( Thread: ptr<thread> )
 {
-	for Child: ptr<thread> in Thread->Starts {
+	for Child: ptr<thread> in deref Thread->Starts {
 		send Output
 			"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
 			"{
@@ -214,7 +199,7 @@ void joinDef( Thread: ptr<thread> )
 
 void threadIncludes( Thread: ptr<thread> )
 {
-	for Child: ptr<thread> in Thread->Starts {
+	for Child: ptr<thread> in deref Thread->Starts {
 		send Output
 			"#include \"[Child->Lower].h\"
 	}
@@ -229,14 +214,14 @@ void threadIncludes( Thread: ptr<thread> )
 
 void threadForwards( Thread: ptr<thread> )
 {
-	for Child: ptr<thread> in Thread->Starts {
+	for Child: ptr<thread> in deref Thread->Starts {
 		send Output
 			"struct [Child->Id]Gen;
 			"struct [Child->Id]Thread;
 	}
 
 	for Sends: ptr<sends> in Thread->SendsMap {
-		for Message: ptr<message> in Sends->MessageList {
+		for Message: ptr<message> in deref Sends->MessageList {
 			send Output
 				"struct [Message->Id];
 		}
@@ -282,7 +267,7 @@ void generateThreadCode( Thread: ptr<thread> )
 		"		ItHeader *header = control.wait();
 		"		switch ( header->msgId ) {
 
-	for Message: ptr<message> in Thread->RecvsList {
+	for Message: ptr<message> in deref Thread->RecvsList {
 		send Output
 			"			case [Message->Id]::ID: {
 			"				[Message->Id] *msg = [Message->Id]::read( &control, header );

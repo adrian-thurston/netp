@@ -5,16 +5,10 @@ def attr
 	Store: bool
 	[]
 
-alias attr_list
-	list<ptr<attr>>
-
 def kobj
 	TypeName: str
-	Attrs: attr_list
+	Attrs: list2<ptr<attr>>
 	[]
-
-alias kobj_list
-	list<ptr<kobj>>
 
 void attribute( Kobj: ptr<kobj> Attr: ptr<attr> )
 {
@@ -50,8 +44,8 @@ void attribute_h( P: program )
 		"#ifndef __ATTRIBUTE_H
 		"#define __ATTRIBUTE_H
 
-	for Kobj: ptr<kobj> in KobjList {
-		for Attr: ptr<attr> in Kobj->Attrs
+	for Kobj: ptr<kobj> in deref KobjList {
+		for Attr: ptr<attr> in deref Kobj->Attrs
 			attribute2( Kobj Attr )
 	}
 
@@ -91,19 +85,19 @@ void module_c( P: program )
 		"};
 		"
 
-	for Kobj: ptr<kobj> in KobjList {
-		for Attr: ptr<attr> in Kobj->Attrs
+	for Kobj: ptr<kobj> in deref KobjList {
+		for Attr: ptr<attr> in deref Kobj->Attrs
 			attribute( Kobj Attr )
 	}
 
 	send Output
 		"#include \"attribute.c\"
 
-	for Kobj: ptr<kobj> in KobjList {
+	for Kobj: ptr<kobj> in deref KobjList {
 		send Output
 			"static struct attribute *[Kobj->TypeName]_attrs\[\] = {
 
-		for Attr: ptr<attr> in Kobj->Attrs {
+		for Attr: ptr<attr> in deref Kobj->Attrs {
 			send Output
 				"	&[Attr->Name]_attribute.attr,
 		}
@@ -134,8 +128,8 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 		
-	for Kobj: ptr<kobj> in KobjList {
-		for Attr: ptr<attr> in Kobj->Attrs {
+	for Kobj: ptr<kobj> in deref KobjList {
+		for Attr: ptr<attr> in deref Kobj->Attrs {
 			send Output
 				"case [Attr->Num]: {
 				"	struct [Kobj->TypeName] *obj = container_of( 
@@ -160,8 +154,8 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 
-	for Kobj: ptr<kobj> in KobjList {
-		for Attr: ptr<attr> in Kobj->Attrs {
+	for Kobj: ptr<kobj> in deref KobjList {
+		for Attr: ptr<attr> in deref Kobj->Attrs {
 			send Output
 				"case [Attr->Num]: {
 				"	struct [Kobj->TypeName] *obj = container_of( 
@@ -252,6 +246,6 @@ void generateKernf( P: program )
 	}
 
 	module_c( P )
-	attribute_h( P )
-	makefile( P )
+#	attribute_h( P )
+#	makefile( P )
 }
