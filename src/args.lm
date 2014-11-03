@@ -39,8 +39,8 @@ void parseArgs()
 	cons ArgParser: parser<args::args>[]
 
 	# Parse the args and extract the result into Args.
-	ArgV: list<str> = argv
-	for A: str in ArgV
+	ArgV: list2<str> = argv
+	for A: str in deref ArgV
 		send ArgParser [A '\0']
 	Args: args::args = ArgParser.finish()
 
