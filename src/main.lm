@@ -1,7 +1,7 @@
 void generateMainHeader( P: program )
 {
 	Output = cons parser<out_c::out_c>[]
-	Thread: ptr<thread> = ThreadMap->find( 'Main' )
+	Thread: thread = ThreadMap->find( 'Main' )
 
 	send Output
 		~/*
@@ -220,7 +220,7 @@ void parseOptions( P: ref<program> )
 void generateMainCode( P: ref<program> )
 {
 	Output = cons parser<out_c::out_c>[]
-	Thread: ptr<thread> = ThreadMap->find( 'Main' )
+	Thread: thread = ThreadMap->find( 'Main' )
 
 	send Output
 		~/*

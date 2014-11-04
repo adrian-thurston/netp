@@ -1,16 +1,16 @@
-def attr
+context attr
 	Name: str
 	Num: int
 	Show: bool
 	Store: bool
-	[]
+end
 
-def kobj
+context kobj
 	TypeName: str
-	Attrs: list2<ptr<attr>>
-	[]
+	Attrs: list<attr>
+end
 
-void attribute( Kobj: ptr<kobj> Attr: ptr<attr> )
+void attribute( Kobj: kobj Attr: attr )
 {
 	send Output
 		"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
@@ -24,7 +24,7 @@ void attribute( Kobj: ptr<kobj> Attr: ptr<attr> )
 		"
 }
 
-void attribute2( Kobj: ptr<kobj> Attr: ptr<attr> )
+void attribute2( Kobj: kobj Attr: attr )
 {
 	send Output
 		"struct [Kobj->TypeName];
@@ -44,8 +44,8 @@ void attribute_h( P: program )
 		"#ifndef __ATTRIBUTE_H
 		"#define __ATTRIBUTE_H
 
-	for Kobj: ptr<kobj> in deref KobjList {
-		for Attr: ptr<attr> in deref Kobj->Attrs
+	for Kobj: kobj in deref KobjList {
+		for Attr: attr in deref Kobj->Attrs
 			attribute2( Kobj Attr )
 	}
 
@@ -85,19 +85,19 @@ void module_c( P: program )
 		"};
 		"
 
-	for Kobj: ptr<kobj> in deref KobjList {
-		for Attr: ptr<attr> in deref Kobj->Attrs
+	for Kobj: kobj in deref KobjList {
+		for Attr: attr in deref Kobj->Attrs
 			attribute( Kobj Attr )
 	}
 
 	send Output
 		"#include \"attribute.c\"
 
-	for Kobj: ptr<kobj> in deref KobjList {
+	for Kobj: kobj in deref KobjList {
 		send Output
 			"static struct attribute *[Kobj->TypeName]_attrs\[\] = {
 
-		for Attr: ptr<attr> in deref Kobj->Attrs {
+		for Attr: attr in deref Kobj->Attrs {
 			send Output
 				"	&[Attr->Name]_attribute.attr,
 		}
@@ -128,8 +128,8 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 		
-	for Kobj: ptr<kobj> in deref KobjList {
-		for Attr: ptr<attr> in deref Kobj->Attrs {
+	for Kobj: kobj in deref KobjList {
+		for Attr: attr in deref Kobj->Attrs {
 			send Output
 				"case [Attr->Num]: {
 				"	struct [Kobj->TypeName] *obj = container_of( 
@@ -154,8 +154,8 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 
-	for Kobj: ptr<kobj> in deref KobjList {
-		for Attr: ptr<attr> in deref Kobj->Attrs {
+	for Kobj: kobj in deref KobjList {
+		for Attr: attr in deref Kobj->Attrs {
 			send Output
 				"case [Attr->Num]: {
 				"	struct [Kobj->TypeName] *obj = container_of( 

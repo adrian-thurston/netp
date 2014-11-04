@@ -18,7 +18,7 @@ void generateItqHeader( P: program )
 
 	ID: int = 1
 
-	for Message: ptr<message> in MessageMap {
+	for Message: message in deref MessageMap {
 		send Output
 			"struct [Message->Id]
 			"{

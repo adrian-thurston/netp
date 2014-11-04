@@ -1,12 +1,13 @@
 
 global ModuleName: id
-global KobjList: list2<ptr<kobj>> = new2 list2<ptr<kobj>>
+global KobjList: list<kobj> = new list<kobj>
 
 global AttrNum: int = 1
 
-void attrDecl( Kobj: ptr<kobj> AD: attr_decl )
+void attrDecl( Kobj: kobj AD: attr_decl )
 {
-	Attr: ptr<attr> = new cons attr( $AD.id )[]
+	Attr: attr = new attr
+	Attr->Name = $AD.id
 
 	for Mod: attr_modifier in AD {
 		if match Mod [`show]
@@ -28,30 +29,34 @@ void semanticAnalysis( P: program )
 		ModuleName = ModuleDecl.id
 	
 	for ThreadDef: thread_def in P {
-		Thread: ptr<thread> = consThread( ThreadDef )[]
+		Thread: thread = consThread( ThreadDef )[]
 		ThreadMap->insert( $ThreadDef.id Thread )
 	}
 
 	for MessageDef: message_def in P {
-		Message: ptr<message> = consMessage( MessageDef )[]
+		Message: message = consMessage( MessageDef )[]
 		MessageMap->insert( $MessageDef.id Message )
 	}
 
 	for StartsDecl: starts_decl in P {
-		Owner: ptr<thread> = findThread( StartsDecl.Owner )
-		Thread: ptr<thread> = findThread( StartsDecl.Thread )
+		Owner: thread = findThread( StartsDecl.Owner )
+		Thread: thread = findThread( StartsDecl.Thread )
 		Owner->Starts->push_tail( Thread )
 	}
 
 	for SendsTo: sends_to_decl in P {
-		Sender: ptr<thread> = findThread( SendsTo.Sender )
-		Message: ptr<message> = findMessage( SendsTo.Message )
-		Receiver: ptr<thread> = findThread( SendsTo.Receiver )
+		Sender: thread = findThread( SendsTo.Sender )
+		Message: message = findMessage( SendsTo.Message )
+		Receiver: thread = findThread( SendsTo.Receiver )
 
 		# Record the sender->receiver relationship
-		Sends: ptr<sends> = Sender->SendsMap->find( Receiver )
+		Sends: sends = Sender->SendsMap->find( Receiver )
 		if ( !Sends ) {
-			Sends = new cons sends( Sender Receiver new2 list2<ptr<message>> )[]
+			Sends = new sends
+			Sends->Sender = Sender
+			Sends->Receiver = Receiver
+			Sends->MessageList = new list<message>
+
 			Sender->SendsMap->insert( Receiver Sends )
 		}
 		Sends->MessageList->push_tail( Message )
@@ -59,8 +64,10 @@ void semanticAnalysis( P: program )
 	}
 
 	# Make the root kobj.
-	RootKobj: ptr<kobj> = new cons kobj( $ModuleName )[]
-	RootKobj->Attrs = new2 list2<ptr<attr>>
+	RootKobj: kobj = new kobj
+	RootKobj->TypeName = $ModuleName
+	RootKobj->Attrs = new list<attr>
+
 	KobjList->push_tail( RootKobj )
 
 	# Find the root attributes
@@ -71,8 +78,9 @@ void semanticAnalysis( P: program )
 	}
 
 	for KD: kobj_def in P {
-		Kobj: ptr<kobj> = new cons kobj( $KD.id )[]
-		Kobj->Attrs = new2 list2<ptr<attr>>
+		Kobj: kobj = new kobj
+		Kobj->TypeName = $KD.id
+		Kobj->Attrs = new list<attr>
 		for AD: attr_decl in KD 
 			attrDecl( Kobj AD )
 		KobjList->push_tail( Kobj )
