@@ -36,13 +36,13 @@ end
 
 void parseArgs()
 {
-	cons ArgParser: parser<args::args>[]
+	ArgParser: parser<args::args> = new parser<args::args>
 
 	# Parse the args and extract the result into Args.
 	ArgV: list<str> = argv
 	for A: str in deref ArgV
 		send ArgParser [A '\0']
-	Args: args::args = ArgParser.finish()
+	Args: args::args = ArgParser->finish()
 
 	if !Args {
 		send stderr "genf: arg parsing failed

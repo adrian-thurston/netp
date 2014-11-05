@@ -1,6 +1,6 @@
 void generateMainHeader( P: program )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 	Thread: thread = ThreadMap->find( 'Main' )
 
 	send Output
@@ -51,7 +51,7 @@ void generateMainHeader( P: program )
 		~#endif
 
 	send Output [] eos
-	writeOutput( Output.tree 'main_gen.h' )
+	writeOutput( Output->tree 'main_gen.h' )
 }
 
 void optString( P: program )
@@ -219,7 +219,7 @@ void parseOptions( P: ref<program> )
 
 void generateMainCode( P: ref<program> )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 	Thread: thread = ThreadMap->find( 'Main' )
 
 	send Output
@@ -353,5 +353,5 @@ void generateMainCode( P: ref<program> )
 		~
 
 	send Output [] eos
-	writeOutput( Output.tree 'main_gen.cc' )
+	writeOutput( Output->tree 'main_gen.cc' )
 }

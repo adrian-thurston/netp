@@ -1,7 +1,7 @@
 
 void generateItqHeader( P: program )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 
 	send Output
 		~/*
@@ -53,12 +53,12 @@ void generateItqHeader( P: program )
 		~#endif
 		eos
 
-	writeOutput( Output.tree 'itq_gen.h' )
+	writeOutput( Output->tree 'itq_gen.h' )
 }
 
 void generateItqCode( P: program )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 
 	send Output
 		~/*
@@ -120,5 +120,5 @@ void generateItqCode( P: program )
 
 	send Output [] eos
 
-	writeOutput( Output.tree 'itq_gen.cc' )
+	writeOutput( Output->tree 'itq_gen.cc' )
 }

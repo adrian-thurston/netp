@@ -38,7 +38,7 @@ void attribute2( Kobj: kobj Attr: attr )
 
 void attribute_h( P: program )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 
 	send Output
 		"#ifndef __ATTRIBUTE_H
@@ -53,12 +53,12 @@ void attribute_h( P: program )
 		"#endif
 
 	send Output [] eos
-	writeOutput( Output.tree 'attribute.h' )
+	writeOutput( Output->tree 'attribute.h' )
 }
 
 void module_c( P: program )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 
 	send Output
 		"#include <linux/kernel.h>
@@ -221,12 +221,12 @@ void module_c( P: program )
 		"module_exit( [ModuleName]_exit );
 
 	send Output [] eos
-	writeOutput( Output.tree 'module.c' )
+	writeOutput( Output->tree 'module.c' )
 }
 
 void makefile( P: program )
 {
-	Output = cons parser<out_c::out_c>[]
+	Output = new parser<out_c::out_c>
 
 	send Output
 		"obj-m := [ModuleName].o
@@ -235,7 +235,7 @@ void makefile( P: program )
 		"module.o: attribute.h attribute.c
 
 	send Output [] eos
-	writeOutput( Output.tree 'Kbuild' )
+	writeOutput( Output->tree 'Kbuild' )
 }
 
 void generateKernf( P: program )
