@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+
+# Modified devnet KVM commands for setting up an inline passthrough. Really we
+# need to modify devnet so it can setup the passthrough bridge on the host,
+# issue these commands, then put the interfaces on the bridge.
+
+up=/opt/colm/libexec/devnet/nic-up
+down=/opt/colm/libexec/devnet/nic-down
+
+qemu-system-x86_64 -enable-kvm -daemonize \
+	-boot order=n -smp 1 -m 512 -vnc localhost:2 \
+	-pidfile /opt/colm/var/devnet/pid/vm-2.pid \
+	-hda /opt/colm/var/devnet/disk/disk-2.img \
+	-net tap,vlan=0,ifname=vn2,script=$up,downscript=$down \
+	-net nic,vlan=0,macaddr=00:00:36:9a:24:e5 \
+	-net tap,vlan=1,ifname=pt1 \
+	-net nic,vlan=1,macaddr=00:00:36:9a:24:e6 \
+	-net tap,vlan=2,ifname=pt2 \
+	-net nic,vlan=2,macaddr=00:00:36:9a:24:e7
+
+qemu-system-x86_64 -enable-kvm -daemonize \
+	-boot order=n -smp 1 -m 512 -vnc localhost:3 \
+	-pidfile /opt/colm/var/devnet/pid/vm-3.pid \
+	-hda /opt/colm/var/devnet/disk/disk-3.img \
+	-net tap,vlan=0,ifname=pt3 \
+	-net nic,vlan=0,macaddr=00:00:36:1e:84:f3
+
