@@ -4,3 +4,13 @@
 /config.h.in
 /config.h.in~
 /stamp-h1
+
+/.*.cmd
+/*.o
+
+/.tmp_versions
+/Module.symvers
+/filter.ko
+/filter.mod.c
+/module.c
+/modules.order

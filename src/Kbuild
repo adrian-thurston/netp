@@ -1,0 +1,4 @@
+obj-m := filter.o
+filter-objs := module.o
+
+module.o: attribute.h attribute.c
