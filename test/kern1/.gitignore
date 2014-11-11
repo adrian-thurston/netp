@@ -1,7 +1,6 @@
 .*.cmd
 Module.symvers
 modules.order
-Kbuild
 *.ko
 *.o
 *.mod.c
