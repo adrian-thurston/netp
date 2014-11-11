@@ -3,9 +3,11 @@
 # Python program for connecting to an imap server, starting TLS and issuing a
 # select command. First use case for connection hijacking.
 
-import imaplib, string, sys, os, re
+import imaplib, string, sys, os, re, time
 
 M = imaplib.IMAP4( '10.45.1.2' );
+
+time.sleep( 1 );
 M.starttls();
 M.login( 'colm', 'colm' );
 
