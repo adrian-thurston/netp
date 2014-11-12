@@ -239,7 +239,7 @@ void module_c( P: program )
 	}
 
 	send Output
-		"static int __init [ModuleName]_init( void )
+		"static int __init [ModuleName]_gen_init( void )
 		"{
 		"	int retval;
 		"	printk( KERN_INFO \"[ModuleName] init\\n\" );
@@ -248,18 +248,26 @@ void module_c( P: program )
 		"	if ( retval )
 		"		return retval;
 		"
+		"	retval = [ModuleName]_init();
+		"	if ( retval ) {
+		"		kobject_put( &root_obj->kobj );
+		"		return retval;
+		"	}
+		"
 		"	return 0;
 		"}
 		"
-		"static void __exit [ModuleName]_exit(void)
+		"static void __exit [ModuleName]_gen_exit(void)
 		"{
 		"	printk( KERN_INFO \"[ModuleName] exit\\n\" );
+		"
+		"	[ModuleName]_exit();
 		"
 		"	kobject_put( &root_obj->kobj );
 		"}
 		"
-		"module_init( [ModuleName]_init );
-		"module_exit( [ModuleName]_exit );
+		"module_init( [ModuleName]_gen_init );
+		"module_exit( [ModuleName]_gen_exit );
 
 	send Output [] eos
 	writeOutput( Output->tree 'module.c' )

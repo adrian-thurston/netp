@@ -30,3 +30,12 @@ static ssize_t ring_bar_store( struct ring *obj,
 	sscanf( buf, "%du", &n );
 	return count;
 }
+
+static int ring_init(void)
+{
+	return 0;
+}
+
+static void ring_exit(void)
+{
+}
