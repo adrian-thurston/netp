@@ -5,45 +5,31 @@ struct filter
 	struct kobject kobj;
 };
 
-struct device
+struct link
 {
 	struct kobject kobj;
 };
 
-static int n;
+struct link *lo;
 
-static ssize_t filter_foo_show( struct filter *obj, char *buf )
-{
-	return sprintf( buf, "%d\n", n );
-}
-
-static ssize_t filter_foo_store( struct filter *obj,
+static ssize_t filter_add_store( struct filter *obj,
 		const char *buf, size_t count )
 {
-	sscanf( buf, "%du", &n );
+	char link[32], inside[32], outside[32];
+	sscanf( buf, "%s %s %s", link, inside, outside );
+
+	create_link( &lo, &root_obj->kobj );
 	return count;
 }
 
-static ssize_t filter_bar_show( struct filter *obj, char *buf )
-{
-	return sprintf( buf, "%d\n", n );
-}
-
-static ssize_t filter_bar_store( struct filter *obj,
+static ssize_t filter_del_store( struct filter *obj,
 		const char *buf, size_t count )
 {
-	sscanf( buf, "%du", &n );
-	return count;
-}
+//	sscanf( buf, "%du", &n );
+	char link[32];
+	sscanf( buf, "%s", link );
 
-static ssize_t device_tracks_show( struct device *obj, char *buf )
-{
-	return sprintf( buf, "%d\n", n );
-}
 
-static ssize_t device_tracks_store( struct device *obj,
-		const char *buf, size_t count )
-{
-	sscanf( buf, "%du", &n );
+	kobject_put( &lo->kobj );
 	return count;
 }

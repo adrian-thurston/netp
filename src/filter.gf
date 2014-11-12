@@ -1,9 +1,8 @@
 module filter;
 
-kobj device
+kobj link
 {
-	attribute show store tracks;
 };
 
-attribute show store foo;
-attribute show store bar;
+attribute store add( string name, string inside, string outside );
+attribute store del( string name );

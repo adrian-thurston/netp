@@ -14,3 +14,5 @@
 /filter.mod.c
 /module.c
 /modules.order
+/Kbuild
+/attribute.h
