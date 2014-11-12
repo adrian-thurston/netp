@@ -10,30 +10,30 @@ context kobj
 	Attrs: list<attr>
 end
 
-void attribute( Kobj: kobj Attr: attr )
+void attributeStruct( Kobj: kobj Attr: attr )
 {
 	send Output
-		"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
-		"		struct [Kobj->TypeName] *obj, char *buf );
-		"
-		"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
-		"		struct [Kobj->TypeName] *obj, const char *buf, size_t count );
-		"
 		"struct [ModuleName]_attribute [Attr->Name]_attribute =
 		"	{ { .name = \"[Attr->Name]\", .mode = 0666 }, [Attr->Num] };
 		"
 }
 
-void attribute2( Kobj: kobj Attr: attr )
+void attributeDecl( Kobj: kobj Attr: attr )
 {
-	send Output
-		"struct [Kobj->TypeName];
-		"
-		"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
-		"		struct [Kobj->TypeName] *obj, char *buf );
-		"
-		"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
-		"		struct [Kobj->TypeName] *obj, const char *buf, size_t count );
+
+	if ( Attr->Show ) {
+		send Output
+			"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
+			"		struct [Kobj->TypeName] *obj, char *buf );
+			"
+	}
+
+	if ( Attr->Store ) {
+		send Output
+			"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
+			"		struct [Kobj->TypeName] *obj, const char *buf, size_t count );
+			"
+	}
 }
 
 void attribute_h( P: program )
@@ -45,8 +45,14 @@ void attribute_h( P: program )
 		"#define __ATTRIBUTE_H
 
 	for Kobj: kobj in deref KobjList {
+		send Output
+			"struct [Kobj->TypeName];
+			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
+			"		struct kobject *parent );
+			"
+
 		for Attr: attr in deref Kobj->Attrs
-			attribute2( Kobj Attr )
+			attributeDecl( Kobj Attr )
 	}
 
 	send Output
@@ -87,7 +93,7 @@ void module_c( P: program )
 
 	for Kobj: kobj in deref KobjList {
 		for Attr: attr in deref Kobj->Attrs
-			attribute( Kobj Attr )
+			attributeStruct( Kobj Attr )
 	}
 
 	send Output
@@ -113,12 +119,16 @@ void module_c( P: program )
 			"
 	}
 
+	for Kobj: kobj in deref KobjList {
+		send Output
+			"static void [Kobj->TypeName]_release( struct kobject *kobj )
+			"{
+			"	// kfree(kobj);
+			"}
+			"
+	}
+
 	send Output
-		"static void [ModuleName]_release( struct kobject *kobj )
-		"{
-		"	// kfree(kobj);
-		"}
-		"
 		"static ssize_t [ModuleName]_attr_show( struct kobject *kobj, 
 		"		struct attribute *attr, char *buf)
 		"{
@@ -130,13 +140,15 @@ void module_c( P: program )
 		
 	for Kobj: kobj in deref KobjList {
 		for Attr: attr in deref Kobj->Attrs {
-			send Output
-				"case [Attr->Num]: {
-				"	struct [Kobj->TypeName] *obj = container_of( 
-				"			kobj, struct [Kobj->TypeName], kobj );
-				"	ret = [Kobj->TypeName]_[Attr->Name]_show( obj, buf );
-				"	break;
-				"}
+			if ( Attr->Show ) {
+				send Output
+					"case [Attr->Num]: {
+					"	struct [Kobj->TypeName] *obj = container_of( 
+					"			kobj, struct [Kobj->TypeName], kobj );
+					"	ret = [Kobj->TypeName]_[Attr->Name]_show( obj, buf );
+					"	break;
+					"}
+			}
 		}
 	}
 		
@@ -145,6 +157,8 @@ void module_c( P: program )
 		"	return ret;
 		"}
 		"
+
+	send Output
 		"static ssize_t [ModuleName]_attr_store( struct kobject *kobj,
 		"		struct attribute *attr, const char *buf, size_t count )
 		"{
@@ -156,13 +170,15 @@ void module_c( P: program )
 
 	for Kobj: kobj in deref KobjList {
 		for Attr: attr in deref Kobj->Attrs {
-			send Output
-				"case [Attr->Num]: {
-				"	struct [Kobj->TypeName] *obj = container_of( 
-				"			kobj, struct [Kobj->TypeName], kobj );
-				"	ret = [Kobj->TypeName]_[Attr->Name]_store( obj, buf, count );
-				"	break;
-				"}
+			if ( Attr->Store ) {
+				send Output
+					"case [Attr->Num]: {
+					"	struct [Kobj->TypeName] *obj = container_of( 
+					"			kobj, struct [Kobj->TypeName], kobj );
+					"	ret = [Kobj->TypeName]_[Attr->Name]_store( obj, buf, count );
+					"	break;
+					"}
+			}
 		}
 	}
 
@@ -171,6 +187,8 @@ void module_c( P: program )
 		"	return ret;
 		"}
 		"
+
+	send Output
 		"const struct sysfs_ops [ModuleName]_sysfs_ops = {
 		"	.show   = [ModuleName]_attr_show,
 		"	.store  = [ModuleName]_attr_store,
@@ -178,11 +196,47 @@ void module_c( P: program )
 		"
 		"EXPORT_SYMBOL_GPL([ModuleName]_sysfs_ops);
 		"
-		"static struct kobj_type [ModuleName]_ktype = {
-		"	.release        = [ModuleName]_release,
-		"	.sysfs_ops      = &[ModuleName]_sysfs_ops,
-		"};
-		"
+
+	for Kobj: kobj in deref KobjList {
+		send Output
+			"static struct kobj_type [Kobj->TypeName]_ktype = {
+			"	.release        = [Kobj->TypeName]_release,
+			"	.sysfs_ops      = &[ModuleName]_sysfs_ops,
+			"};
+			"
+	}
+
+	for Kobj: kobj in deref KobjList {
+		send Output
+			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
+			"		struct kobject *parent )
+			"{
+			"	int retval;
+			"	struct [Kobj->TypeName] *obj;
+			"
+			"	obj = kzalloc( sizeof(struct [Kobj->TypeName]), GFP_KERNEL );
+			"	if ( ! obj )
+			"		return -ENOMEM;
+			"
+			"	kobject_init( &obj->kobj, &[Kobj->TypeName]_ktype );
+			" 	kobject_add( &obj->kobj, parent, \"[Kobj->TypeName]\" );
+	#		" 	if ( retval ) {
+	#		"		printk(KERN_WARNING "%s: kobject_add error: %d\n", __func__, retval);
+	#		"		kobject_put(kobj);
+	#		"		kobj = NULL;
+	#		"	}
+	#		"	return kobj;
+			"
+			"	retval = sysfs_create_group( &obj->kobj, &[Kobj->TypeName]_attr_group );
+			"	if ( retval ) {
+			"		kobject_put( &obj->kobj );
+			"		return retval;
+			"	}
+			"
+			"	*ret_obj = obj;
+			"	return 0;
+			"}
+	}
 
 	send Output
 		"static int __init [ModuleName]_init( void )
@@ -190,22 +244,9 @@ void module_c( P: program )
 		"	int retval;
 		"	printk( KERN_INFO \"[ModuleName] init\\n\" );
 		"
-		"	root_obj = kzalloc( sizeof(*root_obj), GFP_KERNEL );
-		"	if ( ! root_obj )
-		"		return -ENOMEM;
-		"
-		"	kobject_init( &root_obj->kobj, &[ModuleName]_ktype );
-		" 	kobject_add( &root_obj->kobj, NULL, \"[ModuleName]\" );
-#		" 	if ( retval ) {
-#		"		printk(KERN_WARNING "%s: kobject_add error: %d\n", __func__, retval);
-#		"		kobject_put(kobj);
-#		"		kobj = NULL;
-#		"	}
-#		"	return kobj;
-		"
-		"	retval = sysfs_create_group( &root_obj->kobj, &[ModuleName]_attr_group );
+		"	retval = create_[ModuleName]( &root_obj, NULL );
 		"	if ( retval )
-		"		kobject_put( &root_obj->kobj );
+		"		return retval;
 		"
 		"	return 0;
 		"}

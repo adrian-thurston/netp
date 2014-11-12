@@ -3,7 +3,7 @@ lex
 	literal `thread `message `option `module
 	literal `bool `string `long `attribute
 	literal `starts `sends `to `show `store `kobj
-	literal `: `; `{ `}
+	literal `: `; `{ `} `, `( `)
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
 
@@ -60,8 +60,23 @@ def attr_modifier
 	[`show]
 |	[`store]
 
+def attr_arg_type
+	[`bool]
+|	[`string]
+|	[`long]
+
+def attr_arg
+	[attr_arg_type id]
+
+def attr_arg_list
+	[attr_arg `, attr_arg_list]
+|	[attr_arg]
+
+def attr_arg_spec
+	[`( attr_arg_list? `)]
+
 def attr_decl
-	[`attribute attr_modifier+ id `;]
+	[`attribute attr_modifier+ id attr_arg_spec? `;]
 
 def kobj_def
 	[`kobj id `{ attr_decl* `} `;]
