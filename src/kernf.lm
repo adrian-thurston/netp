@@ -224,7 +224,7 @@ void module_c( P: program )
 	writeOutput( Output->tree 'module.c' )
 }
 
-void makefile( P: program )
+void kbuild( P: program )
 {
 	Output = new parser<out_c::out_c>
 
@@ -246,6 +246,6 @@ void generateKernf( P: program )
 	}
 
 	module_c( P )
-#	attribute_h( P )
-#	makefile( P )
+	attribute_h( P )
+	kbuild( P )
 }

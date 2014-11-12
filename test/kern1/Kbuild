@@ -1,4 +1,0 @@
-obj-m := ring.o
-ring-objs := module.o
-
-module.o: attribute.h attribute.c
