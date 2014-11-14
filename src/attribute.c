@@ -20,6 +20,11 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
 
+	if ( lo->inside == 0 || lo->outside == 0 ) {
+		kfree_skb( skb );
+		return RX_HANDLER_CONSUMED;
+	}
+
 	if ( skb->dev == lo->inside ) {
 		skb->dev = lo->outside;
 		skb_push(skb, ETH_HLEN);
@@ -37,40 +42,54 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 	return RX_HANDLER_CONSUMED;
 }
 
+static ssize_t link_port_add_store(
+		struct link *obj, const char *buf, size_t count )
+{
+	char iface[32], dir[32];
+	struct net_device *dev;
+	bool inside = false;
+
+	sscanf( buf, "%s %s", iface, dir );
+
+	if ( strcmp( dir, "inside" ) == 0 )
+		inside = true;
+	else if ( strcmp( dir, "outside" ) == 0 )
+		inside = false;
+	else
+		return -EINVAL;
+
+	dev = dev_get_by_name( &init_net, iface );
+	if ( dev )
+		printk( "found iface %s for %s\n", iface, dir );
+	else
+		return -EINVAL;
+
+	if ( inside )
+		obj->inside = dev;
+	else
+		obj->outside = dev;
+
+	rtnl_lock();
+	dev_set_promiscuity( dev, 1 );
+	netdev_rx_handler_register( dev, filter_handle_frame, 0 );
+	rtnl_unlock();
+
+	return count;
+}
+
+static ssize_t link_port_del_store(
+		struct link *obj, const char *buf, size_t count )
+{
+	return count;
+}
+
 static ssize_t filter_add_store( struct filter *obj,
 		const char *buf, size_t count )
 {
-	char link[32], inside[32], outside[32];
-	struct net_device *inside_dev;
-	struct net_device *outside_dev;
+	char link[32];
 
-	sscanf( buf, "%s %s %s", link, inside, outside );
-
-
+	sscanf( buf, "%s", link );
 	create_link( &lo, &root_obj->kobj );
-
-	inside_dev = dev_get_by_name( &init_net, inside );
-	if ( inside_dev ) {
-		printk( "found inside\n" );
-	}
-
-	outside_dev = dev_get_by_name( &init_net, outside );
-	if ( outside_dev ) {
-		printk( "found outside\n" );
-	}
-
-	lo->inside = inside_dev;
-	lo->outside = outside_dev;
-
-	dev_set_promiscuity( lo->inside, 1 );
-	dev_set_promiscuity( lo->outside, 1 );
-
-	rtnl_lock();
-
-	netdev_rx_handler_register( inside_dev, filter_handle_frame, 0 );
-	netdev_rx_handler_register( outside_dev, filter_handle_frame, 0 );
-
-	rtnl_unlock();
 
 	return count;
 }
