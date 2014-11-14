@@ -62,6 +62,9 @@ static ssize_t filter_add_store( struct filter *obj,
 	lo->inside = inside_dev;
 	lo->outside = outside_dev;
 
+	dev_set_promiscuity( lo->inside, 1 );
+	dev_set_promiscuity( lo->outside, 1 );
+
 	rtnl_lock();
 
 	netdev_rx_handler_register( inside_dev, filter_handle_frame, 0 );
@@ -79,6 +82,8 @@ static ssize_t filter_del_store( struct filter *obj,
 	sscanf( buf, "%s", link );
 
 	if ( lo ) {
+		dev_set_promiscuity( lo->inside, -1 );
+		dev_set_promiscuity( lo->outside, -1 );
 		dev_put( lo->inside );
 		dev_put( lo->outside );
 		kobject_put( &lo->kobj );
