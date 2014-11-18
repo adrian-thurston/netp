@@ -1,7 +1,8 @@
+GENF = @GENF@
+
 data_DATA = filter.ko
 
 SOURCES = module.c attribute.c attribute.h
-GENF = $(HOME)/devel/genf/src/genf
 
 module.c: filter.gf $(GENF)
 	$(GENF) --kernf filter.gf
