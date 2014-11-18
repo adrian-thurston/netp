@@ -1,1 +1,2 @@
-SUBDIRS = src test
+SUBDIRS = src
+DIST_SUBDIRS = $(SUBDIRS) test

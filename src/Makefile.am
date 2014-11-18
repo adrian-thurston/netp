@@ -2,7 +2,7 @@ bin_PROGRAMS = genf
 
 lib_LIBRARIES = libgenf.a
 
-libgenf_a_SOURCES = thread.cc
+libgenf_a_SOURCES = list.h thread.h thread.cc
 
 LM_DEPS = \
 	grammar.lm \
@@ -12,7 +12,10 @@ LM_DEPS = \
 	semantic.lm \
 	thread.lm \
 	itq.lm \
-	kernf.lm
+	kernf.lm \
+	genf.lm
+
+EXTRA_DIST = $(LM_DEPS)
 
 genf$(EXEEXT): genf.lm $(LM_DEPS)
 	$(COLM) -o genf $<
