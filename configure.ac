@@ -22,9 +22,6 @@ AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
-	test/Makefile
-	test/app1/Makefile
-	test/kern1/Makefile
 ])
 
 AC_OUTPUT
