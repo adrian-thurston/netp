@@ -17,5 +17,7 @@ LM_DEPS = \
 
 EXTRA_DIST = $(LM_DEPS)
 
+genf_SOURCES =
+
 genf$(EXEEXT): genf.lm $(LM_DEPS)
 	$(COLM) -o genf $<
