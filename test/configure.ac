@@ -1,0 +1,45 @@
+AC_INIT([genf-suite], [1.0.1])
+AM_INIT_AUTOMAKE
+
+dnl
+dnl Which genf are we testing. Default is the one in parent's source dir. If
+dnl specified, should be the install prefix.
+dnl
+AC_ARG_WITH(subject,
+	[AC_HELP_STRING([--with-subject], [location of genf to test])],
+	[
+		SUBJECT="$withval/bin/genf"
+		CPPFLAGS="${CPPFLAGS} -I$withval/include"
+		LDFLAGS="${LDFLAGS} -L$withval/lib"
+	],
+	[
+		SUBJECT="`pwd`/../src/genf"
+		CPPFLAGS="${CPPFLAGS} -I`pwd`/../src/include"
+		LDFLAGS="${LDFLAGS} -L`pwd`/../src"
+	]
+)
+
+: ${CFLAGS="-Wall -g"}
+: ${CXXFLAGS="-Wall -g"}
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_LIBTOOL
+AC_LANG_CPLUSPLUS
+
+AC_SUBST(SUBJECT)
+AC_SUBST(top_srcdir)
+
+SED_SUBST=["\
+	-e 's|@top_srcdir@|${top_srcdir}|g' \
+	-e 's|@SUBJECT@|${SUBJECT}|g' \
+"]
+AC_SUBST(SED_SUBST)
+
+dnl write output files
+AC_OUTPUT([
+		Makefile
+		app1/Makefile
+		kern1/Makefile
+])
