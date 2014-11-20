@@ -129,7 +129,7 @@ void generateThreadHeader( Thread: thread )
 		"
 
 	send Output
-		~#include "thread.h"
+		~#include <genf/thread.h>
 		~#include "itq_gen.h"
 		~
 

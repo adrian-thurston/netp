@@ -66,7 +66,7 @@ void generateItqCode( P: program )
 		~ */
 		~
 		~#include "itq_gen.h"
-		~#include "thread.h"
+		~#include <genf/thread.h>
 		~
 
 	for MD: message_def in P {

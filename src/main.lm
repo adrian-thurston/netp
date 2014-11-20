@@ -11,7 +11,7 @@ void generateMainHeader( P: program )
 		~#ifndef _MAIN_GEN_H
 		~#define _MAIN_GEN_H
 		~
-		~#include "thread.h"
+		~#include <genf/thread.h>
 		~#include "itq_gen.h"
 		~
 
