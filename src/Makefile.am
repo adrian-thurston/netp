@@ -16,7 +16,7 @@ LM_DEPS = \
 	args.lm \
 	out_c.lm \
 	main.lm \
-	semantic.lm \
+	analysis.lm \
 	thread.lm \
 	itq.lm \
 	kernf.lm \

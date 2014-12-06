@@ -1,3 +1,88 @@
+context thread
+	Id: str
+	Lower: str
+	Upper: str
+	Starts: list<thread>
+	StartedBy: thread
+	SendsMap: map<thread sends>
+	RecvsList: list<message>
+end
+
+context message
+	Id: str
+	MessageDef: message_def
+end
+
+context sends
+	Sender: thread
+	Receiver: thread
+	MessageList: list<message>
+end
+
+context attr
+	Name: str
+	Num: int
+	Show: bool
+	Store: bool
+	ArgList: attr_arg_list?
+end
+
+context kobj
+	TypeName: str
+	Attrs: list<attr>
+end
+
+#
+# Thread map.
+#
+
+global ThreadMap: map<str thread> = new map<str thread>
+
+thread findThread( Id: id )
+{
+	Thread: thread = ThreadMap->find( $Id )
+	if ! Thread {
+		send stderr "inp:[Id.line]: failed to locate thread [Id]
+		exit( 1 )
+	}
+	return Thread
+}
+
+thread consThread( ThreadDef: thread_def )
+{
+	Thread: thread = new thread
+	Thread->Id = $ThreadDef.id
+	Thread->Lower = tolower( Thread->Id )
+	Thread->Upper = toupper( Thread->Id )
+	Thread->Starts = new list<thread>
+	Thread->SendsMap = new map<thread sends>
+	Thread->RecvsList = new list<message>
+	return Thread
+}
+
+#
+# Message map.
+#
+global MessageMap: map<str message> = new map<str message>
+
+message findMessage( Id: id )
+{
+	Message: message = MessageMap->find( $Id )
+	if ! Message {
+		send stderr "inp:[Id.line]: failed to locate message [Id]
+		exit( 1 )
+	}
+	return Message
+}
+
+message consMessage( MessageDef: message_def )
+{
+	Message: message = new message
+	Message->Id = $MessageDef.id
+	Message->MessageDef = MessageDef
+	return Message
+}
+
 
 global ModuleName: id
 global KobjList: list<kobj> = new list<kobj>
@@ -17,6 +102,7 @@ void attrDecl( Kobj: kobj AD: attr_decl )
 	}
 
 	Attr->Num = AttrNum
+	Attr->ArgList = AD.ArgSpec.List
 	Kobj->Attrs->push_tail( Attr )
 
 	AttrNum = AttrNum + 1

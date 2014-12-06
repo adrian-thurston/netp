@@ -73,10 +73,11 @@ def attr_arg_list
 |	[attr_arg]
 
 def attr_arg_spec
-	[`( attr_arg_list? `)]
+	[`( List: attr_arg_list? `)]
+|	[]
 
 def attr_decl
-	[`attribute attr_modifier+ id attr_arg_spec? `;]
+	[`attribute attr_modifier+ id ArgSpec: attr_arg_spec `;]
 
 def kobj_def
 	[`kobj id `{ attr_decl* `} `;]

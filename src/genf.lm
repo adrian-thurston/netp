@@ -3,7 +3,7 @@ include 'args.lm'
 include 'out_c.lm'
 include 'main.lm'
 include 'thread.lm'
-include 'semantic.lm'
+include 'analysis.lm'
 include 'itq.lm'
 include 'kernf.lm'
 
