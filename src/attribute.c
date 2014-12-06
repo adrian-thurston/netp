@@ -69,9 +69,11 @@ static ssize_t link_port_add_store(
 
 	dev = dev_get_by_name( &init_net, iface );
 	if ( dev )
-		printk( "found iface %s for %s\n", iface, dir );
-	else
 		return -EINVAL;
+	
+	printk( "found iface %s for %s\n", iface, dir );
+
+	/* FIXME: fail if not down. */
 
 	if ( inside )
 		obj->inside = dev;
@@ -92,10 +94,17 @@ static ssize_t link_port_del_store(
 	struct net_device *dev;
 
 	dev = dev_get_by_name( &init_net, iface );
-	if ( dev )
-		printk( "found iface %s\n", iface );
-	else
+	if ( !dev )
 		return -EINVAL;
+
+	printk( "found iface %s\n", iface );
+
+	/* FIXME: fail if not down. */
+
+	if ( obj->inside == dev )
+		obj->inside = 0;
+	else if ( obj->outside == dev )
+		obj->outside = 0;
 
 	rtnl_lock();
 	netdev_rx_handler_unregister( dev );
