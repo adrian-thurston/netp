@@ -43,13 +43,10 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 }
 
 static ssize_t link_port_add_store(
-		struct link *obj, const char *buf, size_t count )
+		struct link *obj, const char *iface, const char *dir )
 {
-	char iface[32], dir[32];
 	struct net_device *dev;
 	bool inside = false;
-
-	sscanf( buf, "%s %s", iface, dir );
 
 	if ( strcmp( dir, "inside" ) == 0 )
 		inside = true;
@@ -74,16 +71,13 @@ static ssize_t link_port_add_store(
 	netdev_rx_handler_register( dev, filter_handle_frame, 0 );
 	rtnl_unlock();
 
-	return count;
+	return 0;
 }
 
 static ssize_t link_port_del_store(
-		struct link *obj, const char *buf, size_t count )
+		struct link *obj, const char *iface )
 {
-	char iface[32];
 	struct net_device *dev;
-
-	sscanf( buf, "%s", iface );
 
 	dev = dev_get_by_name( &init_net, iface );
 	if ( dev )
@@ -96,26 +90,19 @@ static ssize_t link_port_del_store(
 	dev_set_promiscuity( dev, -1 );
 	rtnl_unlock();
 
-	return count;
+	return 0;
 }
 
 static ssize_t filter_add_store( struct filter *obj,
-		const char *buf, size_t count )
+		const char *name )
 {
-	char linkName[32];
-
-	sscanf( buf, "%s", linkName );
-	create_link( &lo, linkName, &root_obj->kobj );
-
-	return count;
+	create_link( &lo, name, &root_obj->kobj );
+	return 0;
 }
 
 static ssize_t filter_del_store( struct filter *obj,
-		const char *buf, size_t count )
+		const char *link )
 {
-	char link[32];
-	sscanf( buf, "%s", link );
-
 	if ( lo ) {
 		dev_set_promiscuity( lo->inside, -1 );
 		dev_set_promiscuity( lo->outside, -1 );
@@ -123,7 +110,7 @@ static ssize_t filter_del_store( struct filter *obj,
 		dev_put( lo->outside );
 		kobject_put( &lo->kobj );
 	}
-	return count;
+	return 0;
 }
 
 static int filter_device_event( struct notifier_block *unused,
