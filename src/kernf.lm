@@ -48,7 +48,7 @@ void attribute_h( P: program )
 		send Output
 			"struct [Kobj->TypeName];
 			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
-			"		struct kobject *parent );
+			"		const char *name, struct kobject *parent );
 			"
 
 		for Attr: attr in deref Kobj->Attrs
@@ -209,7 +209,7 @@ void module_c( P: program )
 	for Kobj: kobj in deref KobjList {
 		send Output
 			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
-			"		struct kobject *parent )
+			"		const char *name, struct kobject *parent )
 			"{
 			"	int retval;
 			"	struct [Kobj->TypeName] *obj;
@@ -219,7 +219,7 @@ void module_c( P: program )
 			"		return -ENOMEM;
 			"
 			"	kobject_init( &obj->kobj, &[Kobj->TypeName]_ktype );
-			" 	kobject_add( &obj->kobj, parent, \"[Kobj->TypeName]\" );
+			" 	kobject_add( &obj->kobj, parent, name != NULL ? name : \"[Kobj->TypeName]\" );
 	#		" 	if ( retval ) {
 	#		"		printk(KERN_WARNING "%s: kobject_add error: %d\n", __func__, retval);
 	#		"		kobject_put(kobj);
@@ -236,6 +236,7 @@ void module_c( P: program )
 			"	*ret_obj = obj;
 			"	return 0;
 			"}
+			"
 	}
 
 	send Output
@@ -244,7 +245,7 @@ void module_c( P: program )
 		"	int retval;
 		"	printk( KERN_INFO \"[ModuleName] init\\n\" );
 		"
-		"	retval = create_[ModuleName]( &root_obj, NULL );
+		"	retval = create_[ModuleName]( &root_obj, NULL, NULL );
 		"	if ( retval )
 		"		return retval;
 		"
