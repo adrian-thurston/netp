@@ -2,36 +2,48 @@
 
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/list.h>
 
+/* Root object. */
 struct filter
 {
 	struct kobject kobj;
 };
 
+/* Passtrhough link. */
 struct link
 {
 	struct kobject kobj;
+	char name[32];
 	struct net_device *inside, *outside;
+
+	struct list_head link_list;
 };
 
-struct link *lo = 0;
+struct list_head link_list;
+
+static inline struct link *get_link( const struct net_device *dev )
+{
+	return rcu_dereference( dev->rx_handler_data );
+}
 
 rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
+	struct link *link = get_link( skb->dev );
 
-	if ( lo->inside == 0 || lo->outside == 0 ) {
+	if ( link == 0 || link->inside == 0 || link->outside == 0 ) {
 		kfree_skb( skb );
 		return RX_HANDLER_CONSUMED;
 	}
 
-	if ( skb->dev == lo->inside ) {
-		skb->dev = lo->outside;
+	if ( skb->dev == link->inside ) {
+		skb->dev = link->outside;
 		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit( skb );
 	}
-	else if ( skb->dev == lo->outside ) {
-		skb->dev = lo->inside;
+	else if ( skb->dev == link->outside ) {
+		skb->dev = link->inside;
 		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit( skb );
 	}
@@ -68,7 +80,7 @@ static ssize_t link_port_add_store(
 
 	rtnl_lock();
 	dev_set_promiscuity( dev, 1 );
-	netdev_rx_handler_register( dev, filter_handle_frame, 0 );
+	netdev_rx_handler_register( dev, filter_handle_frame, obj );
 	rtnl_unlock();
 
 	return 0;
@@ -96,19 +108,34 @@ static ssize_t link_port_del_store(
 static ssize_t filter_add_store( struct filter *obj,
 		const char *name )
 {
-	create_link( &lo, name, &root_obj->kobj );
+	struct link *link = 0;
+	create_link( &link, name, &root_obj->kobj );
+	list_add_tail( &link->link_list, &link_list );
+	strcpy( link->name, name );
 	return 0;
 }
 
 static ssize_t filter_del_store( struct filter *obj,
-		const char *link )
+		const char *name )
 {
-	if ( lo ) {
-		dev_set_promiscuity( lo->inside, -1 );
-		dev_set_promiscuity( lo->outside, -1 );
-		dev_put( lo->inside );
-		dev_put( lo->outside );
-		kobject_put( &lo->kobj );
+	/* Find the link by name. */
+	struct link *link = 0;
+	struct list_head *h;
+	list_for_each( h, &link_list ) {
+		struct link *hl = container_of( h, struct link, link_list );
+		if ( strcmp( hl->name, name ) == 0 ) {
+			link = hl;
+			break;
+		}
+	}
+
+	if ( link ) {
+		dev_set_promiscuity( link->inside, -1 );
+		dev_set_promiscuity( link->outside, -1 );
+		dev_put( link->inside );
+		dev_put( link->outside );
+		list_del( &link->link_list );
+		kobject_put( &link->kobj );
 	}
 	return 0;
 }
@@ -128,6 +155,8 @@ static int filter_init(void)
 	int retval = register_netdevice_notifier( &filter_device_notifier );
 	if ( retval )
 		return retval;
+
+	INIT_LIST_HEAD( &link_list );
 
 	return 0;
 }
