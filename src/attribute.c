@@ -80,16 +80,32 @@ static ssize_t link_port_add_store(
 static ssize_t link_port_del_store(
 		struct link *obj, const char *buf, size_t count )
 {
+	char iface[32];
+	struct net_device *dev;
+
+	sscanf( buf, "%s", iface );
+
+	dev = dev_get_by_name( &init_net, iface );
+	if ( dev )
+		printk( "found iface %s\n", iface );
+	else
+		return -EINVAL;
+
+	rtnl_lock();
+	netdev_rx_handler_unregister( dev );
+	dev_set_promiscuity( dev, -1 );
+	rtnl_unlock();
+
 	return count;
 }
 
 static ssize_t filter_add_store( struct filter *obj,
 		const char *buf, size_t count )
 {
-	char link[32];
+	char linkName[32];
 
-	sscanf( buf, "%s", link );
-	create_link( &lo, &root_obj->kobj );
+	sscanf( buf, "%s", linkName );
+	create_link( &lo, linkName, &root_obj->kobj );
 
 	return count;
 }
