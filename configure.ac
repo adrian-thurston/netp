@@ -15,7 +15,7 @@ dnl pthread
 AC_CHECK_HEADER( [pthread.h] )
 AC_CHECK_LIB( [pthread], [pthread_create] )
 
-AC_CHECK_COLM([0.13.0.2])
+AC_CHECK_COLM([0.13.0.1])
 AC_SUBST(SED_SUBST)
 
 AC_CONFIG_HEADERS(src/config.h)
