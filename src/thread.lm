@@ -1,12 +1,12 @@
 void sendsToDecls( Thread: thread )
 {
-	for Sends: sends in deref Thread->SendsMap {
+	for Sends: sends in Thread->SendsMap {
 		send Output
 			"struct SendsTo[Sends->Receiver->Id]
 			"{
 			"	ItWriter *writer;
 
-		for Message: message in deref Sends->MessageList {
+		for Message: message in Sends->MessageList {
 			send Output
 				"	[Message->Id] *open[Message->Id]()
 				"		{ return [Message->Id]::open( writer ); }
@@ -23,7 +23,7 @@ void sendsToDecls( Thread: thread )
 
 void recvDecls( Thread: thread )
 {
-	for Message: message in deref Thread->RecvsList {
+	for Message: message in Thread->RecvsList {
 		send Output
 			"	virtual void recv[Message->Id]( [Message->Id] * ) = 0;
 	}
@@ -31,7 +31,7 @@ void recvDecls( Thread: thread )
 
 void sendsToCode( Thread: thread )
 {
-	for Sends: sends in deref Thread->SendsMap {
+	for Sends: sends in Thread->SendsMap {
 		send Output
 			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
 					"registerSendsTo[Sends->Receiver->Id]( "
@@ -47,7 +47,7 @@ void sendsToCode( Thread: thread )
 
 void generateThreadHeader( Thread: thread )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		"/*
@@ -93,7 +93,7 @@ void generateThreadHeader( Thread: thread )
 
 void createChildDecls( Thread: thread )
 {
-	for Child: thread in deref Thread->Starts {
+	for Child: thread in Thread->Starts {
 		send Output
 			"	void create( [Child->Id]Thread *child );
 	}
@@ -102,7 +102,7 @@ void createChildDecls( Thread: thread )
 
 void createChildDefs( Thread: thread )
 {
-	for Child: thread in deref Thread->Starts {
+	for Child: thread in Thread->Starts {
 		send Output
 			"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
 			"{
@@ -131,12 +131,12 @@ void joinDef( Thread: thread )
 
 void threadIncludes( Thread: thread )
 {
-	for Child: thread in deref Thread->Starts {
+	for Child: thread in Thread->Starts {
 		send Output
 			"#include \"[Child->Lower].h\"
 	}
 
-	for Sends: sends in deref Thread->SendsMap {
+	for Sends: sends in Thread->SendsMap {
 		send Output
 			"#include \"[Sends->Receiver->Lower].h\"
 	}
@@ -146,14 +146,14 @@ void threadIncludes( Thread: thread )
 
 void threadForwards( Thread: thread )
 {
-	for Child: thread in deref Thread->Starts {
+	for Child: thread in Thread->Starts {
 		send Output
 			"struct [Child->Id]Gen;
 			"struct [Child->Id]Thread;
 	}
 
-	for Sends: sends in deref Thread->SendsMap {
-		for Message: message in deref Sends->MessageList {
+	for Sends: sends in Thread->SendsMap {
+		for Message: message in Sends->MessageList {
 			send Output
 				"struct [Message->Id];
 		}
@@ -164,7 +164,7 @@ void threadForwards( Thread: thread )
 
 void generateThreadCode( Thread: thread )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		"/*
@@ -199,7 +199,7 @@ void generateThreadCode( Thread: thread )
 		"		ItHeader *header = control.wait();
 		"		switch ( header->msgId ) {
 
-	for Message: message in deref Thread->RecvsList {
+	for Message: message in Thread->RecvsList {
 		send Output
 			"			case [Message->Id]::ID: {
 			"				[Message->Id] *msg = [Message->Id]::read( &control, header );

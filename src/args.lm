@@ -36,12 +36,11 @@ end
 
 void parseArgs()
 {
-	ArgParser: parser<args::args> = new parser<args::args>
+	ArgParser: parser<args::args> = new parser<args::args>()
 
 	# Parse the args and extract the result into Args.
-	ArgV: list<str> = argv
-	for A: str in deref ArgV
-		send ArgParser [A '\0']
+	for A: argv_el in argv
+		send ArgParser [A->value '\0']
 	Args: args::args = ArgParser->finish()
 
 	if !Args {

@@ -2,10 +2,10 @@ context thread
 	Id: str
 	Lower: str
 	Upper: str
-	Starts: list<thread>
+	Starts: vlist<thread>
 	StartedBy: thread
-	SendsMap: map<thread sends>
-	RecvsList: list<message>
+	SendsMap: vmap<thread sends>
+	RecvsList: vlist<message>
 end
 
 context message
@@ -16,7 +16,7 @@ end
 context sends
 	Sender: thread
 	Receiver: thread
-	MessageList: list<message>
+	MessageList: vlist<message>
 end
 
 context attr
@@ -29,14 +29,14 @@ end
 
 context kobj
 	TypeName: str
-	Attrs: list<attr>
+	Attrs: vlist<attr>
 end
 
 #
 # Thread map.
 #
 
-global ThreadMap: map<str thread> = new map<str thread>
+global ThreadMap: vmap<str thread> = new vmap<str thread>()
 
 thread findThread( Id: id )
 {
@@ -50,20 +50,20 @@ thread findThread( Id: id )
 
 thread consThread( ThreadDef: thread_def )
 {
-	Thread: thread = new thread
+	Thread: thread = new thread()
 	Thread->Id = $ThreadDef.id
 	Thread->Lower = tolower( Thread->Id )
 	Thread->Upper = toupper( Thread->Id )
-	Thread->Starts = new list<thread>
-	Thread->SendsMap = new map<thread sends>
-	Thread->RecvsList = new list<message>
+	Thread->Starts = new vlist<thread>()
+	Thread->SendsMap = new vmap<thread sends>()
+	Thread->RecvsList = new vlist<message>()
 	return Thread
 }
 
 #
 # Message map.
 #
-global MessageMap: map<str message> = new map<str message>
+global MessageMap: vmap<str message> = new vmap<str message>()
 
 message findMessage( Id: id )
 {
@@ -77,7 +77,7 @@ message findMessage( Id: id )
 
 message consMessage( MessageDef: message_def )
 {
-	Message: message = new message
+	Message: message = new message()
 	Message->Id = $MessageDef.id
 	Message->MessageDef = MessageDef
 	return Message
@@ -85,13 +85,13 @@ message consMessage( MessageDef: message_def )
 
 
 global ModuleName: id
-global KobjList: list<kobj> = new list<kobj>
+global KobjList: vlist<kobj> = new vlist<kobj>()
 
 global AttrNum: int = 1
 
 void attrDecl( Kobj: kobj AD: attr_decl )
 {
-	Attr: attr = new attr
+	Attr: attr = new attr()
 	Attr->Name = $AD.id
 
 	for Mod: attr_modifier in AD {
@@ -138,10 +138,10 @@ void semanticAnalysis( P: program )
 		# Record the sender->receiver relationship
 		Sends: sends = Sender->SendsMap->find( Receiver )
 		if ( !Sends ) {
-			Sends = new sends
+			Sends = new sends()
 			Sends->Sender = Sender
 			Sends->Receiver = Receiver
-			Sends->MessageList = new list<message>
+			Sends->MessageList = new vlist<message>()
 
 			Sender->SendsMap->insert( Receiver Sends )
 		}
@@ -150,9 +150,9 @@ void semanticAnalysis( P: program )
 	}
 
 	# Make the root kobj.
-	RootKobj: kobj = new kobj
+	RootKobj: kobj = new kobj()
 	RootKobj->TypeName = $ModuleName
-	RootKobj->Attrs = new list<attr>
+	RootKobj->Attrs = new vlist<attr>()
 
 	KobjList->push_tail( RootKobj )
 
@@ -164,9 +164,9 @@ void semanticAnalysis( P: program )
 	}
 
 	for KD: kobj_def in P {
-		Kobj: kobj = new kobj
+		Kobj: kobj = new kobj()
 		Kobj->TypeName = $KD.id
-		Kobj->Attrs = new list<attr>
+		Kobj->Attrs = new vlist<attr>()
 		for AD: attr_decl in KD 
 			attrDecl( Kobj AD )
 		KobjList->push_tail( Kobj )

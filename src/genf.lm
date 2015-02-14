@@ -1,8 +1,8 @@
 include 'grammar.lm'
 include 'args.lm'
 include 'out_c.lm'
-include 'main.lm'
 include 'thread.lm'
+include 'main.lm'
 include 'analysis.lm'
 include 'itq.lm'
 include 'kernf.lm'
@@ -30,7 +30,7 @@ void generateCode( P: program )
 	generateMainHeader( P )
 	generateMainCode( P )
 
-	for Thread: thread in deref ThreadMap {
+	for Thread: thread in ThreadMap {
 		if ( Thread->Id != 'Main' ) {
 			generateThreadHeader( Thread )
 			generateThreadCode( Thread )

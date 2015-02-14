@@ -1,7 +1,7 @@
 
 void generateItqHeader( P: program )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		~/*
@@ -18,7 +18,7 @@ void generateItqHeader( P: program )
 
 	ID: int = 1
 
-	for Message: message in deref MessageMap {
+	for Message: message in MessageMap {
 		send Output
 			"struct [Message->Id]
 			"{
@@ -58,7 +58,7 @@ void generateItqHeader( P: program )
 
 void generateItqCode( P: program )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		~/*

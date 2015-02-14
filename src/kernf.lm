@@ -34,20 +34,20 @@ void attributeDecl( Kobj: kobj Attr: attr )
 
 void attribute_h( P: program )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		"#ifndef __ATTRIBUTE_H
 		"#define __ATTRIBUTE_H
 
-	for Kobj: kobj in deref KobjList {
+	for Kobj: kobj in KobjList {
 		send Output
 			"struct [Kobj->TypeName];
 			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
 			"		const char *name, struct kobject *parent );
 			"
 
-		for Attr: attr in deref Kobj->Attrs
+		for Attr: attr in Kobj->Attrs
 			attributeDecl( Kobj Attr )
 	}
 
@@ -60,7 +60,7 @@ void attribute_h( P: program )
 
 void module_c( P: program )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		"#include <linux/kernel.h>
@@ -87,19 +87,19 @@ void module_c( P: program )
 		"};
 		"
 
-	for Kobj: kobj in deref KobjList {
-		for Attr: attr in deref Kobj->Attrs
+	for Kobj: kobj in KobjList {
+		for Attr: attr in Kobj->Attrs
 			attributeStruct( Kobj Attr )
 	}
 
 	send Output
 		"#include \"attribute.c\"
 
-	for Kobj: kobj in deref KobjList {
+	for Kobj: kobj in KobjList {
 		send Output
 			"static struct attribute *[Kobj->TypeName]_attrs\[\] = {
 
-		for Attr: attr in deref Kobj->Attrs {
+		for Attr: attr in Kobj->Attrs {
 			send Output
 				"	&[Attr->Name]_attribute.attr,
 		}
@@ -115,7 +115,7 @@ void module_c( P: program )
 			"
 	}
 
-	for Kobj: kobj in deref KobjList {
+	for Kobj: kobj in KobjList {
 		send Output
 			"static void [Kobj->TypeName]_release( struct kobject *kobj )
 			"{
@@ -134,8 +134,8 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 		
-	for Kobj: kobj in deref KobjList {
-		for Attr: attr in deref Kobj->Attrs {
+	for Kobj: kobj in KobjList {
+		for Attr: attr in Kobj->Attrs {
 			if ( Attr->Show ) {
 				send Output
 					"case [Attr->Num]: {
@@ -164,8 +164,8 @@ void module_c( P: program )
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
 
-	for Kobj: kobj in deref KobjList {
-		for Attr: attr in deref Kobj->Attrs {
+	for Kobj: kobj in KobjList {
+		for Attr: attr in Kobj->Attrs {
 			if ( Attr->Store ) {
 				send Output
 					"case [Attr->Num]: {
@@ -228,7 +228,7 @@ void module_c( P: program )
 		"EXPORT_SYMBOL_GPL([ModuleName]_sysfs_ops);
 		"
 
-	for Kobj: kobj in deref KobjList {
+	for Kobj: kobj in KobjList {
 		send Output
 			"static struct kobj_type [Kobj->TypeName]_ktype = {
 			"	.release        = [Kobj->TypeName]_release,
@@ -237,7 +237,7 @@ void module_c( P: program )
 			"
 	}
 
-	for Kobj: kobj in deref KobjList {
+	for Kobj: kobj in KobjList {
 		send Output
 			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
 			"		const char *name, struct kobject *parent )
@@ -307,7 +307,7 @@ void module_c( P: program )
 
 void kbuild( P: program )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 
 	send Output
 		"obj-m := [ModuleName].o

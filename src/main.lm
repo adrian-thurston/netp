@@ -1,6 +1,6 @@
 void generateMainHeader( P: program )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 	Thread: thread = ThreadMap->find( 'Main' )
 
 	send Output
@@ -219,7 +219,7 @@ void parseOptions( P: ref<program> )
 
 void generateMainCode( P: ref<program> )
 {
-	Output = new parser<out_c::out_c>
+	Output = new parser<out_c::out_c>()
 	Thread: thread = ThreadMap->find( 'Main' )
 
 	send Output
