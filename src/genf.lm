@@ -9,9 +9,9 @@ include 'kernf.lm'
 
 global Output: parser<out_c::out_c>
 
-void writeOutput( Output: out_c::out_c Fn: str )
+void writeOutput( Output: out_c::out_c, Fn: str )
 {
-	S: stream = open( Fn 'w' )
+	S: stream = open( Fn, 'w' )
 	send S [Output] eos
 }
 
@@ -65,7 +65,7 @@ void main()
 		exit( 1 )
 	}
 
-	Input: stream = open( OptInputFn 'r' )
+	Input: stream = open( OptInputFn, 'r' )
 	if ( !Input ) {
 		send stderr "ERROR: could not open input file: [$OptInputFn]
 		exit( 1 )

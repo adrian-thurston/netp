@@ -1,4 +1,4 @@
-void attributeStruct( Kobj: kobj Attr: attr )
+void attributeStruct( Kobj: kobj, Attr: attr )
 {
 	send Output
 		"struct [ModuleName]_attribute [Attr->Name]_attribute =
@@ -6,7 +6,7 @@ void attributeStruct( Kobj: kobj Attr: attr )
 		"
 }
 
-void attributeDecl( Kobj: kobj Attr: attr )
+void attributeDecl( Kobj: kobj, Attr: attr )
 {
 
 	if ( Attr->Show ) {
@@ -48,14 +48,14 @@ void attribute_h( P: program )
 			"
 
 		for Attr: attr in Kobj->Attrs
-			attributeDecl( Kobj Attr )
+			attributeDecl( Kobj, Attr )
 	}
 
 	send Output
 		"#endif
 
 	send Output [] eos
-	writeOutput( Output->tree 'attribute.h' )
+	writeOutput( Output->tree, 'attribute.h' )
 }
 
 void module_c( P: program )
@@ -89,7 +89,7 @@ void module_c( P: program )
 
 	for Kobj: kobj in KobjList {
 		for Attr: attr in Kobj->Attrs
-			attributeStruct( Kobj Attr )
+			attributeStruct( Kobj, Attr )
 	}
 
 	send Output
@@ -302,7 +302,7 @@ void module_c( P: program )
 		"module_exit( [ModuleName]_gen_exit );
 
 	send Output [] eos
-	writeOutput( Output->tree 'module.c' )
+	writeOutput( Output->tree, 'module.c' )
 }
 
 void kbuild( P: program )
@@ -316,7 +316,7 @@ void kbuild( P: program )
 		"module.o: attribute.h attribute.c
 
 	send Output [] eos
-	writeOutput( Output->tree 'Kbuild' )
+	writeOutput( Output->tree, 'Kbuild' )
 }
 
 void generateKernf( P: program )

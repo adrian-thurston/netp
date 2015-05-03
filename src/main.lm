@@ -51,7 +51,7 @@ void generateMainHeader( P: program )
 		~#endif
 
 	send Output [] eos
-	writeOutput( Output->tree 'main_gen.h' )
+	writeOutput( Output->tree, 'main_gen.h' )
 }
 
 void optString( P: program )
@@ -129,7 +129,7 @@ void optValues( P: program )
 	send Output "
 }
 
-void parseOption( OD: option_def Src: str )
+void parseOption( OD: option_def, Src: str )
 {
 	switch OD.option_type
 	case [`bool] {
@@ -176,7 +176,7 @@ void parseOptions( P: ref<program> )
 
 			send Output
 				"			case '[OS.short]': {
-				"				[parseOption( OD 'optarg' )]
+				"				[parseOption( OD, 'optarg' )]
 				"				break;
 				"			}
 		}
@@ -191,7 +191,7 @@ void parseOptions( P: ref<program> )
 			require OS [`-- long]
 			send Output
 				"				case [OS.Ind]:
-				"					[parseOption( OD '(argv[optind-1])' )]
+				"					[parseOption( OD, '(argv[optind-1])' )]
 				"					break;
 		}
 	}
@@ -353,5 +353,5 @@ void generateMainCode( P: ref<program> )
 		~
 
 	send Output [] eos
-	writeOutput( Output->tree 'main_gen.cc' )
+	writeOutput( Output->tree, 'main_gen.cc' )
 }

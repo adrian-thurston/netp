@@ -88,7 +88,7 @@ void generateThreadHeader( Thread: thread )
 		"#endif
 
 	send Output [] eos
-	writeOutput( Output->tree "[Thread->Lower]_gen.h" )
+	writeOutput( Output->tree, "[Thread->Lower]_gen.h" )
 }
 
 void createChildDecls( Thread: thread )
@@ -216,5 +216,5 @@ void generateThreadCode( Thread: thread )
 		"}
 
 	send Output [] eos
-	writeOutput( Output->tree "[Thread->Lower]_gen.cc" )
+	writeOutput( Output->tree, "[Thread->Lower]_gen.cc" )
 }

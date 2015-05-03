@@ -4,7 +4,7 @@ context thread
 	Upper: str
 	Starts: vlist<thread>
 	StartedBy: thread
-	SendsMap: vmap<thread sends>
+	SendsMap: vmap<thread, sends>
 	RecvsList: vlist<message>
 end
 
@@ -36,7 +36,7 @@ end
 # Thread map.
 #
 
-global ThreadMap: vmap<str thread> = new vmap<str thread>()
+global ThreadMap: vmap<str, thread> = new vmap<str, thread>()
 
 thread findThread( Id: id )
 {
@@ -55,7 +55,7 @@ thread consThread( ThreadDef: thread_def )
 	Thread->Lower = tolower( Thread->Id )
 	Thread->Upper = toupper( Thread->Id )
 	Thread->Starts = new vlist<thread>()
-	Thread->SendsMap = new vmap<thread sends>()
+	Thread->SendsMap = new vmap<thread, sends>()
 	Thread->RecvsList = new vlist<message>()
 	return Thread
 }
@@ -63,7 +63,7 @@ thread consThread( ThreadDef: thread_def )
 #
 # Message map.
 #
-global MessageMap: vmap<str message> = new vmap<str message>()
+global MessageMap: vmap<str, message> = new vmap<str, message>()
 
 message findMessage( Id: id )
 {
@@ -89,7 +89,7 @@ global KobjList: vlist<kobj> = new vlist<kobj>()
 
 global AttrNum: int = 1
 
-void attrDecl( Kobj: kobj AD: attr_decl )
+void attrDecl( Kobj: kobj, AD: attr_decl )
 {
 	Attr: attr = new attr()
 	Attr->Name = $AD.id
@@ -116,12 +116,12 @@ void semanticAnalysis( P: program )
 	
 	for ThreadDef: thread_def in P {
 		Thread: thread = consThread( ThreadDef )[]
-		ThreadMap->insert( $ThreadDef.id Thread )
+		ThreadMap->insert( $ThreadDef.id, Thread )
 	}
 
 	for MessageDef: message_def in P {
 		Message: message = consMessage( MessageDef )[]
-		MessageMap->insert( $MessageDef.id Message )
+		MessageMap->insert( $MessageDef.id, Message )
 	}
 
 	for StartsDecl: starts_decl in P {
@@ -143,7 +143,7 @@ void semanticAnalysis( P: program )
 			Sends->Receiver = Receiver
 			Sends->MessageList = new vlist<message>()
 
-			Sender->SendsMap->insert( Receiver Sends )
+			Sender->SendsMap->insert( Receiver, Sends )
 		}
 		Sends->MessageList->push_tail( Message )
 		Receiver->RecvsList->push_tail( Message )
@@ -160,7 +160,7 @@ void semanticAnalysis( P: program )
 	match P [DefList: definition*]
 	for Def: definition in repeat( DefList ) {
 		if match Def [AD: attr_decl]
-			attrDecl( RootKobj AD )
+			attrDecl( RootKobj, AD )
 	}
 
 	for KD: kobj_def in P {
@@ -168,7 +168,7 @@ void semanticAnalysis( P: program )
 		Kobj->TypeName = $KD.id
 		Kobj->Attrs = new vlist<attr>()
 		for AD: attr_decl in KD 
-			attrDecl( Kobj AD )
+			attrDecl( Kobj, AD )
 		KobjList->push_tail( Kobj )
 	}
 }

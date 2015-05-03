@@ -53,7 +53,7 @@ void generateItqHeader( P: program )
 		~#endif
 		eos
 
-	writeOutput( Output->tree 'itq_gen.h' )
+	writeOutput( Output->tree, 'itq_gen.h' )
 }
 
 void generateItqCode( P: program )
@@ -120,5 +120,5 @@ void generateItqCode( P: program )
 
 	send Output [] eos
 
-	writeOutput( Output->tree 'itq_gen.cc' )
+	writeOutput( Output->tree, 'itq_gen.cc' )
 }
