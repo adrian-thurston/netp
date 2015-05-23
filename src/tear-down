@@ -1,0 +1,11 @@
+
+set -x 
+
+ip link set eth2 down
+ip link set eth1 down
+
+echo eth1 >/sys/filter/filter1/port_del
+echo eth2 >/sys/filter/filter1/port_del
+
+echo filter1 >/sys/filter/del
+

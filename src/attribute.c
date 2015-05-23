@@ -3,6 +3,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/list.h>
+#include <linux/kobject.h>
 
 /* Root object. */
 struct filter
@@ -21,6 +22,7 @@ struct link
 };
 
 struct list_head link_list;
+
 
 static inline struct link *get_link( const struct net_device *dev )
 {
@@ -68,7 +70,7 @@ static ssize_t link_port_add_store(
 		return -EINVAL;
 
 	dev = dev_get_by_name( &init_net, iface );
-	if ( dev )
+	if ( !dev )
 		return -EINVAL;
 	
 	printk( "found iface %s for %s\n", iface, dir );
@@ -111,6 +113,10 @@ static ssize_t link_port_del_store(
 	dev_set_promiscuity( dev, -1 );
 	rtnl_unlock();
 
+	/* Once for the dev get by name above, and again for the release. */
+	dev_put( dev );
+	dev_put( dev );
+
 	return 0;
 }
 
@@ -124,8 +130,7 @@ static ssize_t filter_add_store( struct filter *obj,
 	return 0;
 }
 
-static ssize_t filter_del_store( struct filter *obj,
-		const char *name )
+static ssize_t filter_del_store( struct filter *obj, const char *name )
 {
 	/* Find the link by name. */
 	struct link *link = 0;
@@ -139,13 +144,15 @@ static ssize_t filter_del_store( struct filter *obj,
 	}
 
 	if ( link ) {
-		dev_set_promiscuity( link->inside, -1 );
-		dev_set_promiscuity( link->outside, -1 );
-		dev_put( link->inside );
-		dev_put( link->outside );
+		printk( "found link, removing\n" );
+		// dev_set_promiscuity( link->inside, -1 );
+		// dev_set_promiscuity( link->outside, -1 );
+		// dev_put( link->inside );
+		// dev_put( link->outside );
 		list_del( &link->link_list );
 		kobject_put( &link->kobj );
 	}
+
 	return 0;
 }
 
