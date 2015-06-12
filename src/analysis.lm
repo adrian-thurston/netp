@@ -2,10 +2,10 @@ context thread
 	Id: str
 	Lower: str
 	Upper: str
-	Starts: vlist<thread>
+	Starts: list<thread>
 	StartedBy: thread
-	SendsMap: vmap<thread, sends>
-	RecvsList: vlist<message>
+	SendsMap: map<thread, sends>
+	RecvsList: list<message>
 end
 
 context message
@@ -16,7 +16,7 @@ end
 context sends
 	Sender: thread
 	Receiver: thread
-	MessageList: vlist<message>
+	MessageList: list<message>
 end
 
 context attr
@@ -29,14 +29,14 @@ end
 
 context kobj
 	TypeName: str
-	Attrs: vlist<attr>
+	Attrs: list<attr>
 end
 
 #
 # Thread map.
 #
 
-global ThreadMap: vmap<str, thread> = new vmap<str, thread>()
+global ThreadMap: map<str, thread> = new map<str, thread>()
 
 thread findThread( Id: id )
 {
@@ -54,16 +54,16 @@ thread consThread( ThreadDef: thread_def )
 	Thread->Id = $ThreadDef.id
 	Thread->Lower = tolower( Thread->Id )
 	Thread->Upper = toupper( Thread->Id )
-	Thread->Starts = new vlist<thread>()
-	Thread->SendsMap = new vmap<thread, sends>()
-	Thread->RecvsList = new vlist<message>()
+	Thread->Starts = new list<thread>()
+	Thread->SendsMap = new map<thread, sends>()
+	Thread->RecvsList = new list<message>()
 	return Thread
 }
 
 #
 # Message map.
 #
-global MessageMap: vmap<str, message> = new vmap<str, message>()
+global MessageMap: map<str, message> = new map<str, message>()
 
 message findMessage( Id: id )
 {
@@ -85,7 +85,7 @@ message consMessage( MessageDef: message_def )
 
 
 global ModuleName: id
-global KobjList: vlist<kobj> = new vlist<kobj>()
+global KobjList: list<kobj> = new list<kobj>()
 
 global AttrNum: int = 1
 
@@ -141,7 +141,7 @@ void semanticAnalysis( P: program )
 			Sends = new sends()
 			Sends->Sender = Sender
 			Sends->Receiver = Receiver
-			Sends->MessageList = new vlist<message>()
+			Sends->MessageList = new list<message>()
 
 			Sender->SendsMap->insert( Receiver, Sends )
 		}
@@ -152,7 +152,7 @@ void semanticAnalysis( P: program )
 	# Make the root kobj.
 	RootKobj: kobj = new kobj()
 	RootKobj->TypeName = $ModuleName
-	RootKobj->Attrs = new vlist<attr>()
+	RootKobj->Attrs = new list<attr>()
 
 	KobjList->push_tail( RootKobj )
 
@@ -166,7 +166,7 @@ void semanticAnalysis( P: program )
 	for KD: kobj_def in P {
 		Kobj: kobj = new kobj()
 		Kobj->TypeName = $KD.id
-		Kobj->Attrs = new vlist<attr>()
+		Kobj->Attrs = new list<attr>()
 		for AD: attr_decl in KD 
 			attrDecl( Kobj, AD )
 		KobjList->push_tail( Kobj )

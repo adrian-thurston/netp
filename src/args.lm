@@ -39,7 +39,7 @@ void parseArgs()
 	ArgParser: parser<args::args> = new parser<args::args>()
 
 	# Parse the args and extract the result into Args.
-	for A: argv_el in argv
+	for A: list_el<str> in argv
 		send ArgParser [A->value '\0']
 	Args: args::args = ArgParser->finish()
 
