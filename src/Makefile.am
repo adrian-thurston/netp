@@ -2,6 +2,8 @@ GENF = @GENF@
 
 data_DATA = filter.ko
 
+EXTRA_DIST = filter.gf attribute.c attribute.h
+
 SOURCES = module.c attribute.c attribute.h
 
 module.c: filter.gf $(GENF)
