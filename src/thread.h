@@ -66,6 +66,7 @@ struct ItQueue
 	void send( ItWriter *writer );
 
 	ItHeader *wait();
+	bool poll();
 	void release( ItHeader *header );
 
 	pthread_mutex_t mutex;

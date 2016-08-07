@@ -137,6 +137,16 @@ ItHeader *ItQueue::wait()
 	return header;
 }
 
+bool ItQueue::poll()
+{
+	pthread_mutex_lock( &mutex );
+	bool result = head != 0;
+	pthread_mutex_unlock( &mutex );
+
+	return result;
+}
+
+
 void ItQueue::release( ItHeader *header )
 {
 	ItWriter *writer = writerVect[header->writerId];

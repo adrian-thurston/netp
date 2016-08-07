@@ -75,7 +75,9 @@ void generateThreadHeader( Thread: thread )
 		"	int start();
 		"	void join();
 		"	virtual int main() { return 0; }
+		"	void recvHeader( ItQueue *queue, ItHeader *header );
 		"	bool breakRecv;
+		"
 		"	int recv();
 		"
 
@@ -190,6 +192,25 @@ void generateThreadCode( Thread: thread )
 		"	return main();
 		"};
 		"
+
+	send Output
+		"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
+		"{
+		"	switch ( header->msgId ) {
+
+	for Message: message in Thread->RecvsList {
+		send Output
+			"		case [Message->Id]::ID: {
+			"			[Message->Id] *msg = [Message->Id]::read( queue, header );
+			"			recv[Message->Id]( msg );
+			"			break;
+			"		}
+	}
+
+	send Output
+		"	}
+		"}
+		"
 	
 	send Output
 		"int [Thread->Id]Gen::recv()
@@ -197,23 +218,12 @@ void generateThreadCode( Thread: thread )
 		"	breakRecv = false;
 		"	while ( !breakRecv ) {
 		"		ItHeader *header = control.wait();
-		"		switch ( header->msgId ) {
-
-	for Message: message in Thread->RecvsList {
-		send Output
-			"			case [Message->Id]::ID: {
-			"				[Message->Id] *msg = [Message->Id]::read( &control, header );
-			"				recv[Message->Id]( msg );
-			"				break;
-			"			}
-	}
-
-	send Output
-		"		}
+		"		recvHeader( &control, header );
 		"		control.release( header );
 		"	}
 		"	return 0;
 		"}
+		"
 
 	send Output [] eos
 	writeOutput( Output->tree, "[Thread->Lower]_gen.cc" )
