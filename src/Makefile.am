@@ -1,11 +1,11 @@
 bin_PROGRAMS = genf
 
-lib_LIBRARIES = libgenf.a
+lib_LTLIBRARIES = libgenf.la
 
 include_HEADERS =
 
-libgenf_a_SOURCES = list.h thread.h thread.cc
-libgenf_a_CPPFLAGS = -Iinclude
+libgenf_la_SOURCES = list.h thread.h thread.cc
+libgenf_la_CPPFLAGS = -Iinclude
 
 genfincdir = $(includedir)/genf
 

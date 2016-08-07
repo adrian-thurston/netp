@@ -6,5 +6,7 @@
 /genf.c
 /kernf
 /kernf.c
-/libgenf.a
+/libgenf.la
 /include
+/.libs
+/*.lo

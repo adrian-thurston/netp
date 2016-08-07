@@ -19,6 +19,14 @@ BUILT_SOURCES = \
 	itq_gen.h \
 	itq_gen.cc
 
+CLEANFILES = \
+	main_gen.h \
+	main_gen.cc \
+	user_gen.h \
+	user_gen.cc \
+	itq_gen.h \
+	itq_gen.cc
+
 main_gen.cc: app1.gf
 	$(GENF) $<
 
