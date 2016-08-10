@@ -69,7 +69,7 @@ void generateThreadHeader( Thread: thread )
 		"struct [Thread->Id]Gen
 		"	: public Thread
 		"{
-		"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ) {}
+		"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ), breakRecv(false) {}
 		"
 		"	void init() { }
 		"	int start();
