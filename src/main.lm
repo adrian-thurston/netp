@@ -39,6 +39,7 @@ void generateMainHeader( P: program )
 		~	void join();
 		~	virtual int main() { return 0; }
 		~
+		~	void signalSetup();
 		~	void sigmaskSetup();
 		~	int mainSignal();
 
@@ -265,7 +266,7 @@ void generateMainCode( P: ref<program> )
 		~{
 		~	parseOptions();
 		~	maybeBackground();
-		~	sigmaskSetup();
+		~	signalSetup();
 		~	return main();
 		~}
 		~
@@ -286,6 +287,22 @@ void generateMainCode( P: ref<program> )
 		~	sigaddset( &set, SIGCHLD );
 		~
 		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
+		~}
+		~
+
+	send Output
+		~static void sigusrHandler( int s )
+		~{
+		~}
+		~
+
+	send Output
+		~void MainGen::signalSetup()
+		~{
+		~	signal( SIGUSR1, sigusrHandler );
+		~	signal( SIGUSR2, sigusrHandler );
+		~
+		~	sigmaskSetup();
 		~}
 		~
 
