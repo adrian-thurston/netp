@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+long enabledRealms = 0;
+
 namespace genf
 {
 	lfdostream *lf;

@@ -202,4 +202,11 @@ namespace genf
 	*genf::lf << log_lock() << "warning: " << log_prefix() << \
 	msg << std::endl << log_unlock()
 
+extern long enabledRealms;
+
+#define log_debug( realm, msg ) \
+	if ( enabledRealms & realm ) \
+		*genf::lf << log_lock() << "debug: " << log_prefix() << \
+		msg << std::endl << log_unlock()
+
 #endif
