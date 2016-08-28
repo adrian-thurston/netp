@@ -49,6 +49,13 @@ void generateItqHeader( P: program )
 		ID = ID + 1
 	}
 
+	Bit: int = 1
+	for D: debug_def in P {
+		send Output
+			"#define DBG_[D.id] [sprintf("0x%08x", Bit)] 
+		Bit = Bit * 2
+	}
+
 	send Output
 		~#endif
 		eos
