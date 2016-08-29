@@ -69,16 +69,16 @@ void generateThreadHeader( Thread: thread )
 		"struct [Thread->Id]Gen
 		"	: public Thread
 		"{
-		"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ), breakRecv(false) {}
+		"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ) {}
 		"
 		"	void init() { }
 		"	int start();
 		"	void join();
 		"	virtual int main() { return 0; }
 		"	void recvHeader( ItQueue *queue, ItHeader *header );
-		"	bool breakRecv;
 		"
 		"	int recv();
+		"	int poll();
 		"
 
 	createChildDecls( Thread )
@@ -215,8 +215,20 @@ void generateThreadCode( Thread: thread )
 	send Output
 		"int [Thread->Id]Gen::recv()
 		"{
-		"	breakRecv = false;
-		"	while ( !breakRecv ) {
+		"	breakLoop = false;
+		"	while ( !breakLoop ) {
+		"		ItHeader *header = control.wait();
+		"		recvHeader( &control, header );
+		"		control.release( header );
+		"	}
+		"	return 0;
+		"}
+		"
+
+	send Output
+		"int [Thread->Id]Gen::poll()
+		"{
+		"	if ( control.poll() ) {
 		"		ItHeader *header = control.wait();
 		"		recvHeader( &control, header );
 		"		control.release( header );

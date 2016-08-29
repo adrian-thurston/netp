@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <genf/list.h>
 
+
 #define IT_BLOCK_SZ 4098
 
 struct ItWriter;
@@ -96,6 +97,7 @@ struct Thread
 	Thread( const char *type )
 	:
 		type( type ),
+		breakLoop( false ),
 		logFile( &std::cerr )
 	{
 	}
@@ -105,6 +107,7 @@ struct Thread
 	typedef List<Thread> ThreadList;
 
 	pthread_t pthread;
+	bool breakLoop;
 	std::ostream *logFile;
 	ItQueue control;
 
@@ -115,6 +118,10 @@ struct Thread
 	virtual int start() = 0;
 
 	const Thread &log_prefix() { return *this; }
+
+	virtual	int poll() = 0;
+	int inetListen();
+	void inetConnect();
 };
 
 void *thread_start_routine( void *arg );

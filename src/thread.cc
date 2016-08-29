@@ -2,6 +2,16 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netdb.h>
+#include <string.h>
+
 long enabledRealms = 0;
 
 namespace genf
@@ -173,6 +183,113 @@ void ItQueue::release( ItHeader *header )
 	/* Final move ahead. */
 	writer->hoff += length;
 };
+
+int Thread::inetListen()
+{
+	uint16_t port = 22546;
+
+	/* Create the socket. */
+	int listenFd = socket( PF_INET, SOCK_STREAM, 0 );
+	if ( listenFd < 0 ) {
+		log_ERROR( "unable to allocate socket" );
+		return -1;
+	}
+
+	/* Set its address to reusable. */
+	int optionVal = 1;
+	setsockopt( listenFd, SOL_SOCKET, SO_REUSEADDR,
+			(char*)&optionVal, sizeof(int) );
+
+	/* bind. */
+	sockaddr_in sockName;
+	sockName.sin_family = AF_INET;
+	sockName.sin_port = htons(port);
+	sockName.sin_addr.s_addr = htonl (INADDR_ANY);
+	if ( bind(listenFd, (sockaddr*)&sockName, sizeof(sockName)) < 0 ) {
+		log_ERROR( "unable to bind to port " << port );
+		close( listenFd );
+		return -1;
+	}
+
+	/* listen. */
+	if ( listen( listenFd, 1 ) < 0 ) {
+		log_ERROR( "unable put socket in listen mode" );
+		close( listenFd );
+		return -1;
+	}
+
+	/* accept loop. */
+	while ( !breakLoop ) {
+		fd_set readSet;
+		FD_ZERO( &readSet );
+		FD_SET( listenFd, &readSet );
+
+		/* Wait no longer than a second. */
+		timeval tv;
+		tv.tv_usec = 0;
+		tv.tv_sec = 1;
+
+		int result = select( listenFd+1, &readSet, 0, 0, &tv );
+
+		if ( result < 0 && ( errno != EAGAIN && errno != EINTR ) )
+			log_FATAL( "select returned an unexpected error " << strerror(errno) );
+
+		if ( result > 0 && FD_ISSET( listenFd, &readSet ) ) {
+			sockaddr_in peer;
+			socklen_t len = sizeof(sockaddr_in);
+
+			result = accept( listenFd, (sockaddr*)&peer, &len );
+			if ( result < 0 ) {
+				log_ERROR( "failed to accept connection: " << strerror(errno) );
+			}
+		}
+
+		poll();
+	}
+
+	/* finalTimerRun( c ); */
+	close( listenFd );
+
+	return 0;
+
+}
+
+void Thread::inetConnect()
+{
+	const char *host = "127.0.0.1";
+	unsigned short port = 22546;
+
+	sockaddr_in servername;
+	hostent *hostinfo;
+	long connectRes;
+
+	/* Create the socket. */
+	int fd = socket( PF_INET, SOCK_STREAM, 0 );
+	if ( fd < 0 )
+		log_ERROR( "SocketConnectFailed" );
+
+	/* Lookup the host. */
+	servername.sin_family = AF_INET;
+	servername.sin_port = htons(port);
+	hostinfo = gethostbyname( host );
+	if ( hostinfo == NULL ) {
+		::close( fd );
+		log_ERROR( "SocketConnectFailed" );
+	}
+
+	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
+
+	/* Connect to the listener. */
+	connectRes = ::connect( fd, (sockaddr*)&servername, sizeof(servername) );
+	if ( connectRes < 0 ) {
+		::close( fd );
+		log_ERROR( "SocketConnectFailed" );
+	}
+
+	//makeNonBlocking( fd );
+	//sockFd = fd;
+}
+
 
 void *thread_start_routine( void *arg )
 {
