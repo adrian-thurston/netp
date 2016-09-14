@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <genf/list.h>
 
+#include "list.h"
 
 #define IT_BLOCK_SZ 4098
 
@@ -92,6 +93,17 @@ struct ItQueue
 	ItWriterVect writerVect;
 };
 
+struct SelectFd
+{
+	SelectFd( int fd )
+		: fd(fd) {}
+
+	int fd;
+	SelectFd *prev, *next;
+};
+
+typedef List<SelectFd> SelectFdList;
+
 struct Thread
 {
 	Thread( const char *type )
@@ -121,7 +133,10 @@ struct Thread
 
 	virtual	int poll() = 0;
 	int inetListen();
+	int selectLoop();
 	void inetConnect();
+
+	SelectFdList selectFdList;
 };
 
 void *thread_start_routine( void *arg );

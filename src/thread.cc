@@ -218,29 +218,46 @@ int Thread::inetListen()
 		return -1;
 	}
 
+	return listenFd;
+}
+
+int Thread::selectLoop()
+{
 	/* accept loop. */
 	while ( !breakLoop ) {
 		fd_set readSet;
 		FD_ZERO( &readSet );
-		FD_SET( listenFd, &readSet );
+		int highest = -1;
+		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
+			if ( fd->fd > highest )
+				highest = fd->fd;
+			FD_SET( fd->fd, &readSet );
+		}
 
 		/* Wait no longer than a second. */
 		timeval tv;
 		tv.tv_usec = 0;
 		tv.tv_sec = 1;
 
-		int result = select( listenFd+1, &readSet, 0, 0, &tv );
+		int result = select( highest+1, &readSet, 0, 0, &tv );
 
 		if ( result < 0 && ( errno != EAGAIN && errno != EINTR ) )
 			log_FATAL( "select returned an unexpected error " << strerror(errno) );
 
-		if ( result > 0 && FD_ISSET( listenFd, &readSet ) ) {
-			sockaddr_in peer;
-			socklen_t len = sizeof(sockaddr_in);
+		if ( result > 0 ) {
+			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
+				if ( FD_ISSET( fd->fd, &readSet ) ) {
+					sockaddr_in peer;
+					socklen_t len = sizeof(sockaddr_in);
 
-			result = accept( listenFd, (sockaddr*)&peer, &len );
-			if ( result < 0 ) {
-				log_ERROR( "failed to accept connection: " << strerror(errno) );
+					result = accept( fd->fd, (sockaddr*)&peer, &len );
+					if ( result < 0 ) {
+						log_ERROR( "failed to accept connection: " << strerror(errno) );
+					}
+					else {
+						log_message( "accepted connection on " << fd->fd );
+					}
+				}
 			}
 		}
 
@@ -248,10 +265,9 @@ int Thread::inetListen()
 	}
 
 	/* finalTimerRun( c ); */
-	close( listenFd );
+	/* close( listenFd ); */
 
 	return 0;
-
 }
 
 void Thread::inetConnect()
