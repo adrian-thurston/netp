@@ -95,10 +95,14 @@ struct ItQueue
 
 struct SelectFd
 {
-	SelectFd( int fd )
-		: fd(fd) {}
+	enum Type { Listen = 1, Data };
 
+	SelectFd( Type type, int fd )
+		: type(type), fd(fd) {}
+
+	Type type;
 	int fd;
+
 	SelectFd *prev, *next;
 };
 
@@ -135,6 +139,8 @@ struct Thread
 	int inetListen();
 	int selectLoop();
 	void inetConnect();
+	virtual void accept( int fd ) {}
+	virtual void data( int fd ) {}
 
 	SelectFdList selectFdList;
 };

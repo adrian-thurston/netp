@@ -247,15 +247,22 @@ int Thread::selectLoop()
 		if ( result > 0 ) {
 			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
 				if ( FD_ISSET( fd->fd, &readSet ) ) {
-					sockaddr_in peer;
-					socklen_t len = sizeof(sockaddr_in);
+					switch ( fd->type ) {
+						case SelectFd::Listen: {
+							sockaddr_in peer;
+							socklen_t len = sizeof(sockaddr_in);
 
-					result = accept( fd->fd, (sockaddr*)&peer, &len );
-					if ( result < 0 ) {
-						log_ERROR( "failed to accept connection: " << strerror(errno) );
-					}
-					else {
-						log_message( "accepted connection on " << fd->fd );
+							result = ::accept( fd->fd, (sockaddr*)&peer, &len );
+							if ( result < 0 )
+								log_ERROR( "failed to accept connection: " << strerror(errno) );
+							else
+								accept( result );
+							break;
+						}
+						case SelectFd::Data: {
+							data( fd->fd );
+							break;
+						}
 					}
 				}
 			}
