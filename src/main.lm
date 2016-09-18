@@ -46,6 +46,7 @@ void generateMainHeader( P: program )
 
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
+	optDefine( P )
 
 	send Output
 		~};
@@ -108,23 +109,46 @@ void longOpts( P: ref<program> )
 		"
 }
 
-void optValues( P: program )
+void optDefine( P: program )
 {
 	Ind: int = 0
 	for OD: option_def in P {
 		switch OD.option_type
 		case [`bool] {
 			send Output
-				"bool [OD.id] = false;
+				"static bool [OD.id];
 		}
 		case [`string] {
 			send Output
-				"std::string [OD.id];
+				"static std::string [OD.id];
 
 		}
 		case [`long] {
 			send Output
-				"long [OD.id];
+				"static long [OD.id];
+		}
+	}
+
+	send Output "
+}
+
+void optDeclare( P: program )
+{
+	Ind: int = 0
+	for OD: option_def in P {
+		switch OD.option_type
+		case [`bool] {
+			send Output
+				"bool MainGen::[OD.id] = false;
+		}
+		case [`string] {
+			send Output
+				"std::string MainGen::[OD.id] = "";
+
+		}
+		case [`long] {
+			send Output
+				"long MainGen::[OD.id] = 0;
 		}
 	}
 
@@ -247,7 +271,7 @@ void generateMainCode( P: ref<program> )
 	
 	optString( P )
 	longOpts( P )
-	optValues( P )
+	optDeclare( P )
 	parseOptions( P )
 
 	send Output
