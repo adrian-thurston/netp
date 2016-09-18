@@ -39,7 +39,7 @@ void sendsToCode( Thread: thread )
 			"{
 			"	SendsTo[Sends->Receiver->Id] *sendsTo = 
 			"		new SendsTo[Sends->Receiver->Id]( );
-			"	sendsTo->writer = recv->control.registerWriter( this );
+			"	sendsTo->writer = recv->control.registerWriter( this, recv );
 			"	return sendsTo;
 			"}
 	}

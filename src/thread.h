@@ -38,7 +38,8 @@ struct ItWriter
 {
 	ItWriter();
 
-	Thread *thread;
+	Thread *writer;
+	Thread *reader;
 	ItQueue *queue;
 	int id;
 
@@ -80,7 +81,7 @@ struct ItQueue
 	ItBlock *allocateBlock();
 	void freeBlock( ItBlock *block );
 
-	ItWriter *registerWriter( Thread *writer );
+	ItWriter *registerWriter( Thread *writer, Thread *reader );
 
 	/* Free list for blocks. */
 	ItBlock *free;
@@ -114,6 +115,7 @@ struct Thread
 	:
 		type( type ),
 		breakLoop( false ),
+		recvRequiresSignal( false ),
 		logFile( &std::cerr )
 	{
 	}
@@ -124,6 +126,12 @@ struct Thread
 
 	pthread_t pthread;
 	bool breakLoop;
+
+	/* Set this true in a thread's constructor if the main loop is not driven
+	 * by listening for genf messages. Signals will be sent automatically on
+	 * message send. */
+	bool recvRequiresSignal;
+
 	std::ostream *logFile;
 	ItQueue control;
 
