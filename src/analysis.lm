@@ -13,6 +13,11 @@ context message
 	MessageDef: message_def
 end
 
+context packet
+	Id: str
+	PacketDef: packet_def
+end
+
 context sends
 	Sender: thread
 	Receiver: thread
@@ -61,7 +66,7 @@ thread consThread( ThreadDef: thread_def )
 }
 
 #
-# Message map.
+# Message Map
 #
 global MessageMap: map<str, message> = new map<str, message>()
 
@@ -83,6 +88,32 @@ message consMessage( MessageDef: message_def )
 	return Message
 }
 
+#
+# Packet Map
+#
+global PacketMap: map<str, packet> = new map<str, packet>()
+
+packet findPacket( Id: id )
+{
+	Packet: packet = PacketMap->find( $Id )
+	if ! Packet {
+		send stderr "inp:[Id.line]: failed to locate packet [Id]
+		exit( 1 )
+	}
+	return Packet
+}
+
+packet consPacket( PacketDef: packet_def )
+{
+	Packet: packet = new packet()
+	Packet->Id = $PacketDef.id
+	Packet->PacketDef = PacketDef
+	return Packet
+}
+
+#
+# Kernel Support
+#
 
 global ModuleName: id
 global KobjList: list<kobj> = new list<kobj>()
@@ -122,6 +153,11 @@ void semanticAnalysis( P: program )
 	for MessageDef: message_def in P {
 		Message: message = consMessage( MessageDef )[]
 		MessageMap->insert( $MessageDef.id, Message )
+	}
+
+	for PacketDef: packet_def in P {
+		Packet: packet = consPacket( PacketDef )[]
+		PacketMap->insert( $PacketDef.id, Packet )
 	}
 
 	for StartsDecl: starts_decl in P {

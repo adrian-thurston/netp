@@ -23,8 +23,8 @@ void generateItqHeader( P: program )
 			"struct [Message->Id]
 			"{
 
-		for FD: field_def in Message->MessageDef {
-			switch FD.field_type
+		for FD: msg_field_def in Message->MessageDef {
+			switch FD.msg_field_type
 			case [`bool] {
 				send Output
 					"	bool [FD.id];

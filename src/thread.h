@@ -109,6 +109,22 @@ struct SelectFd
 
 typedef List<SelectFd> SelectFdList;
 
+struct PacketHeader;
+struct PacketWriter
+{
+	int mlen;
+	PacketHeader *toSend;
+
+	void *allocBytes( int b ) { return 0; }
+};
+
+struct PacketHeader
+{
+	int msgId;
+	int writerId;
+	int length;
+};
+
 struct Thread
 {
 	Thread( const char *type )

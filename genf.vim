@@ -9,10 +9,10 @@ syntax keyword Type
 	\ bool string long
 
 syntax keyword Type
-	\ message thread module attribute kobj
+	\ message packet thread module attribute kobj
 
 syntax keyword Keyword
-	\ starts sends to show store
+	\ starts sends to receives show store debug
 
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 

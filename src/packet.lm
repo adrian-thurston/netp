@@ -1,0 +1,96 @@
+void generatePacketHeader( P: program )
+{
+	Output = new parser<out_c::out_c>()
+
+	send Output
+		~/*
+		~ * packet_gen.h
+		~ */
+		~
+		~#ifndef __PACKET_GEN_H
+		~#define __PACKET_GEN_H
+		~
+		~struct PacketWriter;
+		~
+
+	ID: int = 1
+
+	for Packet: packet in PacketMap {
+		send Output
+			"struct [Packet->Id]
+			"{
+
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output
+					"	bool [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	const char *[FD.id];
+			}
+		}
+
+		send Output
+			"	static [Packet->Id] *open( PacketWriter *writer );
+			"	static const unsigned short ID = [ID];
+			"};
+			"
+
+		ID = ID + 1
+	}
+
+	send Output
+		~#endif
+		eos
+
+	writeOutput( Output->tree, 'packet_gen.h' )
+}
+
+void generatePacketCode( P: program )
+{
+	Output = new parser<out_c::out_c>()
+
+	send Output
+		~/*
+		~ * packet_gen.cc
+		~ */
+		~
+		~#include "packet_gen.h"
+		~#include <genf/thread.h>
+		~
+
+	for PD: packet_def in P {
+		send Output
+			"[PD.id] *[PD.id]::open( PacketWriter *writer )
+			"{
+			"	writer->mlen = 0;
+			"
+			"	/* Place the header. */
+			"	PacketHeader *header = (PacketHeader*) writer->allocBytes(
+			"			sizeof(PacketHeader) );
+			"	
+			"	header->msgId = [PD.id]::ID;
+			"	header->writerId = 1; // writer->id;
+			"
+			"	/* Place the struct. */
+			"	[PD.id] *msg = ([PD.id]*) writer->allocBytes(
+			"			sizeof([PD.id]) );
+			"
+			"	header->length = writer->mlen;
+			"	writer->toSend = header;
+			"
+			"	return msg;
+			"}
+			"
+	}
+
+	send Output [] eos
+
+	writeOutput( Output->tree, 'packet_gen.cc' )
+}

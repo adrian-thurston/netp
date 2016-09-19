@@ -5,6 +5,7 @@ include 'thread.lm'
 include 'main.lm'
 include 'analysis.lm'
 include 'itq.lm'
+include 'packet.lm'
 include 'kernf.lm'
 
 global Output: parser<out_c::out_c>
@@ -39,6 +40,9 @@ void generateCode( P: program )
 
 	generateItqHeader( P )
 	generateItqCode( P )
+
+	generatePacketHeader( P )
+	generatePacketCode( P )
 }
 
 void addDefaultDefs( P: ref<program> )

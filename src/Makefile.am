@@ -19,6 +19,7 @@ LM_DEPS = \
 	analysis.lm \
 	thread.lm \
 	itq.lm \
+	packet.lm
 	kernf.lm \
 	genf.lm
 

@@ -1,8 +1,8 @@
 
 lex
-	literal `thread `message `option `module
+	literal `thread `message `packet `option `module
 	literal `bool `string `long `attribute
-	literal `starts `sends `to `show `store `kobj
+	literal `starts `sends `to `receives `show `store `kobj
 	literal `debug
 	literal `: `; `{ `} `, `( `)
 
@@ -37,22 +37,39 @@ def option_def
 def thread_def
 	[`thread id `;]
 
-def field_type
+def msg_field_type
 	[`bool]
 |	[`string]
 |	[`long]
 
-def field_def
-	[field_type id `;]
+def msg_field_def
+	[msg_field_type id `;]
 
 def message_def
-	[`message id `{ field_def* `} `;]
+	[`message id `{ msg_field_def* `} `;]
+
+def pkt_field_type
+	[`bool]
+|	[`string]
+|	[`long]
+
+def pkt_field_def
+	[pkt_field_type id `;]
+
+def packet_def
+	[`packet id `{ pkt_field_def* `} `;]
 
 def starts_decl
 	[Owner: id `starts Thread: id `;]
 
 def sends_to_decl
 	[Sender: id `sends Message: id `to Receiver: id `;]
+
+def sends_decl
+	[Sender: id `sends Packet: id `;]
+
+def receives_decl
+	[Receiver: id `receives Packet: id `;]
 
 def module_decl
 	[`module id `;]
@@ -90,8 +107,11 @@ def definition
 	[option_def]
 |	[thread_def]
 |	[message_def]
+|	[packet_def]
 |	[starts_decl]
 |	[sends_to_decl]
+|	[sends_decl]
+|	[receives_decl]
 |	[module_decl]
 |	[attr_decl]
 |	[kobj_def]
