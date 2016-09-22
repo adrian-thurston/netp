@@ -11,11 +11,14 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_LIBTOOL
 
+AC_LANG_CPLUSPLUS
+
 dnl pthread
 AC_CHECK_HEADER( [pthread.h] )
 AC_CHECK_LIB( [pthread], [pthread_create] )
 
 AC_CHECK_COLM([0.13.0.4])
+AC_CHECK_AAPL()
 AC_SUBST(SED_SUBST)
 
 AC_CONFIG_HEADERS(src/config.h)

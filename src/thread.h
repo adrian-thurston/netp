@@ -9,6 +9,7 @@
 #include <genf/list.h>
 
 #include "list.h"
+#include <vector.h>
 
 #define IT_BLOCK_SZ 4098
 
@@ -112,10 +113,28 @@ typedef List<SelectFd> SelectFdList;
 struct PacketHeader;
 struct PacketWriter
 {
+	PacketWriter( int fd )
+		: fd(fd) {}
+
+	int fd;
 	int mlen;
 	PacketHeader *toSend;
+	Vector<char> buf;
 
-	void *allocBytes( int b ) { return 0; }
+	char *data() { return buf.data; }
+	int length() { return buf.length(); }
+
+	int allocBytes( int b )
+	{
+		int off = buf.length();
+		buf.appendNew( b );
+		return off;
+	}
+
+	void reset()
+	{
+		buf.empty();
+	}
 };
 
 struct PacketHeader
@@ -162,9 +181,9 @@ struct Thread
 	virtual	int poll() = 0;
 	int inetListen();
 	int selectLoop();
-	void inetConnect();
+	int inetConnect();
 	virtual void accept( int fd ) {}
-	virtual void data( int fd ) {}
+	virtual void data( SelectFd *fd ) {}
 
 	SelectFdList selectFdList;
 };

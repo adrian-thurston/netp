@@ -10,6 +10,9 @@ void generatePacketHeader( P: program )
 		~#ifndef __PACKET_GEN_H
 		~#define __PACKET_GEN_H
 		~
+		~#include <sys/types.h>
+		~#include <sys/socket.h>
+		~
 		~struct PacketWriter;
 		~
 
@@ -38,6 +41,7 @@ void generatePacketHeader( P: program )
 
 		send Output
 			"	static [Packet->Id] *open( PacketWriter *writer );
+			"	static void send( PacketWriter *writer );
 			"	static const unsigned short ID = [ID];
 			"};
 			"
@@ -72,20 +76,28 @@ void generatePacketCode( P: program )
 			"	writer->mlen = 0;
 			"
 			"	/* Place the header. */
-			"	PacketHeader *header = (PacketHeader*) writer->allocBytes(
-			"			sizeof(PacketHeader) );
+			"	int offset = writer->allocBytes( sizeof(PacketHeader) );
+			"	PacketHeader *header = (PacketHeader*) ( writer->data() + offset );
 			"	
 			"	header->msgId = [PD.id]::ID;
 			"	header->writerId = 1; // writer->id;
 			"
 			"	/* Place the struct. */
-			"	[PD.id] *msg = ([PD.id]*) writer->allocBytes(
-			"			sizeof([PD.id]) );
+			"	offset = writer->allocBytes( sizeof([PD.id]) );
+			"	[PD.id] *msg = ([PD.id]*) ( writer->data() + offset );
 			"
 			"	header->length = writer->mlen;
 			"	writer->toSend = header;
 			"
 			"	return msg;
+			"}
+			"
+
+		send Output
+			"void [PD.id]::send( PacketWriter *writer )
+			"{
+			"	log_message( \"sending \" << writer->length() << \" bytes\" );
+			"	::write( writer->fd, writer->data(), writer->length() );
 			"}
 			"
 	}

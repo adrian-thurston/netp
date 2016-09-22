@@ -259,14 +259,17 @@ int Thread::selectLoop()
 							socklen_t len = sizeof(sockaddr_in);
 
 							result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-							if ( result < 0 )
-								log_ERROR( "failed to accept connection: " << strerror(errno) );
-							else
+							if ( result >= 0 ) {
 								accept( result );
+							}
+							else {
+								log_ERROR( "failed to accept connection: " <<
+										strerror(errno) );
+							}
 							break;
 						}
 						case SelectFd::Data: {
-							data( fd->fd );
+							data( fd );
 							break;
 						}
 					}
@@ -283,7 +286,7 @@ int Thread::selectLoop()
 	return 0;
 }
 
-void Thread::inetConnect()
+int Thread::inetConnect()
 {
 	const char *host = "127.0.0.1";
 	unsigned short port = 22546;
@@ -313,10 +316,10 @@ void Thread::inetConnect()
 	if ( connectRes < 0 ) {
 		::close( fd );
 		log_ERROR( "SocketConnectFailed" );
+		return -1;
 	}
 
-	//makeNonBlocking( fd );
-	//sockFd = fd;
+	return fd;
 }
 
 
