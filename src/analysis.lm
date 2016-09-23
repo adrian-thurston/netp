@@ -49,7 +49,7 @@ thread findThread( Id: id )
 {
 	Thread: thread = ThreadMap->find( $Id )
 	if ! Thread {
-		send stderr "inp:[Id.line]: failed to locate thread [Id]
+		send stderr "[OptInputFn]:[Id.line]: failed to locate thread [Id]
 		exit( 1 )
 	}
 	return Thread
@@ -78,7 +78,7 @@ message findMessage( Id: id )
 {
 	Message: message = MessageMap->find( $Id )
 	if ! Message {
-		send stderr "inp:[Id.line]: failed to locate message [Id]
+		send stderr "[OptInputFn]:[Id.line]: failed to locate message [Id]
 		exit( 1 )
 	}
 	return Message
@@ -101,7 +101,7 @@ packet findPacket( Id: id )
 {
 	Packet: packet = PacketMap->find( $Id )
 	if ! Packet {
-		send stderr "inp:[Id.line]: failed to locate packet [Id]
+		send stderr "[OptInputFn]:[Id.line]: failed to locate packet [Id]
 		exit( 1 )
 	}
 	return Packet

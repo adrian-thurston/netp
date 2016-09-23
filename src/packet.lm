@@ -56,11 +56,20 @@ void generatePacketHeader( P: program )
 	writeOutput( Output->tree, 'packet_gen.h' )
 }
 
+void packetRecvDecls( Thread: thread )
+{
+	for Packet: packet in Thread->RecvsPktList {
+		send Output
+			"	virtual void recv[Packet->Id]( int fd, [Packet->Id] *pkt ) = 0;
+	}
+}
+
 void packetReceives( Thread: thread )
 {
 	send Output
-		"#include \"packet_gen.h\"
 		"
+
+	send Output
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
 		"	log_message( \"select in data call\" );
@@ -77,13 +86,13 @@ void packetReceives( Thread: thread )
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
 			"		case (int) [Packet->Id]::ID: {
-			"			StatsQuery sq;
-			"			len = read( fd->fd, &sq, sizeof(sq) );
+			"			[Packet->Id] pkt;
+			"			len = read( fd->fd, &pkt, sizeof(pkt) );
 			"			if ( len == 0 ) {
 			"				close( fd );
 			"				return;
 			"			}
-			"			log_message( \"received StatsQuery\" );
+			"			recv[Packet->Id]( fd->fd, &pkt );
 			"			break;
 			"		}
 	}

@@ -13,6 +13,7 @@ void generateMainHeader( P: program )
 		~
 		~#include <genf/thread.h>
 		~#include "itq_gen.h"
+		~#include "packet_gen.h"
 		~
 
 	threadForwards( Thread )
@@ -50,6 +51,7 @@ void generateMainHeader( P: program )
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
 	optDefine( P )
+	packetRecvDecls( Thread )
 
 	send Output
 		~};

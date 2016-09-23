@@ -61,6 +61,7 @@ void generateThreadHeader( Thread: thread )
 	send Output
 		~#include <genf/thread.h>
 		~#include "itq_gen.h"
+		~#include "packet_gen.h"
 		~
 
 	threadForwards( Thread )
@@ -86,6 +87,7 @@ void generateThreadHeader( Thread: thread )
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
 	recvDecls( Thread )
+	packetRecvDecls( Thread )
 
 	send Output
 		"};
