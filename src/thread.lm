@@ -167,47 +167,6 @@ void threadForwards( Thread: thread )
 }
 
 
-void generatePacketReceives( Thread: thread )
-{
-	send Output
-		"#include \"packet_gen.h\"
-		"
-		"void [Thread->Id]Gen::data( SelectFd *fd )
-		"{
-		"	log_message( \"select in data call\" );
-		"	PacketHeader packetHeader;
-		"	int len = read( fd->fd, &packetHeader, sizeof(packetHeader) );
-		"	log_message( \"header read: \" << len );
-		"	if ( len == 0 ) {
-		"		close( fd );
-		"		return;
-		"	}
-		"
-		"	switch ( packetHeader.msgId )  {
-		"		case (int) StatsQuery::ID: {
-		"			StatsQuery sq;
-		"			len = read( fd->fd, &sq, sizeof(sq) );
-		"			if ( len == 0 ) {
-		"				close( fd );
-		"				return;
-		"			}
-		"			log_message( \"received StatsQuery\" );
-		"			break;
-		"		}
-		"	}
-		"}
-		"
-		"void [Thread->Id]Gen::close( SelectFd *fd )
-		"{
-		"	log_message( \"closing: \" << fd->fd );
-		"	::close( fd->fd );
-		"	selectFdList.detach( fd );
-		"	delete fd;
-		"}   
-		"
-}
-
-
 void generateThreadCode( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
@@ -230,7 +189,7 @@ void generateThreadCode( Thread: thread )
 	joinDef( Thread )
 	sendsToCode( Thread )
 
-	generatePacketReceives( Thread )
+	packetReceives( Thread )
 
 	send Output
 		"int [Thread->Id]Gen::start()

@@ -6,6 +6,8 @@ context thread
 	StartedBy: thread
 	SendsMap: map<thread, sends>
 	RecvsList: list<message>
+	SendsPktList: list<packet>
+	RecvsPktList: list<packet>
 end
 
 context message
@@ -62,6 +64,8 @@ thread consThread( ThreadDef: thread_def )
 	Thread->Starts = new list<thread>()
 	Thread->SendsMap = new map<thread, sends>()
 	Thread->RecvsList = new list<message>()
+	Thread->SendsPktList = new list<packet>()
+	Thread->RecvsPktList = new list<packet>()
 	return Thread
 }
 
@@ -183,6 +187,18 @@ void semanticAnalysis( P: program )
 		}
 		Sends->MessageList->push_tail( Message )
 		Receiver->RecvsList->push_tail( Message )
+	}
+
+	for Sends: sends_decl in P {
+		Sender: thread = findThread( Sends.Sender )
+		Packet: packet = findPacket( Sends.Packet )
+		Sender->SendsPktList->push_tail( Packet )
+	}
+
+	for Receives: receives_decl in P {
+		Receiver: thread = findThread( Receives.Receiver )
+		Packet: packet = findPacket( Receives.Packet )
+		Receiver->RecvsPktList->push_tail( Packet )
 	}
 
 	# Make the root kobj.

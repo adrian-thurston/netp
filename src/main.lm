@@ -40,6 +40,9 @@ void generateMainHeader( P: program )
 		~	virtual int main() { return 0; }
 		~	virtual int poll() { return 0; }
 		~
+		~	virtual void data( SelectFd *fd );
+		~	void close( SelectFd *fd );
+		~
 		~	void signalSetup();
 		~	void sigmaskSetup();
 		~	int mainSignal();
@@ -383,6 +386,7 @@ void generateMainCode( P: ref<program> )
 
 	joinDef( Thread )
 	sendsToCode( Thread )
+	packetReceives( Thread )
 
 	send Output
 		~int main( int argc, char *const*argv )
