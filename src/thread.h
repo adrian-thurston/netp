@@ -180,7 +180,8 @@ struct Thread
 
 	virtual	int poll() = 0;
 	int inetListen();
-	int selectLoop();
+	int selectLoop() { return pselectLoop( 0 ); }
+	int pselectLoop( sigset_t *sigmask );
 	int inetConnect();
 	virtual void accept( int fd ) {}
 	virtual void data( SelectFd *fd ) {}

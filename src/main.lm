@@ -44,9 +44,11 @@ void generateMainHeader( P: program )
 		~	virtual void data( SelectFd *fd );
 		~	void close( SelectFd *fd );
 		~
+		~	bool handleSignal( int sig );
+		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
-		~	void sigmaskSetup();
 		~	int mainSignal();
+		~	int selectLoop();
 
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
@@ -301,56 +303,80 @@ void generateMainCode( P: ref<program> )
 		~}
 		~
 
-	# Mask the signals we wish to funnel to the main thread. This will be the
-	# signal set that all threads should receive.
+	#
+	# Signal setup.
+	#
+	# Set a null sigusr handler for all threads to use. We use sigusr to break
+	# from system calls and don't need to take action in the handler.
+	#
+	# Also mask the signals we wish to funnel to the main thread. All threads
+	# will inherit this signal mask. The main thread should use an atomic
+	# unmask to receive the sigs.
+	#
 	send Output
-		~void MainGen::sigmaskSetup()
+		~static void sigusrHandler( int s )
 		~{
-		~	sigset_t set;
+		~}
 		~
+		~void MainGen::funnelSigs( sigset_t *set )
+		~{
+		~	sigaddset( set, SIGHUP );
+		~	sigaddset( set, SIGINT );
+		~	sigaddset( set, SIGQUIT );
+		~	sigaddset( set, SIGKILL );
+		~	sigaddset( set, SIGTERM );
+		~	sigaddset( set, SIGCHLD );
+		~}
+		~
+		~void MainGen::signalSetup()
+		~{
+		~	signal( SIGUSR1, sigusrHandler );
+		~	signal( SIGUSR2, sigusrHandler );
+		~
+		~	sigset_t set;
 		~	sigemptyset( &set );
-		~	sigaddset( &set, SIGHUP );
-		~	sigaddset( &set, SIGINT );
-		~	sigaddset( &set, SIGQUIT );
-		~	sigaddset( &set, SIGKILL );
-		~	sigaddset( &set, SIGTERM );
-		~	sigaddset( &set, SIGCHLD );
+		~
+		~	funnelSigs( &set );
 		~
 		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
 		~}
 		~
 
 	send Output
-		~static void sigusrHandler( int s )
+		~bool MainGen::handleSignal( int sig )
 		~{
+		~	bool cont = true;
+		~	switch ( sig ) {
+		~	case SIGHUP:
+		~	{
+		~		log_message( "received sighup" );
+		~		break;
+		~	}
+		~	case SIGINT:
+		~	case SIGQUIT:
+		~	case SIGKILL:
+		~	case SIGTERM:
+		~	{
+		~		log_message( "breaking from signal loop" );
+		~		cont = false;
+		~		break;
+		~	}
+		~	default: {
+		~		log_message( "received sig: " << sig );
+		~		break;
+		~	}}
+		~	return cont;
 		~}
 		~
-
-	send Output
-		~void MainGen::signalSetup()
-		~{
-		~	signal( SIGUSR1, sigusrHandler );
-		~	signal( SIGUSR2, sigusrHandler );
-		~
-		~	sigmaskSetup();
-		~}
-		~
-
-	send Output
 		~int MainGen::mainSignal()
 		~{
 		~	sigset_t set;
 		~	sigfillset( &set );
 		~
 		~	sigemptyset( &set );
-		~	sigaddset( &set, SIGHUP );
-		~	sigaddset( &set, SIGINT );
-		~	sigaddset( &set, SIGQUIT );
-		~	sigaddset( &set, SIGKILL );
-		~	sigaddset( &set, SIGTERM );
+		~	funnelSigs( &set );
 		~	sigaddset( &set, SIGUSR1 );
 		~	sigaddset( &set, SIGUSR2 );
-		~	sigaddset( &set, SIGCHLD );
 		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
 		~
 		~	bool cont = true;
@@ -362,29 +388,42 @@ void generateMainCode( P: ref<program> )
 		~			continue;
 		~		}
 		~
-		~		switch ( sig ) {
-		~		case SIGHUP:
-		~		{
-		~			log_message( "received sighup" );
-		~			break;
-		~		}
-		~		case SIGINT:
-		~		case SIGQUIT:
-		~		case SIGKILL:
-		~		case SIGTERM:
-		~		{
-		~			log_message( "breaking from signal loop" );
-		~			cont = false;
-		~			break;
-		~		}
-		~		default: {
-		~			log_message( "received sig: " << sig );
-		~			break;
-		~		}}
+		~		cont = handleSignal( sig );
 		~	}
 		~	return 0;
 		~}
 		~
+
+	send Output
+		~static int funnelSig = 0;
+		~
+		~static void funnelHandler( int s )
+		~{
+		~	funnelSig = s;
+		~}
+		~
+		~int MainGen::selectLoop()
+		~{
+		~	sigset_t set;
+		~	sigemptyset( &set );
+		~
+		~	signal( SIGHUP,  funnelHandler );
+		~	signal( SIGINT,  funnelHandler );
+		~	signal( SIGQUIT, funnelHandler );
+		~	signal( SIGKILL, funnelHandler );
+		~	signal( SIGTERM, funnelHandler );
+		~	signal( SIGCHLD, funnelHandler );
+		~
+		~	bool cont = true;
+		~	while ( cont ) {
+		~		int r = pselectLoop( &set );
+		~		if ( r == 0 )
+		~			break;
+		~		
+		~		cont = handleSignal( funnelSig );
+		~	}
+		~	return 0;
+		~}
 
 	joinDef( Thread )
 	sendsToCode( Thread )

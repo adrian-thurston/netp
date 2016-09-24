@@ -227,7 +227,7 @@ int Thread::inetListen()
 	return listenFd;
 }
 
-int Thread::selectLoop()
+int Thread::pselectLoop( sigset_t *sigmask )
 {
 	/* accept loop. */
 	while ( !breakLoop ) {
@@ -241,14 +241,19 @@ int Thread::selectLoop()
 		}
 
 		/* Wait no longer than a second. */
-		timeval tv;
-		tv.tv_usec = 0;
-		tv.tv_sec = 1;
+		timespec ts;
+		ts.tv_nsec = 0;
+		ts.tv_sec = 1;
 
-		int result = select( highest+1, &readSet, 0, 0, &tv );
+		int result = pselect( highest+1, &readSet, 0, 0, &ts, sigmask );
 
-		if ( result < 0 && ( errno != EAGAIN && errno != EINTR ) )
-			log_FATAL( "select returned an unexpected error " << strerror(errno) );
+		if ( result < 0 ) {
+			if ( errno == EINTR )
+				return -1;
+
+			if ( errno != EAGAIN ) 
+				log_FATAL( "select returned an unexpected error " << strerror(errno) );
+		}
 
 		if ( result > 0 ) {
 			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
