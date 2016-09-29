@@ -67,9 +67,6 @@ void packetRecvDecls( Thread: thread )
 void packetReceives( Thread: thread )
 {
 	send Output
-		"
-
-	send Output
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
 		"	log_message( \"select in data call\" );
@@ -125,9 +122,9 @@ void generatePacketCode( P: program )
 		~#include <genf/thread.h>
 		~
 
-	for PD: packet_def in P {
+	for Packet: packet in PacketMap {
 		send Output
-			"[PD.id] *[PD.id]::open( PacketWriter *writer )
+			"[Packet->Id] *[Packet->Id]::open( PacketWriter *writer )
 			"{
 			"	writer->mlen = 0;
 			"
@@ -135,12 +132,12 @@ void generatePacketCode( P: program )
 			"	int offset = writer->allocBytes( sizeof(PacketHeader) );
 			"	PacketHeader *header = (PacketHeader*) ( writer->data() + offset );
 			"	
-			"	header->msgId = [PD.id]::ID;
+			"	header->msgId = [Packet->Id]::ID;
 			"	header->writerId = 1; // writer->id;
 			"
 			"	/* Place the struct. */
-			"	offset = writer->allocBytes( sizeof([PD.id]) );
-			"	[PD.id] *msg = ([PD.id]*) ( writer->data() + offset );
+			"	offset = writer->allocBytes( sizeof([Packet->Id]) );
+			"	[Packet->Id] *msg = ([Packet->Id]*) ( writer->data() + offset );
 			"
 			"	header->length = writer->mlen;
 			"	writer->toSend = header;
@@ -150,7 +147,7 @@ void generatePacketCode( P: program )
 			"
 
 		send Output
-			"void [PD.id]::send( PacketWriter *writer )
+			"void [Packet->Id]::send( PacketWriter *writer )
 			"{
 			"	log_message( \"sending \" << writer->length() << \" bytes\" );
 			"	::write( writer->fd, writer->data(), writer->length() );
