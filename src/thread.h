@@ -181,7 +181,7 @@ struct Thread
 
 	virtual	int poll() = 0;
 	int inetListen( uint16_t port );
-	int selectLoop() { return pselectLoop( 0 ); }
+	int selectLoop();
 	int pselectLoop( sigset_t *sigmask );
 	int inetConnect( uint16_t port );
 	virtual void accept( int fd ) {}

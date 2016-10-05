@@ -289,6 +289,17 @@ int Thread::pselectLoop( sigset_t *sigmask )
 	return 0;
 }
 
+int Thread::selectLoop()
+{
+	bool cont = true;
+	while ( cont ) {
+		int r = pselectLoop( 0 );
+		if ( r == 0 )
+			break;
+	}
+	return 0;
+}
+
 int Thread::inetConnect( uint16_t port )
 {
 	const char *host = "127.0.0.1";
