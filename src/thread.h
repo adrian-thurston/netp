@@ -255,6 +255,29 @@ namespace genf
 	extern lfdostream *lf;
 }
 
+struct log_array
+{
+	log_array( const char *data, int len )
+	:
+		data(data), len(len)
+	{}
+
+	log_array( const unsigned char *data, int len )
+	:
+		data((const char*)data),
+		len(len)
+	{}
+
+	const char *data;
+	int len;
+};
+
+inline std::ostream &operator <<( std::ostream &out, const log_array &a )
+{
+	out.write( a.data, a.len );
+	return out;
+}
+
 /* The log_prefix() expression can reference a struct or a function that
  * returns something used to write a different prefix. The macros don't care.
  * This allows for context-dependent log messages. */
