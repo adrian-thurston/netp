@@ -261,7 +261,7 @@ namespace genf
 
 #define log_FATAL( msg ) \
 	*genf::lf << log_lock() << "FATAL: " << log_prefix() << \
-	msg << std::endl << log_unlock() << endp()
+	msg << std::endl << log_unlock() << Thread::endp()
 
 #define log_ERROR( msg ) \
 	*genf::lf << log_lock() << "ERROR: " << log_prefix() << \
