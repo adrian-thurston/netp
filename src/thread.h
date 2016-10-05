@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <genf/list.h>
+#include <stdint.h>
 
 #include "list.h"
 #include <vector.h>
@@ -179,10 +180,10 @@ struct Thread
 	const Thread &log_prefix() { return *this; }
 
 	virtual	int poll() = 0;
-	int inetListen();
+	int inetListen( uint16_t port );
 	int selectLoop() { return pselectLoop( 0 ); }
 	int pselectLoop( sigset_t *sigmask );
-	int inetConnect();
+	int inetConnect( uint16_t port );
 	virtual void accept( int fd ) {}
 	virtual void data( SelectFd *fd ) {}
 

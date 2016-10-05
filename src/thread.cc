@@ -190,10 +190,8 @@ void ItQueue::release( ItHeader *header )
 	writer->hoff += length;
 };
 
-int Thread::inetListen()
+int Thread::inetListen( uint16_t port )
 {
-	uint16_t port = 22546;
-
 	/* Create the socket. */
 	int listenFd = socket( PF_INET, SOCK_STREAM, 0 );
 	if ( listenFd < 0 ) {
@@ -291,10 +289,9 @@ int Thread::pselectLoop( sigset_t *sigmask )
 	return 0;
 }
 
-int Thread::inetConnect()
+int Thread::inetConnect( uint16_t port )
 {
 	const char *host = "127.0.0.1";
-	unsigned short port = 22546;
 
 	sockaddr_in servername;
 	hostent *hostinfo;
