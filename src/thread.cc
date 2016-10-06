@@ -231,11 +231,16 @@ int Thread::pselectLoop( sigset_t *sigmask )
 	while ( !breakLoop ) {
 		fd_set readSet;
 		FD_ZERO( &readSet );
+		fd_set writeSet;
+		FD_ZERO( &writeSet );
 		int highest = -1;
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
 			if ( fd->fd > highest )
 				highest = fd->fd;
-			FD_SET( fd->fd, &readSet );
+			if ( fd->wantRead )
+				FD_SET( fd->fd, &readSet );
+			if ( fd->wantWrite )
+				FD_SET( fd->fd, &writeSet );
 		}
 
 		/* Wait no longer than a second. */

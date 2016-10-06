@@ -101,10 +101,16 @@ struct SelectFd
 	enum Type { Listen = 1, Data };
 
 	SelectFd( Type type, int fd )
-		: type(type), fd(fd) {}
+	:
+		type(type), fd(fd),
+		wantRead(false),
+		wantWrite(false)
+	{}
 
 	Type type;
 	int fd;
+	bool wantRead;
+	bool wantWrite;
 
 	SelectFd *prev, *next;
 };
