@@ -98,17 +98,16 @@ struct ItQueue
 
 struct SelectFd
 {
-	enum Type { Listen = 1, Data };
-
-	SelectFd( Type type, int fd )
+	SelectFd( int fd, void *local )
 	:
-		type(type), fd(fd),
+		fd(fd),
+		local(local),
 		wantRead(false),
 		wantWrite(false)
 	{}
 
-	Type type;
 	int fd;
+	void *local;
 	bool wantRead;
 	bool wantWrite;
 
@@ -190,8 +189,11 @@ struct Thread
 	int selectLoop();
 	int pselectLoop( sigset_t *sigmask );
 	int inetConnect( uint16_t port );
-	virtual void accept( int fd ) {}
-	virtual void data( SelectFd *fd ) {}
+
+	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {};
+
+	static const uint8_t READ_READY  = 0x01;
+	static const uint8_t WRITE_READY = 0x02;
 
 	SelectFdList selectFdList;
 };

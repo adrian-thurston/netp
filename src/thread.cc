@@ -262,28 +262,14 @@ int Thread::pselectLoop( sigset_t *sigmask )
 
 		if ( result > 0 ) {
 			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
-				if ( FD_ISSET( fd->fd, &readSet ) ) {
-					switch ( fd->type ) {
-						case SelectFd::Listen: {
-							sockaddr_in peer;
-							socklen_t len = sizeof(sockaddr_in);
+				uint8_t readyField = 0;
+				if ( FD_ISSET( fd->fd, &readSet ) )
+					readyField |= READ_READY;
+				if ( FD_ISSET( fd->fd, &writeSet )  )
+					readyField |= WRITE_READY;
 
-							result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-							if ( result >= 0 ) {
-								accept( result );
-							}
-							else {
-								log_ERROR( "failed to accept connection: " <<
-										strerror(errno) );
-							}
-							break;
-						}
-						case SelectFd::Data: {
-							data( fd );
-							break;
-						}
-					}
-				}
+				if ( readyField )
+					selectFdReady( fd, readyField );
 			}
 		}
 
