@@ -246,8 +246,10 @@ int Thread::pselectLoop( sigset_t *sigmask )
 		int result = pselect( highest+1, &readSet, 0, 0, &ts, sigmask );
 
 		if ( result < 0 ) {
-			if ( errno == EINTR )
+			if ( errno == EINTR ) {
+				poll();
 				return -1;
+			}
 
 			if ( errno != EAGAIN ) 
 				log_FATAL( "select returned an unexpected error " << strerror(errno) );
