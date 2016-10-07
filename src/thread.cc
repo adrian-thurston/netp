@@ -229,16 +229,18 @@ int Thread::pselectLoop( sigset_t *sigmask )
 {
 	/* accept loop. */
 	while ( !breakLoop ) {
-		fd_set readSet;
+		/* Construct event sets. */
+		fd_set readSet, writeSet;
 		FD_ZERO( &readSet );
-		fd_set writeSet;
 		FD_ZERO( &writeSet );
 		int highest = -1;
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
 			if ( fd->fd > highest )
 				highest = fd->fd;
+
 			if ( fd->wantRead )
 				FD_SET( fd->fd, &readSet );
+
 			if ( fd->wantWrite )
 				FD_SET( fd->fd, &writeSet );
 		}
@@ -248,7 +250,7 @@ int Thread::pselectLoop( sigset_t *sigmask )
 		ts.tv_nsec = 0;
 		ts.tv_sec = 1;
 
-		int result = pselect( highest+1, &readSet, 0, 0, &ts, sigmask );
+		int result = pselect( highest+1, &readSet, &writeSet, 0, &ts, sigmask );
 
 		if ( result < 0 ) {
 			if ( errno == EINTR ) {
