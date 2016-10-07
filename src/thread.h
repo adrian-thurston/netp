@@ -190,7 +190,8 @@ struct Thread
 	int pselectLoop( sigset_t *sigmask );
 	int inetConnect( const char *host, uint16_t port );
 
-	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {};
+	virtual bool selectFdReady( SelectFd *selectFd, uint8_t readyField )
+		{ return true; }
 
 	static const uint8_t READ_READY  = 0x01;
 	static const uint8_t WRITE_READY = 0x02;

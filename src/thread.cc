@@ -268,8 +268,11 @@ int Thread::pselectLoop( sigset_t *sigmask )
 				if ( FD_ISSET( fd->fd, &writeSet )  )
 					readyField |= WRITE_READY;
 
-				if ( readyField )
-					selectFdReady( fd, readyField );
+				if ( readyField ) {
+					bool cont = selectFdReady( fd, readyField );
+					if ( !cont )
+						return 0;
+				}
 			}
 		}
 
