@@ -293,10 +293,8 @@ int Thread::selectLoop()
 	return 0;
 }
 
-int Thread::inetConnect( uint16_t port )
+int Thread::inetConnect( const char *host, uint16_t port )
 {
-	const char *host = "127.0.0.1";
-
 	sockaddr_in servername;
 	hostent *hostinfo;
 	long connectRes;

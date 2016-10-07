@@ -188,7 +188,7 @@ struct Thread
 	int inetListen( uint16_t port );
 	int selectLoop();
 	int pselectLoop( sigset_t *sigmask );
-	int inetConnect( uint16_t port );
+	int inetConnect( const char *host, uint16_t port );
 
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {};
 
