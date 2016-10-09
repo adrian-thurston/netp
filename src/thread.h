@@ -103,13 +103,15 @@ struct SelectFd
 		fd(fd),
 		local(local),
 		wantRead(false),
-		wantWrite(false)
+		wantWrite(false),
+		abortRound(false)
 	{}
 
 	int fd;
 	void *local;
 	bool wantRead;
 	bool wantWrite;
+	bool abortRound;
 
 	SelectFd *prev, *next;
 };
