@@ -349,7 +349,7 @@ void generateMainCode( P: ref<program> )
 		~	switch ( sig ) {
 		~	case SIGHUP:
 		~	{
-		~		log_message( "received sighup" );
+		~		log_message( "received SIGHUP" );
 		~		break;
 		~	}
 		~	case SIGINT:
@@ -361,6 +361,9 @@ void generateMainCode( P: ref<program> )
 		~		cont = false;
 		~		break;
 		~	}
+		~	case SIGCHLD:
+		~		log_message( "received SIGCHLD" );
+		~		break;
 		~	default: {
 		~		log_message( "received sig: " << sig );
 		~		break;
