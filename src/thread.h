@@ -168,6 +168,8 @@ struct Thread
 	typedef List<Thread> ThreadList;
 
 	pthread_t pthread;
+	pid_t tid;
+
 	bool breakLoop;
 
 	/* Set this true in a thread's constructor if the main loop is not driven
@@ -198,9 +200,23 @@ struct Thread
 	static const uint8_t WRITE_READY = 0x02;
 
 	SelectFdList selectFdList;
+
+	static pthread_key_t thisKey;
+
+	static void initThis()
+		{ pthread_key_create( &thisKey, 0 ); }
+
+	static Thread *getThis()
+		{ return (Thread*) pthread_getspecific( thisKey ); }
+
+	void setThis()
+		{ pthread_setspecific( thisKey, this ); }
+
+	static long enabledRealms;
 };
 
 void *thread_start_routine( void *arg );
+	
 
 struct log_prefix { };
 struct log_time { };
@@ -254,10 +270,11 @@ struct log_lock {};
 struct log_unlock {};
 
 std::ostream &operator <<( std::ostream &out, const Thread::endp & );
-std::ostream &operator <<( std::ostream &out, const log_prefix & );
 std::ostream &operator <<( std::ostream &out, const log_lock & );
 std::ostream &operator <<( std::ostream &out, const log_unlock & );
 std::ostream &operator <<( std::ostream &out, const log_time & );
+
+std::ostream &operator <<( std::ostream &out, const log_prefix & );
 std::ostream &operator <<( std::ostream &out, const Thread &thread );
 
 namespace genf
@@ -308,10 +325,8 @@ inline std::ostream &operator <<( std::ostream &out, const log_array &a )
 	*genf::lf << log_lock() << "warning: " << log_prefix() << \
 	msg << std::endl << log_unlock()
 
-extern long enabledRealms;
-
 #define log_debug( realm, msg ) \
-	if ( enabledRealms & realm ) \
+	if ( Thread::enabledRealms & realm ) \
 		*genf::lf << log_lock() << "debug: " << log_prefix() << \
 		msg << std::endl << log_unlock()
 

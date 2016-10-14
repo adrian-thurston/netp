@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -11,8 +16,11 @@
 #include <errno.h>
 #include <netdb.h>
 #include <string.h>
+#include <unistd.h>
+#include <signal.h>
 
-long enabledRealms = 0;
+long Thread::enabledRealms = 0;
+pthread_key_t Thread::thisKey;
 
 namespace genf
 {
@@ -339,6 +347,8 @@ int Thread::inetConnect( const char *host, uint16_t port )
 void *thread_start_routine( void *arg )
 {
 	Thread *thread = (Thread*)arg;
+	thread->tid = syscall( SYS_gettid );
+	thread->setThis();
 	long r = thread->start();
 	return (void*)r;
 }
@@ -381,12 +391,16 @@ std::ostream &operator <<( std::ostream &out, const log_time & )
 
 std::ostream &operator <<( std::ostream &out, const log_prefix & )
 {
-	out << log_time() << ": ";
+	Thread *thread = Thread::getThis();
+	if ( thread != 0 )
+		out << *thread;
+	else
+		out << log_time() << ": ";
 	return out;
 }
 
 std::ostream &operator <<( std::ostream &out, const Thread &thread )
 {
-	out << log_time() << ": " << thread.type << ": ";
+	out << log_time() << ": " << thread.type << "(" << thread.tid << "): ";
 	return out;
 }

@@ -433,8 +433,12 @@ void generateMainCode( P: ref<program> )
 	packetReceives( Thread )
 
 	send Output
+		~static pthread_key_t thisKey;
+		~Thread *getThis();
+		~
 		~int main( int argc, char *const*argv )
 		~{
+		~	Thread::initThis();
 		~	genf::lf = new lfdostream( 2 );
 		~	MainThread main;
 		~	main.init( argc, argv );
