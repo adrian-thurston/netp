@@ -36,6 +36,7 @@ void generateItqHeader( P: program )
 			case [`string] {
 				send Output
 					"	const char *[FD.id];
+					"	void set_[FD.id]( ItWriter *writer, const char *d );
 			}
 		}
 
@@ -77,6 +78,20 @@ void generateItqCode( P: program )
 		~
 
 	for MD: message_def in P {
+		for FD: msg_field_def in MD {
+			switch FD.msg_field_type
+			case [`string] {
+				send Output
+					"void [MD.id]::set_[FD.id]( ItWriter *writer, const char *src )
+					"{
+					"	int length = strlen( src ) + 1;
+					"	char *dest = (char*) writer->queue->allocBytes( writer, length );
+					"	(([MD.id]*)writer->contents)->[FD.id] = dest;
+					"	memcpy( dest, src, length );
+					"}
+			}
+		}
+
 		send Output
 			"[MD.id] *[MD.id]::open( ItWriter *writer )
 			"{
@@ -89,12 +104,15 @@ void generateItqCode( P: program )
 			"	header->msgId = [MD.id]::ID;
 			"	header->writerId = writer->id;
 			"
+			"	/* Length will get recorded on message send, after fields are populated. */
+			"	header->length = 0; 
+			"
 			"	/* Place the struct. */
 			"	[MD.id] *msg = ([MD.id]*) writer->queue->allocBytes(
 			"			writer, sizeof([MD.id]) );
 			"
-			"	header->length = writer->mlen;
 			"	writer->toSend = header;
+			"	writer->contents = msg;
 			"
 			"	return msg;
 			"}

@@ -433,7 +433,6 @@ void generateMainCode( P: ref<program> )
 	packetReceives( Thread )
 
 	send Output
-		~static pthread_key_t thisKey;
 		~Thread *getThis();
 		~
 		~int main( int argc, char *const*argv )

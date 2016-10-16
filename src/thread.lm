@@ -162,6 +162,7 @@ void threadForwards( Thread: thread )
 		for Message: message in Sends->MessageList {
 			send Output
 				"struct [Message->Id];
+				"struct [Sends->Receiver->Id]Thread;
 		}
 	}
 

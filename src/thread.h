@@ -56,6 +56,7 @@ struct ItWriter
 	int mlen;
 
 	ItHeader *toSend;
+	void *contents;
 
 	ItWriter *prev, *next;
 };

@@ -129,6 +129,10 @@ void ItQueue::send( ItWriter *writer )
 {
 	pthread_mutex_lock( &mutex );
 
+	/* Stash the total length in the header. This grows after opening as
+	 * variable-length fields are populated. */
+	writer->toSend->length = writer->mlen;
+
 	/* Put on the end of the message list. */
 	if ( head == 0 )
 		head = tail = writer->toSend;
@@ -136,6 +140,7 @@ void ItQueue::send( ItWriter *writer )
 		tail->next = writer->toSend;
 		tail = writer->toSend;
 	}
+
 
 	/* Notify anyone waiting. */
 	pthread_cond_broadcast( &cond );
