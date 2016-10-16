@@ -78,7 +78,7 @@ void generateThreadHeader( Thread: thread )
 		"	virtual int main() { return 0; }
 		"	void recvHeader( ItQueue *queue, ItHeader *header );
 		"
-		"	int recv();
+		"	int recvLoop();
 		"	int poll();
 		"	virtual void data( SelectFd *fd );
 		"	void close( SelectFd *fd );
@@ -221,7 +221,7 @@ void generateThreadCode( Thread: thread )
 		"
 	
 	send Output
-		"int [Thread->Id]Gen::recv()
+		"int [Thread->Id]Gen::recvLoop()
 		"{
 		"	breakLoop = false;
 		"	while ( !breakLoop ) {
