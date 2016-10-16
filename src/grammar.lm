@@ -4,7 +4,7 @@ lex
 	literal `bool `string `long `attribute
 	literal `starts `sends `to `receives `show `store `kobj
 	literal `debug
-	literal `: `; `{ `} `, `( `)
+	literal `: `; `{ `} `, `( `) `*
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
 
@@ -42,6 +42,7 @@ def msg_field_type
 	[`bool]
 |	[`string]
 |	[`long]
+|	[id `*]
 
 def msg_field_def
 	[msg_field_type id `;]

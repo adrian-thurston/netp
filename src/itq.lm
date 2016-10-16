@@ -40,6 +40,10 @@ void generateItqHeader( P: program )
 					"	const char *[FD.id];
 					"	void set_[FD.id]( ItWriter *writer, const char *d );
 			}
+			case [Id: id `*] {
+				send Output
+					"	[Id] *[FD.id];
+			}
 		}
 
 		send Output
