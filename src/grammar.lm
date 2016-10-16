@@ -9,6 +9,7 @@ lex
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
 
 	ignore /[ \t\n\r]+/
+	ignore /'#' [^\n]* '\r'/
 end
 
 lex

@@ -16,6 +16,8 @@ syntax keyword Keyword
 
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 
+syntax match comment "#[^\n]*\n"
+
 syntax region optionSpec
 	\ matchgroup=kw_option start="\<option\>"
 	\ matchgroup=plain end=";"
