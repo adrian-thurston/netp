@@ -46,8 +46,8 @@ struct ItWriter
 	int id;
 
 	/* Write to the tail block, at tail offset. */
-	ItBlock *head;
-	ItBlock *tail;
+	ItBlock *hblk;
+	ItBlock *tblk;
 
 	/* Head and tail offset. */
 	int hoff;

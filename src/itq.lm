@@ -128,20 +128,20 @@ void generateItqCode( P: program )
 			"[MD.id] *[MD.id]::read( ItQueue *queue, ItHeader *header )
 			"{
 			"	ItWriter *writer = queue->writerVect\[header->writerId\];
-			"	ItBlock *head = writer->head;
+			"	ItBlock *hblk = writer->hblk;
 			"	int offset = writer->hoff;
 			"
-			"	if ( offset + sizeof(ItHeader) > head->size ) {
-			"		head = head->next;
+			"	if ( offset + sizeof(ItHeader) > hblk->size ) {
+			"		hblk = hblk->next;
 			"		offset = 0;
 			"	}
 			"	offset += sizeof( ItHeader );
 			"
-			"	if ( offset + sizeof([MD.id]) > head->size ) {
-			"		head = head->next;
+			"	if ( offset + sizeof([MD.id]) > hblk->size ) {
+			"		hblk = hblk->next;
 			"		offset = 0;
 			"	}
-			"	[MD.id] *msg = ([MD.id]*)(head->data + offset);
+			"	[MD.id] *msg = ([MD.id]*)(hblk->data + offset);
 			"	offset += sizeof( [MD.id] );
 			"
 			"	return msg;

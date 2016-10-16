@@ -39,7 +39,7 @@ ItWriter::ItWriter()
 	reader(0),
 	queue(0),
 	id(-1),
-	head(0), tail(0),
+	hblk(0), tblk(0),
 	hoff(0), toff(0),
 	toSend(0)
 {
@@ -99,19 +99,19 @@ void ItQueue::freeBlock( ItBlock *block )
 
 void *ItQueue::allocBytes( ItWriter *writer, int size )
 {
-	if ( writer->tail == 0 ) {
+	if ( writer->tblk == 0 ) {
 		/* There are no blocks. */
-		writer->head = writer->tail = allocateBlock();
+		writer->hblk = writer->tblk = allocateBlock();
 		writer->hoff = writer->toff = 0;
 	}
 	else {
-		int avail = writer->tail->size - writer->toff;
+		int avail = writer->tblk->size - writer->toff;
 
 		/* Move to the next block? */
 		if ( size > avail ) {
 			ItBlock *block = allocateBlock();
-			writer->tail->next = block;
-			writer->tail = block;
+			writer->tblk->next = block;
+			writer->tblk = block;
 			writer->toff = 0;
 
 			/* Need to track the padding in the message length. */
@@ -119,7 +119,7 @@ void *ItQueue::allocBytes( ItWriter *writer, int size )
 		}
 	}
 
-	void *ret = writer->tail->data + writer->toff;
+	void *ret = writer->tblk->data + writer->toff;
 	writer->toff += size;
 	writer->mlen += size;
 	return ret;
@@ -186,11 +186,11 @@ void ItQueue::release( ItHeader *header )
 	int length = header->length;
 
 	/* Skip whole blocks. */
-	int remaining = writer->head->size - writer->hoff;
+	int remaining = writer->hblk->size - writer->hoff;
 	while ( length >= remaining ) {
 		/* Pop the block. */
-		ItBlock *pop = writer->head;
-		writer->head = writer->head->next;
+		ItBlock *pop = writer->hblk;
+		writer->hblk = writer->hblk->next;
 		writer->hoff = 0;
 		freeBlock( pop );
 
@@ -198,7 +198,7 @@ void ItQueue::release( ItHeader *header )
 		length -= remaining;
 
 		/* Remaining is the size of the next block (always starting at 0). */
-		remaining = writer->head->size;
+		remaining = writer->hblk->size;
 	}
 
 	/* Final move ahead. */
