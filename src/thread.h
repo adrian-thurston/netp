@@ -21,7 +21,7 @@ struct Thread;
 struct ItHeader
 {
 	unsigned short msgId;
-	unsigned char writerId;
+	unsigned short writerId;
 	unsigned int length;
 	ItHeader *next;
 };
