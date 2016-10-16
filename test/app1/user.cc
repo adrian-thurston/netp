@@ -4,12 +4,12 @@
 void UserThread::recvShutdown( Shutdown *msg )
 {
 	log_message( "received shutdown" );
-	breakRecv = true;
+	breakLoop = true;
 }
 
 int UserThread::main()
 {
-	recv();
+	recvLoop();
 	log_message( "exiting" );
 	return 0;
 }

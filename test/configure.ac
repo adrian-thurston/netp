@@ -1,6 +1,9 @@
 AC_INIT([genf-suite], [1.0.1])
 AM_INIT_AUTOMAKE
 
+AC_CONFIG_MACRO_DIR([../m4])
+m4_include([../m4/common.m4])
+
 dnl
 dnl Which genf are we testing. Default is the one in parent's source dir. If
 dnl specified, should be the install prefix.
@@ -21,6 +24,9 @@ AC_ARG_WITH(subject,
 
 : ${CFLAGS="-Wall -g"}
 : ${CXXFLAGS="-Wall -g"}
+
+AC_LANG_CPLUSPLUS
+AC_CHECK_AAPL
 
 dnl Checks for programs.
 AC_PROG_CC
