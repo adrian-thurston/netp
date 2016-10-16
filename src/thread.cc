@@ -134,8 +134,10 @@ void ItQueue::send( ItWriter *writer )
 	writer->toSend->length = writer->mlen;
 
 	/* Put on the end of the message list. */
-	if ( head == 0 )
+	if ( head == 0 ) {
 		head = tail = writer->toSend;
+		head->next = 0;
+	}
 	else {
 		tail->next = writer->toSend;
 		tail = writer->toSend;
