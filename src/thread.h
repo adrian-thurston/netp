@@ -11,6 +11,7 @@
 
 #include "list.h"
 #include <vector.h>
+#include <rope.h>
 
 #define IT_BLOCK_SZ 4098
 
@@ -123,31 +124,24 @@ struct PacketHeader;
 struct PacketWriter
 {
 	PacketWriter( int fd )
-		: fd(fd), allocated(0) {}
+		: fd(fd) {}
 
 	int fd;
-	int mlen;
 	PacketHeader *toSend;
 	void *content;
-	Vector<char> buf;
-	int allocated;
+	Rope buf;
 
-	char *data() { return buf.data; }
-	int length() { return buf.length(); }
-
-	int allocBytes( int b )
+	char *allocBytes( int nb )
 	{
-		if ( buf.length() == 0 )
-			buf.appendNew( 8192 );
-		int off = allocated;
-		allocated += b;
-		return off;
+		char *b = buf.append( 0, nb );
+		return b;
 	}
+
+	int length()
+		{ return buf.length(); }
 
 	void reset()
-	{
-		allocated = 0;
-	}
+		{ buf.empty(); }
 };
 
 struct PacketHeader

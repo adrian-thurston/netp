@@ -70,11 +70,8 @@ void packetReceives( Thread: thread )
 	send Output
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
-		"	log_message( \"select in data call\" );
 		"	PacketHeader header;
 		"	int len = read( fd->fd, &header, sizeof(header) );
-		"	log_message( \"header read: \" << len );
-		"	log_message( \"header id: \" << header.msgId );
 		"	if ( len == 0 ) {
 		"		close( fd );
 		"		return;
@@ -142,9 +139,10 @@ void generatePacketCode( P: program )
 					"void [Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
-					"	long offset = writer->allocBytes( length );
+					"	long offset = writer->length();
+					"	char *dest = writer->allocBytes( length );
 					"	(([Packet->Id]*)writer->content)->[FD.id] = (char*)offset;
-					"	memcpy( writer->data() + offset, src, length );
+					"	memcpy( dest, src, length );
 					"}
 					"
 			}
@@ -153,18 +151,16 @@ void generatePacketCode( P: program )
 		send Output
 			"[Packet->Id] *[Packet->Id]::open( PacketWriter *writer )
 			"{
-			"	writer->mlen = 0;
+			"	writer->reset();
 			"
 			"	/* Place the header. */
-			"	int offset = writer->allocBytes( sizeof(PacketHeader) );
-			"	PacketHeader *header = (PacketHeader*) ( writer->data() + offset );
+			"	PacketHeader *header = (PacketHeader*) writer->allocBytes( sizeof(PacketHeader) );
 			"	
 			"	header->msgId = [Packet->Id]::ID;
 			"	header->writerId = 1; // writer->id;
 			"
 			"	/* Place the struct. */
-			"	offset = writer->allocBytes( sizeof([Packet->Id]) );
-			"	[Packet->Id] *msg = ([Packet->Id]*) ( writer->data() + offset );
+			"	[Packet->Id] *msg = ([Packet->Id]*) writer->allocBytes( sizeof([Packet->Id]) );
 			"
 			"	header->length = 0;
 			"	writer->toSend = header;
@@ -177,9 +173,9 @@ void generatePacketCode( P: program )
 		send Output
 			"void [Packet->Id]::send( PacketWriter *writer )
 			"{
-			"	log_message( \"sending \" << writer->allocated << \" bytes\" );
-			"	writer->toSend->length = writer->allocated;
-			"	::write( writer->fd, writer->data(), writer->allocated );
+			"	writer->toSend->length = writer->length();
+			"	for ( RopeBlock *rb = writer->buf.hblk; rb != 0; rb = rb->next )
+			"		::write( writer->fd, writer->buf.data(rb), writer->buf.length(rb) );
 			"}
 			"
 	}
