@@ -123,26 +123,30 @@ struct PacketHeader;
 struct PacketWriter
 {
 	PacketWriter( int fd )
-		: fd(fd) {}
+		: fd(fd), allocated(0) {}
 
 	int fd;
 	int mlen;
 	PacketHeader *toSend;
+	void *content;
 	Vector<char> buf;
+	int allocated;
 
 	char *data() { return buf.data; }
 	int length() { return buf.length(); }
 
 	int allocBytes( int b )
 	{
-		int off = buf.length();
-		buf.appendNew( b );
+		if ( buf.length() == 0 )
+			buf.appendNew( 8192 );
+		int off = allocated;
+		allocated += b;
 		return off;
 	}
 
 	void reset()
 	{
-		buf.empty();
+		allocated = 0;
 	}
 };
 

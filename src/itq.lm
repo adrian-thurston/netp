@@ -95,6 +95,7 @@ void generateItqCode( P: program )
 					"	(([MD.id]*)writer->contents)->[FD.id] = dest;
 					"	memcpy( dest, src, length );
 					"}
+					"
 			}
 		}
 
