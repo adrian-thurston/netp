@@ -154,7 +154,6 @@ struct Thread
 	Thread( const char *type )
 	:
 		type( type ),
-		wantPoll( true ),
 		recvRequiresSignal( false ),
 		logFile( &std::cerr ),
 		loop( true )
@@ -175,9 +174,6 @@ struct Thread
 	void loopBegin()
 		{ loop = true; }
 
-	/* Want message poll in select loops. */
-	bool wantPoll;
-
 	/* Set this true in a thread's constructor if the main loop is not driven
 	 * by listening for genf messages. Signals will be sent automatically on
 	 * message send. */
@@ -196,10 +192,10 @@ struct Thread
 
 	virtual	int poll() = 0;
 	int inetListen( uint16_t port );
-	int selectLoop()
-		{ return pselectLoop( 0 ); }
+	int selectLoop( bool wantPoll = true )
+		{ return pselectLoop( 0, wantPoll ); }
 
-	int pselectLoop( sigset_t *sigmask );
+	int pselectLoop( sigset_t *sigmask, bool wantPoll );
 	int inetConnect( const char *host, uint16_t port );
 
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}

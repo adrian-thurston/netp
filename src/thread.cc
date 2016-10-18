@@ -256,7 +256,7 @@ void thread_funnel_handler( int s )
 	funnelSig = s;
 }
 
-int Thread::pselectLoop( sigset_t *sigmask )
+int Thread::pselectLoop( sigset_t *sigmask, bool wantPoll )
 {
 	loop = true;
 
@@ -290,7 +290,9 @@ int Thread::pselectLoop( sigset_t *sigmask )
 
 		if ( result < 0 ) {
 			if ( errno == EINTR ) {
-				poll();
+				if ( wantPoll )
+					poll();
+
 				handleSignal( funnelSig );
 				continue;
 			}

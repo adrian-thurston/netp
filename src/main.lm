@@ -48,7 +48,7 @@ void generateMainHeader( P: program )
 		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
 		~	int mainSignal();
-		~	int selectLoop();
+		~	int selectLoop( bool wantPoll = true );
 
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
@@ -396,7 +396,7 @@ void generateMainCode( P: ref<program> )
 		~
 
 	send Output
-		~int MainGen::selectLoop()
+		~int MainGen::selectLoop( bool wantPoll )
 		~{
 		~	sigset_t set;
 		~	sigemptyset( &set );
@@ -408,7 +408,7 @@ void generateMainCode( P: ref<program> )
 		~	signal( SIGTERM, thread_funnel_handler );
 		~	signal( SIGCHLD, thread_funnel_handler );
 		~
-		~	return pselectLoop( &set );
+		~	return pselectLoop( &set, wantPoll );
 		~}
 
 	joinDef( Thread )
