@@ -155,6 +155,7 @@ struct Thread
 	:
 		type( type ),
 		breakLoop( false ),
+		wantPoll( true ),
 		recvRequiresSignal( false ),
 		logFile( &std::cerr )
 	{
@@ -167,7 +168,11 @@ struct Thread
 	pthread_t pthread;
 	pid_t tid;
 
+	/* Break from a recv or select loop. */
 	bool breakLoop;
+
+	/* Want message poll in select loops. */
+	bool wantPoll;
 
 	/* Set this true in a thread's constructor if the main loop is not driven
 	 * by listening for genf messages. Signals will be sent automatically on

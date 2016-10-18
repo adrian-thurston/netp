@@ -306,7 +306,8 @@ int Thread::pselectLoop( sigset_t *sigmask )
 			}
 		}
 
-		poll();
+		if ( wantPoll )
+			poll();
 	}
 
 	/* finalTimerRun( c ); */
