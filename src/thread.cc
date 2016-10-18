@@ -126,7 +126,7 @@ void *ItQueue::allocBytes( ItWriter *writer, int size )
 	return ret;
 }
 
-void ItQueue::send( ItWriter *writer )
+void ItQueue::send( ItWriter *writer, bool sendSignal )
 {
 	pthread_mutex_lock( &mutex );
 
@@ -150,9 +150,8 @@ void ItQueue::send( ItWriter *writer )
 
 	pthread_mutex_unlock( &mutex );
 
-	if ( writer->reader->recvRequiresSignal )
+	if ( sendSignal || writer->reader->recvRequiresSignal )
 		pthread_kill( writer->reader->pthread, SIGUSR1 );
-
 }
 
 ItHeader *ItQueue::wait()

@@ -109,7 +109,6 @@ void packetReceives( Thread: thread )
 		"
 		"void [Thread->Id]Gen::close( SelectFd *fd )
 		"{
-		"	log_message( \"closing: \" << fd->fd );
 		"	::close( fd->fd );
 		"	selectFdList.detach( fd );
 		"	delete fd;

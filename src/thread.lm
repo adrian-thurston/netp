@@ -13,7 +13,7 @@ void sendsToDecls( Thread: thread )
 		}
 
 		send Output
-			"	void send() { writer->queue->send( writer ); }
+			"	void send( bool signal = false ) { writer->queue->send( writer, signal ); }
 			"};
 			"
 			"SendsTo[Sends->Receiver->Id] *registerSendsTo[Sends->Receiver->Id](
