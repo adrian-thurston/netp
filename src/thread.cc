@@ -188,18 +188,26 @@ void ItQueue::release( ItHeader *header )
 
 	/* Skip whole blocks. */
 	int remaining = writer->hblk->size - writer->hoff;
-	while ( length >= remaining ) {
+	while ( length > 0 && length >= remaining ) {
 		/* Pop the block. */
 		ItBlock *pop = writer->hblk;
 		writer->hblk = writer->hblk->next;
 		writer->hoff = 0;
+
+		/* Maybe we took the list to zero size. */
+		if ( writer->hblk == 0 ) {
+			writer->tblk = 0;
+			writer->toff = 0;
+		}
+
 		freeBlock( pop );
 
 		/* Take what was left off the length. */
 		length -= remaining;
 
-		/* Remaining is the size of the next block (always starting at 0). */
-		remaining = writer->hblk->size;
+		/* Remaining is the size of the next block, if present. Always starting
+		 * at hoff 0 when we move to the next block. */
+		remaining = writer->hblk != 0 ? writer->hblk->size : 0;
 	}
 
 	/* Final move ahead. */
