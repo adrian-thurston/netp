@@ -318,6 +318,7 @@ int Thread::pselectLoop( sigset_t *sigmask )
 
 int Thread::selectLoop()
 {
+	breakLoop = false;
 	bool cont = true;
 	while ( cont ) {
 		int r = pselectLoop( 0 );
