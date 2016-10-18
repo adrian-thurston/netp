@@ -203,7 +203,7 @@ struct Thread
 	int inetConnect( const char *host, uint16_t port );
 
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
-	virtual bool handleSignal( int sig ) { return true; }
+	virtual void handleSignal( int sig ) {}
 
 	static const uint8_t READ_READY  = 0x01;
 	static const uint8_t WRITE_READY = 0x02;

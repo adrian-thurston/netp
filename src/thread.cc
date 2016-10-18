@@ -291,11 +291,7 @@ int Thread::pselectLoop( sigset_t *sigmask )
 		if ( result < 0 ) {
 			if ( errno == EINTR ) {
 				poll();
-
-				bool cont = handleSignal( funnelSig );
-				if ( !cont )
-					return 0;
-
+				handleSignal( funnelSig );
 				continue;
 			}
 

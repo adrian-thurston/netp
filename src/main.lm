@@ -44,7 +44,7 @@ void generateMainHeader( P: program )
 		~	virtual void data( SelectFd *fd );
 		~	void close( SelectFd *fd );
 		~
-		~	bool handleSignal( int sig );
+		~	void handleSignal( int sig );
 		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
 		~	int mainSignal();
@@ -343,9 +343,8 @@ void generateMainCode( P: ref<program> )
 		~
 
 	send Output
-		~bool MainGen::handleSignal( int sig )
+		~void MainGen::handleSignal( int sig )
 		~{
-		~	bool cont = true;
 		~	switch ( sig ) {
 		~	case SIGHUP:
 		~	{
@@ -358,7 +357,7 @@ void generateMainCode( P: ref<program> )
 		~	case SIGTERM:
 		~	{
 		~		log_message( "breaking from signal loop" );
-		~		cont = false;
+		~		breakLoop();
 		~		break;
 		~	}
 		~	case SIGCHLD:
@@ -368,7 +367,6 @@ void generateMainCode( P: ref<program> )
 		~		log_message( "received sig: " << sig );
 		~		break;
 		~	}}
-		~	return cont;
 		~}
 		~
 		~int MainGen::mainSignal()
@@ -382,16 +380,16 @@ void generateMainCode( P: ref<program> )
 		~	sigaddset( &set, SIGUSR2 );
 		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
 		~
-		~	bool cont = true;
-		~	while ( cont ) {
-		~		int sig;
-		~		int r = sigwait( &set, &sig );
+		~	loop = true;
+		~	while ( loop ) {
+		~		int sig, r;
+		~		r = sigwait( &set, &sig );
 		~		if ( r != 0 ) {
 		~			log_ERROR( "sigwait returned: " << strerror(r) );
 		~			continue;
 		~		}
 		~
-		~		cont = handleSignal( sig );
+		~		handleSignal( sig );
 		~	}
 		~	return 0;
 		~}
