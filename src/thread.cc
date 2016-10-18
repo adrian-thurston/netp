@@ -27,12 +27,6 @@ namespace genf
 	lfdostream *lf;
 }
 
-ItBlock::ItBlock( int size )
-:
-	size(size)
-{
-}
-
 ItWriter::ItWriter()
 :
 	writer(0),
@@ -87,9 +81,16 @@ set:
 	return itWriter;
 }
 
-ItBlock *ItQueue::allocateBlock()
+ItBlock *ItQueue::allocateBlock( int supporting )
 {
-	return new ItBlock( blockSz );
+	int size = ( supporting > IT_BLOCK_SZ ) ? supporting : IT_BLOCK_SZ;
+	char *bd = new char[sizeof(ItBlock) + size];
+	ItBlock *block = (ItBlock*) bd;
+	block->data = bd + sizeof(ItBlock);
+	block->size = size;
+	block->prev = 0;
+	block->next = 0;
+	return block;
 }
 
 void ItQueue::freeBlock( ItBlock *block )
@@ -101,7 +102,7 @@ void *ItQueue::allocBytes( ItWriter *writer, int size )
 {
 	if ( writer->tblk == 0 ) {
 		/* There are no blocks. */
-		writer->hblk = writer->tblk = allocateBlock();
+		writer->hblk = writer->tblk = allocateBlock( size );
 		writer->hoff = writer->toff = 0;
 	}
 	else {
@@ -109,7 +110,7 @@ void *ItQueue::allocBytes( ItWriter *writer, int size )
 
 		/* Move to the next block? */
 		if ( size > avail ) {
-			ItBlock *block = allocateBlock();
+			ItBlock *block = allocateBlock( size );
 			writer->tblk->next = block;
 			writer->tblk = block;
 			writer->toff = 0;

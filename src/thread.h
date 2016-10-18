@@ -29,11 +29,9 @@ struct ItHeader
 
 struct ItBlock
 {
-	ItBlock( int size );
-
-	char data[IT_BLOCK_SZ];
-
+	char *data;
 	unsigned int size;
+
 	ItBlock *prev, *next;
 };
 
@@ -82,7 +80,7 @@ struct ItQueue
 	ItHeader *head, *tail;
 	int blockSz;
 
-	ItBlock *allocateBlock();
+	ItBlock *allocateBlock( int needed );
 	void freeBlock( ItBlock *block );
 
 	ItWriter *registerWriter( Thread *writer, Thread *reader );
