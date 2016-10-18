@@ -196,11 +196,14 @@ struct Thread
 
 	virtual	int poll() = 0;
 	int inetListen( uint16_t port );
-	int selectLoop();
+	int selectLoop()
+		{ return pselectLoop( 0 ); }
+
 	int pselectLoop( sigset_t *sigmask );
 	int inetConnect( const char *host, uint16_t port );
 
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
+	virtual bool handleSignal( int sig ) { return true; }
 
 	static const uint8_t READ_READY  = 0x01;
 	static const uint8_t WRITE_READY = 0x02;
@@ -225,7 +228,7 @@ protected:
 };
 
 void *thread_start_routine( void *arg );
-	
+void thread_funnel_handler( int s );
 
 struct log_prefix { };
 struct log_time { };

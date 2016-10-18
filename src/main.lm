@@ -398,35 +398,19 @@ void generateMainCode( P: ref<program> )
 		~
 
 	send Output
-		~static int funnelSig = 0;
-		~
-		~static void funnelHandler( int s )
-		~{
-		~	funnelSig = s;
-		~}
-		~
 		~int MainGen::selectLoop()
 		~{
 		~	sigset_t set;
 		~	sigemptyset( &set );
 		~
-		~	signal( SIGHUP,  funnelHandler );
-		~	signal( SIGINT,  funnelHandler );
-		~	signal( SIGQUIT, funnelHandler );
-		~	signal( SIGKILL, funnelHandler );
-		~	signal( SIGTERM, funnelHandler );
-		~	signal( SIGCHLD, funnelHandler );
+		~	signal( SIGHUP,  thread_funnel_handler );
+		~	signal( SIGINT,  thread_funnel_handler );
+		~	signal( SIGQUIT, thread_funnel_handler );
+		~	signal( SIGKILL, thread_funnel_handler );
+		~	signal( SIGTERM, thread_funnel_handler );
+		~	signal( SIGCHLD, thread_funnel_handler );
 		~
-		~	loop = true;
-		~	bool cont = true;
-		~	while ( cont ) {
-		~		int r = pselectLoop( &set );
-		~		if ( r == 0 )
-		~			break;
-		~		
-		~		cont = handleSignal( funnelSig );
-		~	}
-		~	return 0;
+		~	return pselectLoop( &set );
 		~}
 
 	joinDef( Thread )

@@ -249,8 +249,17 @@ int Thread::inetListen( uint16_t port )
 	return listenFd;
 }
 
+static int funnelSig = 0;
+
+void thread_funnel_handler( int s )
+{
+	funnelSig = s;
+}
+
 int Thread::pselectLoop( sigset_t *sigmask )
 {
+	loop = true;
+
 	/* accept loop. */
 	while ( loop ) {
 		/* Construct event sets. */
@@ -282,7 +291,12 @@ int Thread::pselectLoop( sigset_t *sigmask )
 		if ( result < 0 ) {
 			if ( errno == EINTR ) {
 				poll();
-				return -1;
+
+				bool cont = handleSignal( funnelSig );
+				if ( !cont )
+					return 0;
+
+				continue;
 			}
 
 			if ( errno != EAGAIN ) 
@@ -313,18 +327,6 @@ int Thread::pselectLoop( sigset_t *sigmask )
 	/* finalTimerRun( c ); */
 	/* close( listenFd ); */
 
-	return 0;
-}
-
-int Thread::selectLoop()
-{
-	loop = true;
-	bool cont = true;
-	while ( cont ) {
-		int r = pselectLoop( 0 );
-		if ( r == 0 )
-			break;
-	}
 	return 0;
 }
 
