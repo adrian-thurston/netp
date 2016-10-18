@@ -223,8 +223,8 @@ void generateThreadCode( Thread: thread )
 	send Output
 		"int [Thread->Id]Gen::recvLoop()
 		"{
-		"	breakLoop = false;
-		"	while ( !breakLoop ) {
+		"	loop = true;
+		"	while ( loop ) {
 		"		ItHeader *header = control.wait();
 		"		recvHeader( &control, header );
 		"		control.release( header );

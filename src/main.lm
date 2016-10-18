@@ -417,7 +417,7 @@ void generateMainCode( P: ref<program> )
 		~	signal( SIGTERM, funnelHandler );
 		~	signal( SIGCHLD, funnelHandler );
 		~
-		~	breakLoop = false;
+		~	loop = true;
 		~	bool cont = true;
 		~	while ( cont ) {
 		~		int r = pselectLoop( &set );

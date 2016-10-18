@@ -252,7 +252,7 @@ int Thread::inetListen( uint16_t port )
 int Thread::pselectLoop( sigset_t *sigmask )
 {
 	/* accept loop. */
-	while ( !breakLoop ) {
+	while ( loop ) {
 		/* Construct event sets. */
 		fd_set readSet, writeSet;
 		FD_ZERO( &readSet );
@@ -318,7 +318,7 @@ int Thread::pselectLoop( sigset_t *sigmask )
 
 int Thread::selectLoop()
 {
-	breakLoop = false;
+	loop = true;
 	bool cont = true;
 	while ( cont ) {
 		int r = pselectLoop( 0 );

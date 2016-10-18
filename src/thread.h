@@ -154,10 +154,10 @@ struct Thread
 	Thread( const char *type )
 	:
 		type( type ),
-		breakLoop( false ),
 		wantPoll( true ),
 		recvRequiresSignal( false ),
-		logFile( &std::cerr )
+		logFile( &std::cerr ),
+		loop( true )
 	{
 	}
 
@@ -168,8 +168,12 @@ struct Thread
 	pthread_t pthread;
 	pid_t tid;
 
-	/* Break from a recv or select loop. */
-	bool breakLoop;
+	void breakLoop()
+		{ loop = false; }
+	bool loopContinue()
+		{ return loop; }
+	void loopBegin()
+		{ loop = true; }
 
 	/* Want message poll in select loops. */
 	bool wantPoll;
@@ -215,6 +219,9 @@ struct Thread
 		{ pthread_setspecific( thisKey, this ); }
 
 	static long enabledRealms;
+
+protected:
+	bool loop;
 };
 
 void *thread_start_routine( void *arg );
