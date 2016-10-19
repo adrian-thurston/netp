@@ -46,7 +46,7 @@ void generateMainHeader( P: program )
 		~	void handleSignal( int sig );
 		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
-		~	int mainSignal( struct timeval *timer = 0 );
+		~	int signalLoop( struct timeval *timer = 0 );
 		~	int selectLoop( bool wantPoll = true );
 
 	createChildDecls( Thread )
@@ -370,7 +370,7 @@ void generateMainCode( P: ref<program> )
 		~}
 		~
 		~
-		~int MainGen::mainSignal( struct timeval *timer )
+		~int MainGen::signalLoop( struct timeval *timer )
 		~{
 		~	struct timeval left, last;
 		~	sigset_t set;
