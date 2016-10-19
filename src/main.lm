@@ -33,7 +33,6 @@ void generateMainHeader( P: program )
 		~	int argc;
 		~	char *const*argv;
 		~
-		~	int mainSignalLoop();
 		~	void parseOptions();
 		~	void maybeBackground();
 		~	int start();
@@ -47,7 +46,7 @@ void generateMainHeader( P: program )
 		~	void handleSignal( int sig );
 		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
-		~	int mainSignal();
+		~	int mainSignal( struct timeval *timer = 0 );
 		~	int selectLoop( bool wantPoll = true );
 
 	createChildDecls( Thread )
@@ -270,6 +269,7 @@ void generateMainCode( P: ref<program> )
 		~#include <limits.h>
 		~#include <string.h>
 		~#include <signal.h>
+		~#include <sys/time.h>
 		~
 		~#include "main.h"
 
@@ -369,8 +369,10 @@ void generateMainCode( P: ref<program> )
 		~	}}
 		~}
 		~
-		~int MainGen::mainSignal()
+		~
+		~int MainGen::mainSignal( struct timeval *timer )
 		~{
+		~	struct timeval left, last;
 		~	sigset_t set;
 		~	sigfillset( &set );
 		~
@@ -380,16 +382,49 @@ void generateMainCode( P: ref<program> )
 		~	sigaddset( &set, SIGUSR2 );
 		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
 		~
+		~	if ( timer != 0 ) {
+		~		left = *timer;
+		~		gettimeofday( &last, 0 );
+		~	}
+		~
 		~	loop = true;
 		~	while ( loop ) {
-		~		int sig, r;
-		~		r = sigwait( &set, &sig );
-		~		if ( r != 0 ) {
-		~			log_ERROR( "sigwait returned: " << strerror(r) );
+		~		int sig;
+		~		if ( timer != 0 ) {
+		~			timespec timeout;
+		~			timeout.tv_sec = left.tv_sec;
+		~			timeout.tv_nsec = left.tv_usec * 1000;
+		~			sig = sigtimedwait( &set, 0, &timeout );
+		~		}
+		~		else {
+		~			sig = sigwaitinfo( &set, 0 );
+		~		}
+		~
+		~		if ( sig < 0 && errno != EAGAIN ) {
+		~			log_ERROR( "sigwait returned: " << strerror(errno) );
 		~			continue;
 		~		}
 		~
-		~		handleSignal( sig );
+		~		if ( sig > 0 )
+		~			handleSignal( sig );
+		~
+		~		if ( timer != 0 ) {
+		~			struct timeval now, elapsed, downto;
+		~			/* Find the time between the last timer execution and now.
+		~			 * Subtract that from the timer interval to establish the
+		~			 * amount of time left. That value will be used in the next
+		~			 * pselect call. If it is <= zero then execute a timer run,
+		~			 * save the last time and reset the amount left to the full
+		~			 * amount. */
+		~			gettimeofday( &now, 0 );
+		~			timersub( &now, &last, &elapsed );
+		~			timersub( timer, &elapsed, &left );
+		~			if ( left.tv_sec < 0 || ( left.tv_usec == 0 && left.tv_sec == 0 ) ) {
+		~				log_message( "timer: " << downto.tv_sec );
+		~				left = *timer;
+		~				last = now;
+		~			}
+		~		}
 		~	}
 		~	return 0;
 		~}
