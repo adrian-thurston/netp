@@ -47,7 +47,7 @@ void generateMainHeader( P: program )
 		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
 		~	int signalLoop( struct timeval *timer = 0 );
-		~	int selectLoop( bool wantPoll = true );
+		~	int selectLoop( timeval *timer = 0, bool wantPoll = true );
 
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
@@ -369,7 +369,6 @@ void generateMainCode( P: ref<program> )
 		~	}}
 		~}
 		~
-		~
 		~int MainGen::signalLoop( struct timeval *timer )
 		~{
 		~	struct timeval left, last;
@@ -400,6 +399,7 @@ void generateMainCode( P: ref<program> )
 		~			sig = sigwaitinfo( &set, 0 );
 		~		}
 		~
+		~		/* Signal handling. */
 		~		if ( sig < 0 && errno != EAGAIN ) {
 		~			log_ERROR( "sigwait returned: " << strerror(errno) );
 		~			continue;
@@ -408,19 +408,20 @@ void generateMainCode( P: ref<program> )
 		~		if ( sig > 0 )
 		~			handleSignal( sig );
 		~
+		~		/* Timer handling. */
 		~		if ( timer != 0 ) {
-		~			struct timeval now, elapsed, downto;
 		~			/* Find the time between the last timer execution and now.
 		~			 * Subtract that from the timer interval to establish the
 		~			 * amount of time left. That value will be used in the next
-		~			 * pselect call. If it is <= zero then execute a timer run,
+		~			 * sigwait call. If it is <= zero then execute a timer run,
 		~			 * save the last time and reset the amount left to the full
 		~			 * amount. */
+		~			struct timeval now, elapsed;
 		~			gettimeofday( &now, 0 );
 		~			timersub( &now, &last, &elapsed );
 		~			timersub( timer, &elapsed, &left );
 		~			if ( left.tv_sec < 0 || ( left.tv_usec == 0 && left.tv_sec == 0 ) ) {
-		~				log_message( "timer: " << downto.tv_sec );
+		~				handleTimer();
 		~				left = *timer;
 		~				last = now;
 		~			}
@@ -431,7 +432,7 @@ void generateMainCode( P: ref<program> )
 		~
 
 	send Output
-		~int MainGen::selectLoop( bool wantPoll )
+		~int MainGen::selectLoop( timeval *timer, bool wantPoll )
 		~{
 		~	sigset_t set;
 		~	sigemptyset( &set );
@@ -443,7 +444,7 @@ void generateMainCode( P: ref<program> )
 		~	signal( SIGTERM, thread_funnel_handler );
 		~	signal( SIGCHLD, thread_funnel_handler );
 		~
-		~	return pselectLoop( &set, wantPoll );
+		~	return pselectLoop( &set, timer, wantPoll );
 		~}
 
 	joinDef( Thread )

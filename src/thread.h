@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <genf/list.h>
 #include <stdint.h>
+#include <sys/time.h>
 
 #include "list.h"
 #include <vector.h>
@@ -188,14 +189,16 @@ struct Thread
 
 	virtual int start() = 0;
 
+	virtual void handleTimer() {};
+
 	const Thread &log_prefix() { return *this; }
 
 	virtual	int poll() = 0;
 	int inetListen( uint16_t port );
-	int selectLoop( bool wantPoll = true )
-		{ return pselectLoop( 0, wantPoll ); }
+	int selectLoop( timeval *timer = 0, bool wantPoll = true )
+		{ return pselectLoop( 0, timer, wantPoll ); }
 
-	int pselectLoop( sigset_t *sigmask, bool wantPoll );
+	int pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll );
 	int inetConnect( const char *host, uint16_t port );
 
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}

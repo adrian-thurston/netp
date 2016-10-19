@@ -18,6 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/time.h>
 
 long Thread::enabledRealms = 0;
 pthread_key_t Thread::thisKey;
@@ -255,11 +256,16 @@ void thread_funnel_handler( int s )
 	funnelSig = s;
 }
 
-int Thread::pselectLoop( sigset_t *sigmask, bool wantPoll )
+int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 {
-	loop = true;
+	struct timeval left, last;
 
-	/* accept loop. */
+	if ( timer != 0 ) {
+		left = *timer;
+		gettimeofday( &last, 0 );
+	}
+
+	loop = true;
 	while ( loop ) {
 		/* Construct event sets. */
 		fd_set readSet, writeSet;
@@ -280,13 +286,24 @@ int Thread::pselectLoop( sigset_t *sigmask, bool wantPoll )
 			fd->abortRound = false;
 		}
 
-		/* Wait no longer than a second. */
 		timespec ts;
-		ts.tv_nsec = 0;
-		ts.tv_sec = 1;
+		if ( timer != 0 ) {
+			ts.tv_sec = left.tv_sec;
+			ts.tv_nsec = left.tv_usec * 1000;
+		}
+		else {
+			/* Wait no longer than a second, even if there is no timer. This
+			 * will allow us to to read messages when msg-signaling is turned
+			 * off. */
+			ts.tv_nsec = 0;
+			ts.tv_sec = 1;
+		}
 
 		int result = pselect( highest+1, &readSet, &writeSet, 0, &ts, sigmask );
 
+		/*
+		 * Signal handling first.
+		 */
 		if ( result < 0 ) {
 			if ( errno == EINTR ) {
 				if ( wantPoll )
@@ -325,6 +342,27 @@ int Thread::pselectLoop( sigset_t *sigmask, bool wantPoll )
 					handleSignal( sig );
 					sigdelset( &check, sig );
 				}
+			}
+		}
+
+		/*
+		 * Timers
+		 */
+		if ( timer != 0 ) {
+			/* Find the time between the last timer execution and now.
+			 * Subtract that from the timer interval to establish the
+			 * amount of time left. That value will be used in the next
+			 * pselect call. If it is <= zero then execute a timer run,
+			 * save the last time and reset the amount left to the full
+			 * amount. */
+			struct timeval now, elapsed;
+			gettimeofday( &now, 0 );
+			timersub( &now, &last, &elapsed );
+			timersub( timer, &elapsed, &left );
+			if ( left.tv_sec < 0 || ( left.tv_usec == 0 && left.tv_sec == 0 ) ) {
+				handleTimer();
+				left = *timer;
+				last = now;
 			}
 		}
 
