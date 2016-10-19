@@ -361,7 +361,7 @@ void generateMainCode( P: ref<program> )
 		~		break;
 		~	}
 		~	case SIGCHLD:
-		~		log_message( "received SIGCHLD" );
+		~		/* Be quiet on a sigchld. */
 		~		break;
 		~	default: {
 		~		log_message( "received sig: " << sig );
