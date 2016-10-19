@@ -299,6 +299,34 @@ int Thread::pselectLoop( sigset_t *sigmask, bool wantPoll )
 			if ( errno != EAGAIN ) 
 				log_FATAL( "select returned an unexpected error " << strerror(errno) );
 		}
+		else {
+			/* If a signal is pending and a file descriptor is ready then the
+			 * signal is not delivered. This makes it possible for file
+			 * descriptors to prevent signals from ever being delivered.
+			 * Therefore we need to poll signals when file descriptors are
+			 * ready.
+			 *
+			 * This covers us for the funnelled signals, but not for SIGUSR
+			 * (since they are always unmasked and don't get passed in here).
+			 * But that is okay because they are only used to break from the
+			 * select call.
+			 */
+			if ( sigmask != 0 ) {
+				sigset_t check = *sigmask;
+				sigpending( &check );
+				while ( !sigisemptyset( &check ) ) {
+					int r, sig;
+					r = sigwait( &check, &sig );
+					if ( r != 0 ) {
+						log_ERROR( "sigwait returned: " << strerror(r) );
+						continue;
+					}
+		
+					handleSignal( sig );
+					sigdelset( &check, sig );
+				}
+			}
+		}
 
 		if ( result > 0 ) {
 			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
