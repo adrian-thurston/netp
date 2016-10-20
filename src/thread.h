@@ -222,6 +222,8 @@ struct Thread
 
 	static long enabledRealms;
 
+	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
+
 protected:
 	bool loop;
 };

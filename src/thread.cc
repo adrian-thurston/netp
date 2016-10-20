@@ -256,6 +256,62 @@ void thread_funnel_handler( int s )
 	funnelSig = s;
 }
 
+int Thread::signalLoop( sigset_t *set, struct timeval *timer )
+{
+	struct timeval left, last;
+
+	if ( timer != 0 ) {
+		left = *timer;
+		gettimeofday( &last, 0 );
+	}
+
+	loop = true;
+	while ( loop ) {
+		int sig;
+		if ( timer != 0 ) {
+			timespec timeout;
+			timeout.tv_sec = left.tv_sec;
+			timeout.tv_nsec = left.tv_usec * 1000;
+			sig = sigtimedwait( set, 0, &timeout );
+		}
+		else {
+			sig = sigwaitinfo( set, 0 );
+		}
+
+		/* Signal handling. EAGAIN means the timer expired. EINTR means
+		 * a signal not in set was delivered. In our case that is a USR
+		 * signal for waking up processes on msg. */
+		if ( sig < 0 && errno != EAGAIN && errno != EINTR ) {
+			log_ERROR( "sigwait returned: " << strerror(errno) );
+			continue;
+		}
+
+		if ( sig > 0 )
+			handleSignal( sig );
+
+		/* Timer handling. */
+		if ( timer != 0 ) {
+			/* Find the time between the last timer execution and now.
+			 * Subtract that from the timer interval to establish the
+			 * amount of time left. That value will be used in the next
+			 * sigwait call. If it is <= zero then execute a timer run,
+			 * save the last time and reset the amount left to the full
+			 * amount. */
+			struct timeval now, elapsed;
+			gettimeofday( &now, 0 );
+			timersub( &now, &last, &elapsed );
+			timersub( timer, &elapsed, &left );
+			if ( left.tv_sec < 0 || ( left.tv_usec == 0 && left.tv_sec == 0 ) ) {
+				handleTimer();
+				left = *timer;
+				last = now;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 {
 	struct timeval left, last;
