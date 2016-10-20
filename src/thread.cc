@@ -370,7 +370,11 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		 * Handle file descriptors.
 		 */
 		if ( result > 0 ) {
-			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
+			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); ) {
+				/* Prepare for possibility that the file descriptor will be
+				 * removed from the select list. */
+				SelectFdList::Iter next = fd.next();
+
 				/* Check for round abort on the FD. */
 				if ( fd->abortRound )
 					continue;
@@ -383,6 +387,8 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 
 				if ( readyField )
 					selectFdReady( fd, readyField );
+
+				fd = next;
 			}
 		}
 
