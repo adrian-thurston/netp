@@ -399,8 +399,10 @@ void generateMainCode( P: ref<program> )
 		~			sig = sigwaitinfo( &set, 0 );
 		~		}
 		~
-		~		/* Signal handling. */
-		~		if ( sig < 0 && errno != EAGAIN ) {
+		~		/* Signal handling. EAGAIN means the timer expired. EINTR means
+		~		 * a signal not in set was delivered. In our case that is a USR
+		~		 * signal for waking up processes on msg. */
+		~		if ( sig < 0 && errno != EAGAIN && errno != EINTR ) {
 		~			log_ERROR( "sigwait returned: " << strerror(errno) );
 		~			continue;
 		~		}
