@@ -61,7 +61,7 @@ void packetRecvDecls( Thread: thread )
 {
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
-			"	virtual void recv[Packet->Id]( int fd, [Packet->Id] *pkt ) = 0;
+			"	virtual void recv[Packet->Id]( SelectFd *fd, [Packet->Id] *pkt ) = 0;
 	}
 }
 
@@ -98,7 +98,7 @@ void packetReceives( Thread: thread )
 			}
 		}
 		send Output
-			"			recv[Packet->Id]( fd->fd, pkt );
+			"			recv[Packet->Id]( fd, pkt );
 			"			break;
 			"		}
 	}

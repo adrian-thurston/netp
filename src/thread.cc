@@ -366,6 +366,9 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 			}
 		}
 
+		/*
+		 * Handle file descriptors.
+		 */
 		if ( result > 0 ) {
 			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
 				/* Check for round abort on the FD. */
