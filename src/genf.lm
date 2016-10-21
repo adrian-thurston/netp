@@ -50,6 +50,7 @@ void addDefaultDefs( P: ref<program> )
 	require P [DefList: definition*]
 	P = cons program [
 		"option bool background: -b --background;
+		"option bool debugEnabled: -D;
 		"thread Main;
 		DefList
 	]
