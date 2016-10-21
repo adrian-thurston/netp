@@ -328,8 +328,9 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		FD_ZERO( &readSet );
 		FD_ZERO( &writeSet );
 		int highest = -1;
+		
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
-			if ( fd->fd > highest )
+			if ( ( fd->wantRead || fd->wantWrite ) && fd->fd > highest )
 				highest = fd->fd;
 
 			if ( fd->wantRead )
@@ -349,12 +350,15 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		}
 		else {
 			/* Wait no longer than a second, even if there is no timer. This
-			 * will allow us to to read messages when msg-signaling is turned
-			 * off. */
+			 * will allow us to read messages when msg-signaling is turned off.
+			 * */
 			ts.tv_nsec = 0;
 			ts.tv_sec = 1;
 		}
 
+		/* If the nothing was added to any select loop then nfds will be zero
+		 * and the file descriptor sets will be empty. This is is a portable
+		 * sleep (with signal handling) according to select manpage. */
 		int result = pselect( highest+1, &readSet, &writeSet, 0, &ts, sigmask );
 
 		/*

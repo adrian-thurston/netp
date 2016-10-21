@@ -310,8 +310,8 @@ void generateMainCode( P: ref<program> )
 	# from system calls and don't need to take action in the handler.
 	#
 	# Also mask the signals we wish to funnel to the main thread. All threads
-	# will inherit this signal mask. The main thread should use an atomic
-	# unmask to receive the sigs.
+	# will inherit this signal mask. The main thread uses an atomic unmask to
+	# receive the sigs in the various loops it supports.
 	#
 	send Output
 		~static void sigusrHandler( int s )
