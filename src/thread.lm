@@ -78,6 +78,7 @@ void generateThreadHeader( Thread: thread )
 		"	virtual int main() { return 0; }
 		"	void recvHeader( ItQueue *queue, ItHeader *header );
 		"
+		"	void recvSingle();
 		"	int recvLoop();
 		"	int poll();
 		"	virtual void data( SelectFd *fd );
@@ -230,6 +231,15 @@ void generateThreadCode( Thread: thread )
 		"		control.release( header );
 		"	}
 		"	return 0;
+		"}
+		"
+
+	send Output
+		"void [Thread->Id]Gen::recvSingle()
+		"{
+		"	ItHeader *header = control.wait();
+		"	recvHeader( &control, header );
+		"	control.release( header );
 		"}
 		"
 

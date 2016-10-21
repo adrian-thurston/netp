@@ -201,6 +201,8 @@ struct Thread
 	int pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll );
 	int inetConnect( const char *host, uint16_t port );
 
+	virtual void recvSingle() {}
+
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 	virtual void handleSignal( int sig ) {}
 
