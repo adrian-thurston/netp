@@ -160,61 +160,43 @@ void Thread::dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask )
 	}
 }
 
-void Thread::write( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask )
+int Thread::write( FdDesc *fdDesc, uint8_t readyMask, char *data, int length )
 {
-	/* Try to write. */
-	int remaining = fdDesc->have - fdDesc->written;
-
-	int written = BIO_write( fdDesc->other->bio,
-			fdDesc->input + fdDesc->written, remaining );
+	int written = BIO_write( fdDesc->bio, data, length );
 
 	if ( written <= 0 ) {
 		/* If the BIO is saying it we should retry later, go back into select.
 		 * */
-		if ( BIO_should_retry( fdDesc->other->bio ) ) {
+		if ( BIO_should_retry( fdDesc->bio ) ) {
 			/* Write failure is retry-related. */
-			fdDesc->other->fd->wantRead = BIO_should_read(fdDesc->other->bio);
-			fdDesc->other->fd->wantWrite = BIO_should_write(fdDesc->other->bio);
-			fdDesc->other->fd->abortRound = true;
-			fdDesc->other->state = FdDesc::WriteRetry;
-
-			fdDesc->state = FdDesc::Paused;
-			fdDesc->fd->wantRead = false;
-			fdDesc->fd->wantWrite = false;
+			fdDesc->fd->wantRead = BIO_should_read(fdDesc->bio);
+			fdDesc->fd->wantWrite = BIO_should_write(fdDesc->bio);
+			fdDesc->fd->abortRound = true;
+			fdDesc->state = FdDesc::WriteRetry;
 		}
 		else {
 			/* Write failed for some non-retry reason. */
-//			log_debug( DBG_THREAD, "write failed for non-retry reason" );
+			log_ERROR( "SSL write failed for non-retry reason" );
 		}
 	}
 	else {
-		successfulWriteHook( fdDesc, fdDesc->input + fdDesc->written, remaining );
-
 		/* Wrote something. Write it all? */
-		if ( written < remaining ) {
-			fdDesc->written += written;
-
-			fdDesc->other->fd->wantRead = false;
-			fdDesc->other->fd->wantWrite = true;
-			fdDesc->other->fd->abortRound = true;
-			fdDesc->other->state = FdDesc::WriteRetry;
-
-			fdDesc->state = FdDesc::Paused;
+		if ( written < length ) {
 			fdDesc->fd->wantRead = false;
-			fdDesc->fd->wantWrite = false;
+			fdDesc->fd->wantWrite = true;
+			fdDesc->fd->abortRound = true;
+			fdDesc->state = FdDesc::WriteRetry;
+
 		}
 		else {
 			/* Wrote it all. Ensure other half is back in the established state
 			 * (maybe never left). */
-			fdDesc->other->state = FdDesc::Established;
 			fdDesc->state = FdDesc::Established;
-
-			fdDesc->other->fd->wantRead = true;
-			fdDesc->other->fd->wantWrite = false;
-
 			fdDesc->fd->wantRead = true;
 			fdDesc->fd->wantWrite = false;
 		}
 	}
+
+	return written;
 }
 

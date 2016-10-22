@@ -290,8 +290,7 @@ struct Thread
 	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
 	void dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask );
 	virtual bool sslReadReady( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask, int nbytes ) { return false; }
-	void write( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask );
-	virtual void successfulWriteHook( FdDesc *fdDesc, char *data, int len ) {}
+	int write( FdDesc *fdDesc, uint8_t readyMask, char *data, int len );
 
 protected:
 	bool loop;
