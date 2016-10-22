@@ -14,6 +14,9 @@
 #include <vector.h>
 #include <rope.h>
 
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+
 #define IT_BLOCK_SZ 4098
 
 struct ItWriter;
@@ -118,6 +121,54 @@ struct SelectFd
 };
 
 typedef List<SelectFd> SelectFdList;
+
+struct FdDesc
+{
+	enum Type { Server = 1, Client };
+
+	enum State {
+		Accept = 1,
+		Connect,
+		Established,
+		WriteRetry,
+		Paused,
+		Closed
+	};
+
+	FdDesc( Type type, SSL *ssl, BIO *bio, const char *remoteHost )
+	:
+		type( type ),
+		state( type == Server ? Accept : Connect ),
+		ssl(ssl),
+		bio(bio),
+		remoteHost(remoteHost),
+		fd(0),
+		other(0),
+		linelen(4096)
+	{
+		input = new char[linelen];
+	}
+
+	~FdDesc()
+		{ delete[] input; }
+
+	Type type;
+	State state;
+	SSL *ssl;
+	BIO *bio;
+	const char *remoteHost;
+
+	SelectFd *fd;
+	FdDesc *other;
+
+	/* Input movement. */
+	const long linelen;
+	char *input;
+	int written;
+	int have;
+};
+
+
 
 struct PacketHeader;
 struct PacketWriter
@@ -225,6 +276,22 @@ struct Thread
 	static long enabledRealms;
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
+
+	/*
+	 * SSL
+	 */
+	bool makeNonBlocking( int fd );
+
+	FdDesc *startSslServer( SSL_CTX *defaultCtx, int fd );
+
+	SSL *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
+	FdDesc *prepSslClient( const char *remoteHost, int connFd );
+	void clientConnect( SelectFd *fd, uint8_t readyMask );
+	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
+	void dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask );
+	virtual bool sslReadReady( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask, int nbytes ) { return false; }
+	void write( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask );
+	virtual void successfulWriteHook( FdDesc *fdDesc, char *data, int len ) {}
 
 protected:
 	bool loop;

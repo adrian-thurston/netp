@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <fcntl.h>
 
 long Thread::enabledRealms = 0;
 pthread_key_t Thread::thisKey;
@@ -248,6 +249,21 @@ int Thread::inetListen( uint16_t port )
 
 	return listenFd;
 }
+
+bool Thread::makeNonBlocking( int fd )
+{
+	/* Make FD non-blocking. */
+	int flags = fcntl( fd, F_GETFL );
+	if ( flags == -1 )
+		return false;
+
+	int res = fcntl( fd, F_SETFL, flags | O_NONBLOCK );
+	if ( res == -1 )
+		return false;
+
+	return true;
+}
+
 
 static int funnelSig = 0;
 

@@ -4,7 +4,7 @@ lib_LTLIBRARIES = libgenf.la
 
 include_HEADERS =
 
-libgenf_la_SOURCES = list.h thread.h thread.cc
+libgenf_la_SOURCES = list.h thread.h thread.cc tls.cc
 libgenf_la_CPPFLAGS = -Iinclude
 
 genfincdir = $(includedir)/genf
@@ -19,7 +19,7 @@ LM_DEPS = \
 	analysis.lm \
 	thread.lm \
 	itq.lm \
-	packet.lm
+	packet.lm \
 	kernf.lm \
 	genf.lm
 
