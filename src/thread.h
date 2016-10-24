@@ -102,13 +102,39 @@ struct ItQueue
 
 struct SelectFd
 {
+	enum State {
+		NonSsl = 1,
+		Accept,
+		Connect,
+		Established,
+		WriteRetry,
+		Paused,
+		Closed
+	};
+
 	SelectFd( int fd, void *local )
 	:
 		fd(fd),
 		local(local),
 		wantRead(false),
 		wantWrite(false),
-		abortRound(false)
+		abortRound(false),
+		state(NonSsl),
+		ssl(0),
+		bio(0)
+	{}
+
+	SelectFd( int fd, void *local, State state, SSL *ssl, BIO *bio, const char *remoteHost )
+	:
+		fd(fd),
+		local(local),
+		wantRead(false),
+		wantWrite(false),
+		abortRound(false),
+		state(state),
+		ssl(ssl),
+		bio(bio),
+		remoteHost(remoteHost)
 	{}
 
 	int fd;
@@ -116,6 +142,10 @@ struct SelectFd
 	bool wantRead;
 	bool wantWrite;
 	bool abortRound;
+	State state;
+	SSL *ssl;
+	BIO *bio;
+	const char *remoteHost;
 
 	SelectFd *prev, *next;
 };
@@ -126,22 +156,9 @@ struct FdDesc
 {
 	enum Type { Server = 1, Client };
 
-	enum State {
-		Accept = 1,
-		Connect,
-		Established,
-		WriteRetry,
-		Paused,
-		Closed
-	};
-
-	FdDesc( Type type, SSL *ssl, BIO *bio, const char *remoteHost )
+	FdDesc( Type type )
 	:
 		type( type ),
-		state( type == Server ? Accept : Connect ),
-		ssl(ssl),
-		bio(bio),
-		remoteHost(remoteHost),
 		fd(0),
 		other(0),
 		linelen(4096)
@@ -153,10 +170,6 @@ struct FdDesc
 		{ delete[] input; }
 
 	Type type;
-	State state;
-	SSL *ssl;
-	BIO *bio;
-	const char *remoteHost;
 
 	SelectFd *fd;
 	FdDesc *other;
@@ -167,7 +180,6 @@ struct FdDesc
 	int written;
 	int have;
 };
-
 
 
 struct PacketHeader;
