@@ -9,10 +9,10 @@
 
 FdDesc *Thread::prepSslClient( const char *remoteHost, int connFd )
 {
-	FdDesc *fdDesc = new FdDesc( FdDesc::Client );
-	SelectFd *selectFd = new SelectFd( connFd, fdDesc, SelectFd::Connect, 0, 0, remoteHost );
+	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::Connect, 0, 0, remoteHost );
 
-	fdDesc->fd = selectFd;
+	FdDesc *fdDesc = new FdDesc( FdDesc::Client, selectFd );
+	selectFd->local = fdDesc;
 
 	return fdDesc;
 }
@@ -29,13 +29,10 @@ SSL *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int con
 	SSL_set_bio( ssl, bio, bio );
 	SSL_set_tlsext_host_name( ssl, remoteHost );
 
-	/* FIXME: this will get lost under current transfer scheme in tls proxy,
-	 * but needed for a general implementation. */
-	FdDesc *fdDesc = new FdDesc( FdDesc::Client );
+	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::Connect, ssl, bio, strdup(remoteHost) );
 
-	SelectFd *selectFd = new SelectFd( connFd, fdDesc, SelectFd::Connect, ssl, bio, strdup(remoteHost) );
-
-	fdDesc->fd = selectFd;
+	FdDesc *fdDesc = new FdDesc( FdDesc::Client, selectFd );
+	selectFd->local = fdDesc;
 
 	// selectFd->wantRead = true;
 	selectFd->wantWrite = true;
@@ -87,6 +84,9 @@ void Thread::clientConnect( SelectFd *fd, uint8_t readyMask )
 		BIO *bio = BIO_new( BIO_f_ssl() );
 		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
 
+		/* Just wrapped the bio, update in select fd. */
+		fd->bio = bio;
+
 		sslConnectSuccess( fd, fd->ssl, bio );
 	}
 }
@@ -100,10 +100,10 @@ FdDesc *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
 	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
 	SSL_set_bio( ssl, bio, bio );
 
-	FdDesc *fdDesc = new FdDesc( FdDesc::Server );
-	SelectFd *selectFd = new SelectFd( fd, fdDesc, SelectFd::Accept, ssl, bio, 0 );
+	SelectFd *selectFd = new SelectFd( fd, 0, SelectFd::Accept, ssl, bio, 0 );
 
-	fdDesc->fd = selectFd;
+	FdDesc *fdDesc = new FdDesc( FdDesc::Server, selectFd );
+	selectFd->local = fdDesc;
 
 	selectFd->wantRead = true;
 	// selectFd->wantWrite = true;
@@ -165,7 +165,8 @@ int Thread::write( SelectFd *fd, uint8_t readyMask, char *data, int length )
 		}
 		else {
 			/* Wrote it all. Ensure other half is back in the established state
-			 * (maybe never left). */
+			 * from write retry state (maybe never left -- depending on where
+			 * we were called from). */
 			fd->state = SelectFd::Established;
 			fd->wantRead = true;
 			fd->wantWrite = false;
@@ -236,7 +237,6 @@ void Thread::serverAccept( SelectFd *fd, uint8_t readyMask )
 		BIO *bio = BIO_new(BIO_f_ssl());
 		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
 		fd->bio = bio;
-		fd->state = SelectFd::Established;
 
 		bool nb = makeNonBlocking( fd->fd );
 		if ( !nb )

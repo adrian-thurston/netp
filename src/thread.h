@@ -157,10 +157,10 @@ struct FdDesc
 {
 	enum Type { Server = 1, Client };
 
-	FdDesc( Type type )
+	FdDesc( Type type, SelectFd *fd )
 	:
 		type( type ),
-		fd(0),
+		fd(fd),
 		other(0),
 		linelen(4096)
 	{
