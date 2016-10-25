@@ -71,7 +71,7 @@ void packetReceives( Thread: thread )
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
 		"	PacketHeader header;
-		"	int len = read( fd->fd, &header, sizeof(header) );
+		"	int len = ::read( fd->fd, &header, sizeof(header) );
 		"	if ( len == 0 ) {
 		"		close( fd );
 		"		return;
@@ -84,7 +84,7 @@ void packetReceives( Thread: thread )
 			"		case (int) [Packet->Id]::ID: {
 			"			char data\[8192\];
 			"			[Packet->Id] *pkt = ([Packet->Id]*)data;
-			"			len = read( fd->fd, pkt, header.length - sizeof(header) );
+			"			len = ::read( fd->fd, pkt, header.length - sizeof(header) );
 			"			if ( len == 0 ) {
 			"				log_ERROR( \"unexpected read result\" );
 			"				close( fd );

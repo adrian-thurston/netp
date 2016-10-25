@@ -13,7 +13,6 @@ FdDesc *Thread::prepSslClient( const char *remoteHost, int connFd )
 	SelectFd *selectFd = new SelectFd( connFd, fdDesc, SelectFd::Connect, 0, 0, remoteHost );
 
 	fdDesc->fd = selectFd;
-	fdDesc->fd->remoteHost = remoteHost;
 
 	return fdDesc;
 }
@@ -114,65 +113,39 @@ FdDesc *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
 	return fdDesc;
 }
 
-void Thread::dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask )
+int Thread::read( SelectFd *fd, void *buf, int len )
 {
-//	log_debug( DBG_THREAD, "ready in data state " << 
-//			( fdDesc->type == FdDesc::Client ? "(client)" : "(server)" ) );
+	int nbytes = BIO_read( fd->bio, buf, len );
 
-	AnotherRead:
-	{
-		int nbytes = BIO_read( fdDesc->fd->bio, fdDesc->input, fdDesc->linelen );
+	if ( nbytes <= 0 && BIO_should_retry( fd->bio ) ) {
+		// log_debug( DBG_THREAD, "bio should retry" );
+		fd->wantRead = true; // BIO_should_read(fd->bio);
+		fd->wantWrite = BIO_should_write(fd->bio);
 
-		/* break when client closes the connection. */
-		if ( nbytes <= 0 ) {
-//			log_debug( DBG_THREAD, "bio read returned: " << nbytes );
-
-			/* If the BIO is saying it we should retry later, go back into
-			 * select. */
-			if ( BIO_should_retry( fdDesc->fd->bio ) ) {
-//				log_debug( DBG_THREAD, "bio should retry" );
-				fd->wantRead = true; //BIO_should_read(fdDesc->bio);
-				fd->wantWrite = BIO_should_write(fdDesc->fd->bio);
-			}
-			else {
-//				log_debug( DBG_THREAD, "bio closed" );
-
-				if ( BIO_shutdown_wr( fdDesc->other->fd->bio ) );
-				//::close( fdDesc->other->fd->fd );
-				::shutdown( fdDesc->other->fd->fd, SHUT_WR );
-				fdDesc->other->fd->wantWrite = false;
-
-				fdDesc->fd->state = SelectFd::Closed;
-
-				fd->wantRead = false;
-				fd->wantWrite = false;
-
-				if ( fdDesc->other->fd->state == SelectFd::Closed ) {
-					/* DONE */
-					breakLoop();
-				}
-			}
-		}
-		else {
-			if ( sslReadReady( fd, fdDesc, readyMask, nbytes ) )
-				goto AnotherRead;
-		}
+		return 0;
 	}
+
+	return nbytes;
 }
 
-int Thread::write( FdDesc *fdDesc, uint8_t readyMask, char *data, int length )
+void Thread::dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask )
 {
-	int written = BIO_write( fdDesc->fd->bio, data, length );
+	sslReadReady( fd, fdDesc, readyMask, 0 );
+}
+
+int Thread::write( SelectFd *fd, uint8_t readyMask, char *data, int length )
+{
+	int written = BIO_write( fd->bio, data, length );
 
 	if ( written <= 0 ) {
 		/* If the BIO is saying it we should retry later, go back into select.
 		 * */
-		if ( BIO_should_retry( fdDesc->fd->bio ) ) {
+		if ( BIO_should_retry( fd->bio ) ) {
 			/* Write failure is retry-related. */
-			fdDesc->fd->wantRead = BIO_should_read(fdDesc->fd->bio);
-			fdDesc->fd->wantWrite = BIO_should_write(fdDesc->fd->bio);
-			fdDesc->fd->abortRound = true;
-			fdDesc->fd->state = SelectFd::WriteRetry;
+			fd->wantRead = BIO_should_read(fd->bio);
+			fd->wantWrite = BIO_should_write(fd->bio);
+			fd->abortRound = true;
+			fd->state = SelectFd::WriteRetry;
 		}
 		else {
 			/* Write failed for some non-retry reason. */
@@ -182,17 +155,17 @@ int Thread::write( FdDesc *fdDesc, uint8_t readyMask, char *data, int length )
 	else {
 		/* Wrote something. Write it all? */
 		if ( written < length ) {
-			fdDesc->fd->wantRead = false;
-			fdDesc->fd->wantWrite = true;
-			fdDesc->fd->abortRound = true;
-			fdDesc->fd->state = SelectFd::WriteRetry;
+			fd->wantRead = false;
+			fd->wantWrite = true;
+			fd->abortRound = true;
+			fd->state = SelectFd::WriteRetry;
 		}
 		else {
 			/* Wrote it all. Ensure other half is back in the established state
 			 * (maybe never left). */
-			fdDesc->fd->state = SelectFd::Established;
-			fdDesc->fd->wantRead = true;
-			fdDesc->fd->wantWrite = false;
+			fd->state = SelectFd::Established;
+			fd->wantRead = true;
+			fd->wantWrite = false;
 		}
 	}
 

@@ -121,7 +121,8 @@ struct SelectFd
 		abortRound(false),
 		state(NonSsl),
 		ssl(0),
-		bio(0)
+		bio(0),
+		remoteHost(0)
 	{}
 
 	SelectFd( int fd, void *local, State state, SSL *ssl, BIO *bio, const char *remoteHost )
@@ -302,7 +303,8 @@ struct Thread
 	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
 	void dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask );
 	virtual bool sslReadReady( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask, int nbytes ) { return false; }
-	int write( FdDesc *fdDesc, uint8_t readyMask, char *data, int len );
+	int write( SelectFd *fd, uint8_t readyMask, char *data, int len );
+	int read( SelectFd *fd, void *buf, int len );
 
 protected:
 	bool loop;
