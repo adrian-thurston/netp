@@ -462,7 +462,7 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 					readyField |= WRITE_READY;
 
 				if ( readyField )
-					selectFdReady( fd, readyField );
+					_selectFdReady( fd, readyField );
 
 				fd = next;
 			}

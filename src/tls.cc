@@ -58,7 +58,7 @@ void Thread::clientConnect( SelectFd *fd, uint8_t readyMask )
 		else if ( result == SSL_ERROR_WANT_WRITE )
 			fd->wantWrite = true;
 		else {
-			// FIXME: sslError( result );
+			sslError( result );
 		}
 	}
 	else {
@@ -124,13 +124,16 @@ int Thread::read( SelectFd *fd, void *buf, int len )
 
 		return 0;
 	}
+	else if ( nbytes <= 0 ) {
+		return -1;
+	}
 
 	return nbytes;
 }
 
-void Thread::dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask )
+void Thread::dataRecv( SelectFd *fd, uint8_t readyMask )
 {
-	sslReadReady( fd, fdDesc, readyMask, 0 );
+	sslReadReady( fd, readyMask );
 }
 
 int Thread::write( SelectFd *fd, uint8_t readyMask, char *data, int length )
@@ -172,3 +175,109 @@ int Thread::write( SelectFd *fd, uint8_t readyMask, char *data, int length )
 	return written;
 }
 
+void Thread::sslError( int e )
+{
+	switch ( e ) {
+		case SSL_ERROR_NONE:
+			log_ERROR("ssl error: SSL_ERROR_NONE\n");
+			break;
+		case SSL_ERROR_ZERO_RETURN:
+			log_ERROR("ssl error: SSL_ERROR_ZERO_RETURN\n");
+			break;
+		case SSL_ERROR_WANT_READ:
+			log_ERROR("ssl error: SSL_ERROR_WANT_READ\n");
+			break;
+		case SSL_ERROR_WANT_WRITE:
+			log_ERROR("ssl error: SSL_ERROR_WANT_WRITE\n");
+			break;
+		case SSL_ERROR_WANT_CONNECT:
+			log_ERROR("ssl error: SSL_ERROR_WANT_CONNECT\n");
+			break;
+		case SSL_ERROR_WANT_ACCEPT:
+			log_ERROR("ssl error: SSL_ERROR_WANT_ACCEPT\n");
+			break;
+		case SSL_ERROR_WANT_X509_LOOKUP:
+			log_ERROR("ssl error: SSL_ERROR_WANT_X509_LOOKUP\n");
+			break;
+		case SSL_ERROR_SYSCALL:
+			log_ERROR("ssl error: SSL_ERROR_SYSCALL\n");
+			break;
+		case SSL_ERROR_SSL:
+			log_ERROR("ssl error: SSL_ERROR_SSL\n");
+			break;
+	}
+}
+
+void Thread::prepNextRound( SelectFd *fd, int result )
+{
+	fd->wantRead = false;
+	fd->wantWrite = false;
+	if ( result == SSL_ERROR_WANT_READ )
+		fd->wantRead = true;
+	else if ( result == SSL_ERROR_WANT_WRITE )
+		fd->wantWrite = true;
+	else
+		sslError( result );
+}
+
+void Thread::serverAccept( SelectFd *fd, uint8_t readyMask )
+{
+	int result = SSL_accept( fd->ssl );
+	if ( result <= 0 ) {
+		/* No accept yet, may need more data. */
+		result = SSL_get_error( fd->ssl, result );
+
+		prepNextRound( fd, result );
+	}
+	else {
+		// log_debug( DBG_THREAD, "accept succeeded" );
+
+		/* Success. Stop the select loop. Create a BIO for the ssl wrapper. */
+		BIO *bio = BIO_new(BIO_f_ssl());
+		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
+		fd->bio = bio;
+		fd->state = SelectFd::Established;
+
+		bool nb = makeNonBlocking( fd->fd );
+		if ( !nb )
+			log_ERROR( "non-blocking IO not available" );
+
+		fd->wantRead = fd->wantWrite = false;
+
+		notifServerAccept( fd, readyMask );
+	}
+}
+
+void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
+{
+//	log_debug( DBG_THREAD, "select fd ready" );
+
+	switch ( fd->state ) {
+		case SelectFd::NonSsl:
+			selectFdReady( fd, readyMask );
+			break;
+
+		case SelectFd::Connect:
+			clientConnect( fd, readyMask );
+			break;
+
+		case SelectFd::Accept:
+			serverAccept( fd, readyMask );
+			break;
+
+		case SelectFd::Established:
+			dataRecv( fd, readyMask );
+			break;
+
+		case SelectFd::WriteRetry:
+			writeRetry( fd, readyMask );
+			break;
+
+		case SelectFd::Paused:
+		case SelectFd::Closed:
+			/* This shouldn't come in. We need to disable the flags. */
+			fd->wantRead = false;
+			fd->wantWrite = false;
+			break;
+	}
+}

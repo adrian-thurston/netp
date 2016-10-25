@@ -267,6 +267,7 @@ struct Thread
 
 	virtual void recvSingle() {}
 
+	void _selectFdReady( SelectFd *selectFd, uint8_t readyField );
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 	virtual void handleSignal( int sig ) {}
 
@@ -301,10 +302,17 @@ struct Thread
 	FdDesc *prepSslClient( const char *remoteHost, int connFd );
 	void clientConnect( SelectFd *fd, uint8_t readyMask );
 	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
-	void dataRecv( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask );
-	virtual bool sslReadReady( SelectFd *fd, FdDesc *fdDesc, uint8_t readyMask, int nbytes ) { return false; }
+	void dataRecv( SelectFd *fd, uint8_t readyMask );
+	virtual bool sslReadReady( SelectFd *fd, uint8_t readyMask ) { return false; }
 	int write( SelectFd *fd, uint8_t readyMask, char *data, int len );
 	int read( SelectFd *fd, void *buf, int len );
+
+	virtual void writeRetry( SelectFd *fd, uint8_t readyMask ) {}
+
+	void sslError( int e );
+	void prepNextRound( SelectFd *fd, int result );
+	void serverAccept( SelectFd *fd, uint8_t readyMask );
+	virtual void notifServerAccept( SelectFd *fd, uint8_t readyMask ) {}
 
 protected:
 	bool loop;
