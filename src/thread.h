@@ -153,36 +153,6 @@ struct SelectFd
 
 typedef List<SelectFd> SelectFdList;
 
-struct FdDesc
-{
-	enum Type { Server = 1, Client };
-
-	FdDesc( Type type, SelectFd *fd )
-	:
-		type( type ),
-		fd(fd),
-		other(0),
-		linelen(4096)
-	{
-		input = new char[linelen];
-	}
-
-	~FdDesc()
-		{ delete[] input; }
-
-	Type type;
-
-	SelectFd *fd;
-	FdDesc *other;
-
-	/* Input movement. */
-	const long linelen;
-	char *input;
-	int written;
-	int have;
-};
-
-
 struct PacketHeader;
 struct PacketWriter
 {
@@ -296,10 +266,9 @@ struct Thread
 	 */
 	bool makeNonBlocking( int fd );
 
-	FdDesc *startSslServer( SSL_CTX *defaultCtx, int fd );
+	SelectFd *startSslServer( SSL_CTX *defaultCtx, int fd );
 
-	SSL *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
-	FdDesc *prepSslClient( const char *remoteHost, int connFd );
+	SelectFd *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
 	void clientConnect( SelectFd *fd, uint8_t readyMask );
 	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
 	void dataRecv( SelectFd *fd, uint8_t readyMask );

@@ -7,17 +7,7 @@
 
 #define PEER_CN_NAME_LEN 256
 
-FdDesc *Thread::prepSslClient( const char *remoteHost, int connFd )
-{
-	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::Connect, 0, 0, remoteHost );
-
-	FdDesc *fdDesc = new FdDesc( FdDesc::Client, selectFd );
-	selectFd->local = fdDesc;
-
-	return fdDesc;
-}
-
-SSL *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
+SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
 {
 	makeNonBlocking( connFd );
 
@@ -31,14 +21,30 @@ SSL *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int con
 
 	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::Connect, ssl, bio, strdup(remoteHost) );
 
-	FdDesc *fdDesc = new FdDesc( FdDesc::Client, selectFd );
-	selectFd->local = fdDesc;
-
-	// selectFd->wantRead = true;
+	selectFd->wantRead = false;
 	selectFd->wantWrite = true;
 	selectFdList.append( selectFd );
 
-	return ssl;
+	return selectFd;
+}
+
+SelectFd *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
+{
+	BIO *bio = BIO_new_fd( fd, BIO_NOCLOSE );
+
+	/* Create the SSL object an set it in the secure BIO. */
+	SSL *ssl = SSL_new( defaultCtx );
+	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
+	SSL_set_bio( ssl, bio, bio );
+
+	SelectFd *selectFd = new SelectFd( fd, 0, SelectFd::Accept, ssl, bio, 0 );
+
+	selectFd->wantRead = true;
+	selectFd->wantWrite = false;
+
+	selectFdList.append( selectFd );
+
+	return selectFd;
 }
 
 void Thread::clientConnect( SelectFd *fd, uint8_t readyMask )
@@ -89,28 +95,6 @@ void Thread::clientConnect( SelectFd *fd, uint8_t readyMask )
 
 		sslConnectSuccess( fd, fd->ssl, bio );
 	}
-}
-
-FdDesc *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
-{
-	BIO *bio = BIO_new_fd( fd, BIO_NOCLOSE );
-
-	/* Create the SSL object an set it in the secure BIO. */
-	SSL *ssl = SSL_new( defaultCtx );
-	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
-	SSL_set_bio( ssl, bio, bio );
-
-	SelectFd *selectFd = new SelectFd( fd, 0, SelectFd::Accept, ssl, bio, 0 );
-
-	FdDesc *fdDesc = new FdDesc( FdDesc::Server, selectFd );
-	selectFd->local = fdDesc;
-
-	selectFd->wantRead = true;
-	// selectFd->wantWrite = true;
-
-	selectFdList.append( selectFd );
-
-	return fdDesc;
 }
 
 int Thread::read( SelectFd *fd, void *buf, int len )
