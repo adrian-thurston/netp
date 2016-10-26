@@ -19,6 +19,28 @@
 
 #define IT_BLOCK_SZ 4098
 
+/* SSL */
+#define EC_SOCKET_CONNECT_FAILED        104
+#define EC_SSL_PEER_FAILED_VERIFY       100
+#define EC_SSL_CONNECT_FAILED           105
+#define EC_SSL_WRONG_HOST               106
+#define EC_SSL_CA_CERT_LOAD_FAILURE     107
+#define EC_SSL_NEW_CONTEXT_FAILURE      120
+#define EC_SSL_CA_CERTS_NOT_SET         121
+#define EC_SSL_ACCEPT_FAILED            152
+#define EC_SSL_FAILED_TO_LOAD           159
+#define EC_SSL_PARAM_NOT_SET            160
+#define EC_SSL_CONTEXT_CREATION_FAILED  161
+#define EC_NONBLOCKING_IO_NOT_AVAILABLE 162
+#define EC_FCNTL_QUERY_FAILED           163
+#define EC_WRITE_ERROR                  164
+#define EC_DAEMON_DAEMON_TIMEOUT        165
+#define EC_SOCKADDR_ERROR               166
+#define EC_SOCK_NOT_LOCAL               167
+#define EC_CONF_PARSE_ERROR             168
+#define EC_WRITE_ON_NULL_SOCKET_BIO     169
+
+
 struct ItWriter;
 struct ItQueue;
 struct Thread;
@@ -264,6 +286,8 @@ struct Thread
 	/*
 	 * SSL
 	 */
+	SSL_CTX *sslClientCtx();
+
 	bool makeNonBlocking( int fd );
 
 	SelectFd *startSslServer( SSL_CTX *defaultCtx, int fd );
@@ -275,6 +299,8 @@ struct Thread
 	virtual bool sslReadReady( SelectFd *fd, uint8_t readyMask ) { return false; }
 	int write( SelectFd *fd, uint8_t readyMask, char *data, int len );
 	int read( SelectFd *fd, void *buf, int len );
+
+	void sslInit();
 
 	virtual void writeRetry( SelectFd *fd, uint8_t readyMask ) {}
 

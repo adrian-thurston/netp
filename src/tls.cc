@@ -7,6 +7,36 @@
 
 #define PEER_CN_NAME_LEN 256
 
+#define CA_CERT_FILE "/etc/ssl/certs/ca-certificates.crt"
+#define CERT_FILE "/etc/ssl/certs/ssl-cert-snakeoil.pem"
+#define KEY_FILE "/etc/ssl/private/ssl-cert-snakeoil.key"
+
+/* Do this once at startup. */
+void Thread::sslInit()
+{
+	/* Global initialization. */
+	SSL_load_error_strings();
+	ERR_load_BIO_strings();
+	OpenSSL_add_all_algorithms();
+	SSL_library_init();
+}
+    
+SSL_CTX *Thread::sslClientCtx()
+{
+	/* Create the SSL_CTX. */
+	SSL_CTX *ctx = SSL_CTX_new(TLSv1_client_method());
+	if ( ctx == NULL )
+		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
+
+	/* Load the CA certificates that we will use to verify. */
+	int result = SSL_CTX_load_verify_locations( ctx, CA_CERT_FILE, NULL );
+	if ( !result ) {
+		log_ERROR( EC_SSL_CA_CERT_LOAD_FAILURE << " failed to load CA cert file " << CA_CERT_FILE );
+	}
+
+	return ctx;
+}
+
 SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
 {
 	makeNonBlocking( connFd );
