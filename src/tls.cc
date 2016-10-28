@@ -77,7 +77,7 @@ SelectFd *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
 	return selectFd;
 }
 
-void Thread::clientConnect( SelectFd *fd, uint8_t readyMask )
+void Thread::clientConnect( SelectFd *fd )
 {
 	int result = SSL_connect( fd->ssl );
 	if ( result <= 0 ) {
@@ -145,12 +145,7 @@ int Thread::read( SelectFd *fd, void *buf, int len )
 	return nbytes;
 }
 
-void Thread::dataRecv( SelectFd *fd, uint8_t readyMask )
-{
-	sslReadReady( fd, readyMask );
-}
-
-int Thread::write( SelectFd *fd, uint8_t readyMask, char *data, int length )
+int Thread::write( SelectFd *fd, char *data, int length )
 {
 	int written = BIO_write( fd->bio, data, length );
 
@@ -235,7 +230,7 @@ void Thread::prepNextRound( SelectFd *fd, int result )
 		sslError( result );
 }
 
-void Thread::serverAccept( SelectFd *fd, uint8_t readyMask )
+void Thread::serverAccept( SelectFd *fd )
 {
 	int result = SSL_accept( fd->ssl );
 	if ( result <= 0 ) {
@@ -258,7 +253,7 @@ void Thread::serverAccept( SelectFd *fd, uint8_t readyMask )
 
 		fd->wantRead = fd->wantWrite = false;
 
-		notifServerAccept( fd, readyMask );
+		notifServerAccept( fd );
 	}
 }
 
@@ -272,19 +267,19 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 
 		case SelectFd::Connect:
-			clientConnect( fd, readyMask );
+			clientConnect( fd );
 			break;
 
 		case SelectFd::Accept:
-			serverAccept( fd, readyMask );
+			serverAccept( fd );
 			break;
 
 		case SelectFd::Established:
-			dataRecv( fd, readyMask );
+			sslReadReady( fd );
 			break;
 
 		case SelectFd::WriteRetry:
-			writeRetry( fd, readyMask );
+			writeRetry( fd );
 			break;
 
 		case SelectFd::Paused:

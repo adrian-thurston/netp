@@ -293,21 +293,20 @@ struct Thread
 	SelectFd *startSslServer( SSL_CTX *defaultCtx, int fd );
 
 	SelectFd *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
-	void clientConnect( SelectFd *fd, uint8_t readyMask );
+	void clientConnect( SelectFd *fd );
 	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
-	void dataRecv( SelectFd *fd, uint8_t readyMask );
-	virtual bool sslReadReady( SelectFd *fd, uint8_t readyMask ) { return false; }
-	int write( SelectFd *fd, uint8_t readyMask, char *data, int len );
+	virtual bool sslReadReady( SelectFd *fd ) { return false; }
+	int write( SelectFd *fd, char *data, int len );
 	int read( SelectFd *fd, void *buf, int len );
 
 	void sslInit();
 
-	virtual void writeRetry( SelectFd *fd, uint8_t readyMask ) {}
+	virtual void writeRetry( SelectFd *fd ) {}
 
 	void sslError( int e );
 	void prepNextRound( SelectFd *fd, int result );
-	void serverAccept( SelectFd *fd, uint8_t readyMask );
-	virtual void notifServerAccept( SelectFd *fd, uint8_t readyMask ) {}
+	void serverAccept( SelectFd *fd );
+	virtual void notifServerAccept( SelectFd *fd ) {}
 
 protected:
 	bool loop;
