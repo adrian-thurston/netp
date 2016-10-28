@@ -270,14 +270,11 @@ struct Thread
 
 	static pthread_key_t thisKey;
 
-	static void initThis()
-		{ pthread_key_create( &thisKey, 0 ); }
-
 	static Thread *getThis()
 		{ return (Thread*) pthread_getspecific( thisKey ); }
 
-	void setThis()
-		{ pthread_setspecific( thisKey, this ); }
+	/* Must be called from the thread this struct represents before it is run. */
+	void initId();
 
 	static long enabledRealms;
 

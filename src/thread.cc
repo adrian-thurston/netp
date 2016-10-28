@@ -511,12 +511,16 @@ int Thread::inetConnect( const char *host, uint16_t port )
 	return fd;
 }
 
+void Thread::initId()
+{
+	tid = syscall( SYS_gettid );
+	pthread_setspecific( thisKey, this );
+}
 
 void *thread_start_routine( void *arg )
 {
 	Thread *thread = (Thread*)arg;
-	thread->tid = syscall( SYS_gettid );
-	thread->setThis();
+	thread->initId();
 	long r = thread->start();
 	return (void*)r;
 }

@@ -411,9 +411,10 @@ void generateMainCode( P: ref<program> )
 		~
 		~int main( int argc, char *const*argv )
 		~{
-		~	Thread::initThis();
+		~	pthread_key_create( &Thread::thisKey, 0 );
 		~	genf::lf = new lfdostream( 2 );
 		~	MainThread main;
+		~	main.initId();
 		~	main.init( argc, argv );
 		~	return main.start();
 		~}
