@@ -40,6 +40,42 @@ SSL_CTX *Thread::sslClientCtx()
 	return ctx;
 }
 
+SSL_CTX *Thread::sslServerCtx()
+{
+	/* Create the SSL_CTX. */
+	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+	if ( ctx == NULL )
+		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
+
+	int result = SSL_CTX_use_certificate_chain_file( ctx, CERT_FILE );
+	if ( result != 1 )
+		log_FATAL( "failed to load TLS CRT file " << CERT_FILE );
+
+	result = SSL_CTX_use_PrivateKey_file( ctx, KEY_FILE, SSL_FILETYPE_PEM );
+	if ( result != 1 )
+		log_FATAL( "failed to load TLS KEY file " << KEY_FILE );
+
+	return ctx;
+}
+
+SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert )
+{
+	/* Create the SSL_CTX. */
+	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+	if ( ctx == NULL )
+		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
+
+	int result = SSL_CTX_use_PrivateKey_file( ctx, key, SSL_FILETYPE_PEM );
+	if ( result != 1 )
+		log_FATAL( "failed to load TLS KEY file " << key );
+
+	result = SSL_CTX_use_certificate_chain_file( ctx, cert );
+	if ( result != 1 )
+		log_FATAL( "failed to load TLS CRT file " << cert );
+
+	return ctx;
+}
+
 SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
 {
 	makeNonBlocking( connFd );

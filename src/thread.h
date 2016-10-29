@@ -286,8 +286,10 @@ struct Thread
 	 * SSL
 	 */
 	SSL_CTX *sslClientCtx();
+	SSL_CTX *sslServerCtx();
+	SSL_CTX *sslServerCtx( const char *key, const char *cert );
 
-	bool makeNonBlocking( int fd );
+	static bool makeNonBlocking( int fd );
 
 	SelectFd *startSslServer( SSL_CTX *defaultCtx, int fd );
 
