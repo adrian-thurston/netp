@@ -4,6 +4,9 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+
 
 #define PEER_CN_NAME_LEN 256
 
@@ -49,7 +52,7 @@ SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, in
 	SSL_set_bio( ssl, bio, bio );
 	SSL_set_tlsext_host_name( ssl, remoteHost );
 
-	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::Connect, ssl, bio, strdup(remoteHost) );
+	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::TlsConnect, ssl, bio, strdup(remoteHost) );
 
 	selectFd->wantRead = false;
 	selectFd->wantWrite = true;
@@ -67,7 +70,7 @@ SelectFd *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
 	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
 	SSL_set_bio( ssl, bio, bio );
 
-	SelectFd *selectFd = new SelectFd( fd, 0, SelectFd::Accept, ssl, bio, 0 );
+	SelectFd *selectFd = new SelectFd( fd, 0, SelectFd::TlsAccept, ssl, bio, 0 );
 
 	selectFd->wantRead = true;
 	selectFd->wantWrite = false;
@@ -157,7 +160,7 @@ int Thread::write( SelectFd *fd, char *data, int length )
 			fd->wantRead = BIO_should_read(fd->bio);
 			fd->wantWrite = BIO_should_write(fd->bio);
 			fd->abortRound = true;
-			fd->state = SelectFd::WriteRetry;
+			fd->state = SelectFd::TlsWriteRetry;
 		}
 		else {
 			/* Write failed for some non-retry reason. */
@@ -170,13 +173,13 @@ int Thread::write( SelectFd *fd, char *data, int length )
 			fd->wantRead = false;
 			fd->wantWrite = true;
 			fd->abortRound = true;
-			fd->state = SelectFd::WriteRetry;
+			fd->state = SelectFd::TlsWriteRetry;
 		}
 		else {
 			/* Wrote it all. Ensure other half is back in the established state
 			 * from write retry state (maybe never left -- depending on where
 			 * we were called from). */
-			fd->state = SelectFd::Established;
+			fd->state = SelectFd::TlsEstablished;
 			fd->wantRead = true;
 			fd->wantWrite = false;
 		}
@@ -259,30 +262,49 @@ void Thread::serverAccept( SelectFd *fd )
 
 void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 {
-//	log_debug( DBG_THREAD, "select fd ready" );
-
 	switch ( fd->state ) {
-		case SelectFd::NonSsl:
+		case SelectFd::User:
 			selectFdReady( fd, readyMask );
 			break;
 
-		case SelectFd::Connect:
+		case SelectFd::PktListen: {
+			sockaddr_in peer;
+			socklen_t len = sizeof(sockaddr_in);
+
+			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
+			if ( result >= 0 ) {
+				SelectFd *selectFd = new SelectFd( result, 0 );
+				selectFd->state = SelectFd::PktData;
+				selectFd->wantRead = true;
+				selectFdList.append( selectFd );
+			}
+			else {
+				log_ERROR( "failed to accept connection: " << strerror(errno) );
+			}
+			break;
+		}
+		case SelectFd::PktData: {
+			data( fd );
+			break;
+		}
+
+		case SelectFd::TlsConnect:
 			clientConnect( fd );
 			break;
 
-		case SelectFd::Accept:
+		case SelectFd::TlsAccept:
 			serverAccept( fd );
 			break;
 
-		case SelectFd::Established:
+		case SelectFd::TlsEstablished:
 			sslReadReady( fd );
 			break;
 
-		case SelectFd::WriteRetry:
+		case SelectFd::TlsWriteRetry:
 			writeRetry( fd );
 			break;
 
-		case SelectFd::Paused:
+		case SelectFd::TlsPaused:
 		case SelectFd::Closed:
 			/* This shouldn't come in. We need to disable the flags. */
 			fd->wantRead = false;

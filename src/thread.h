@@ -19,7 +19,7 @@
 
 #define IT_BLOCK_SZ 4098
 
-/* SSL */
+/* TLS */
 #define EC_SOCKET_CONNECT_FAILED        104
 #define EC_SSL_PEER_FAILED_VERIFY       100
 #define EC_SSL_CONNECT_FAILED           105
@@ -39,7 +39,6 @@
 #define EC_SOCK_NOT_LOCAL               167
 #define EC_CONF_PARSE_ERROR             168
 #define EC_WRITE_ON_NULL_SOCKET_BIO     169
-
 
 struct ItWriter;
 struct ItQueue;
@@ -125,23 +124,25 @@ struct ItQueue
 struct SelectFd
 {
 	enum State {
-		NonSsl = 1,
-		Accept,
-		Connect,
-		Established,
-		WriteRetry,
-		Paused,
+		User = 1,
+		PktListen,
+		PktData,
+		TlsAccept,
+		TlsConnect,
+		TlsEstablished,
+		TlsWriteRetry,
+		TlsPaused,
 		Closed
 	};
 
 	SelectFd( int fd, void *local )
 	:
+		state(User),
 		fd(fd),
 		local(local),
 		wantRead(false),
 		wantWrite(false),
 		abortRound(false),
-		state(NonSsl),
 		ssl(0),
 		bio(0),
 		remoteHost(0)
@@ -149,23 +150,23 @@ struct SelectFd
 
 	SelectFd( int fd, void *local, State state, SSL *ssl, BIO *bio, const char *remoteHost )
 	:
+		state(state),
 		fd(fd),
 		local(local),
 		wantRead(false),
 		wantWrite(false),
 		abortRound(false),
-		state(state),
 		ssl(ssl),
 		bio(bio),
 		remoteHost(remoteHost)
 	{}
 
+	State state;
 	int fd;
 	void *local;
 	bool wantRead;
 	bool wantWrite;
 	bool abortRound;
-	State state;
 	SSL *ssl;
 	BIO *bio;
 	const char *remoteHost;
@@ -279,6 +280,7 @@ struct Thread
 	static long enabledRealms;
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
+	virtual void data( SelectFd *fd ) {}
 
 	/*
 	 * SSL
