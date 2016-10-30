@@ -313,6 +313,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				selectFd->state = SelectFd::PktData;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );
+				notifAccept( selectFd );
 			}
 			else {
 				log_ERROR( "failed to accept connection: " << strerror(errno) );
@@ -320,7 +321,10 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 		}
 		case SelectFd::PktData: {
-			data( fd );
+			if ( readyMask & READ_READY )
+				data( fd );
+			if ( readyMask & WRITE_READY )
+				writeReady( fd );
 			break;
 		}
 

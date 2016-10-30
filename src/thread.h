@@ -281,6 +281,8 @@ struct Thread
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 	virtual void data( SelectFd *fd ) {}
+	virtual void writeReady( SelectFd *fd ) {}
+	virtual void notifAccept( SelectFd *fd ) {}
 
 	/*
 	 * SSL
