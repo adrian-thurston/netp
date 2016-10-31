@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <iostream>
+#include <iomanip>
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -552,14 +555,16 @@ std::ostream &operator <<( std::ostream &out, const Thread::endp & )
 std::ostream &operator <<( std::ostream &out, const log_time & )
 {
 	time_t epoch;
+	struct timeval tv;
 	struct tm local;
-	char string[64];
+	char string[96];
 
-	epoch = time(0);
+	gettimeofday( &tv, 0 );
+	epoch = tv.tv_sec;
 	localtime_r( &epoch, &local );
 	int r = strftime( string, sizeof(string), "%Y-%m-%d %H:%M:%S", &local );
 	if ( r > 0 )
-		out << string;
+		out << string << '.' << std::setfill('0') << std::setw(6) << tv.tv_usec;
 
 	return out;
 }
