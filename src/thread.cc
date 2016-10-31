@@ -481,7 +481,7 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 	return 0;
 }
 
-int Thread::inetConnect( const char *host, uint16_t port, bool blocking )
+int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
 {
 	sockaddr_in servername;
 	hostent *hostinfo;
@@ -503,7 +503,7 @@ int Thread::inetConnect( const char *host, uint16_t port, bool blocking )
 
 	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
 
-	if ( !blocking )
+	if ( nonBlocking )
 		makeNonBlocking( fd );
 
 	/* Connect to the listener. */
