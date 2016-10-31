@@ -298,6 +298,8 @@ struct Thread
 	SelectFd *startSslServer( SSL_CTX *defaultCtx, int fd );
 
 	SelectFd *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
+	void startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectFd *selectFd );
+
 	void clientConnect( SelectFd *fd );
 	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }

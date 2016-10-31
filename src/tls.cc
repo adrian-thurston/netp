@@ -76,11 +76,11 @@ SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert )
 	return ctx;
 }
 
-SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
+void Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectFd *selectFd )
 {
-	makeNonBlocking( connFd );
+	makeNonBlocking( selectFd->fd );
 
-	BIO *bio = BIO_new_fd( connFd, BIO_NOCLOSE );
+	BIO *bio = BIO_new_fd( selectFd->fd, BIO_NOCLOSE );
 
 	/* Create the SSL object and set it in the secure BIO. */
 	SSL *ssl = SSL_new( clientCtx );
@@ -88,10 +88,20 @@ SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, in
 	SSL_set_bio( ssl, bio, bio );
 	SSL_set_tlsext_host_name( ssl, remoteHost );
 
-	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::TlsConnect, ssl, bio, strdup(remoteHost) );
+	selectFd->ssl = ssl;
+	selectFd->bio = bio;
 
+	selectFd->state = SelectFd::TlsConnect;
 	selectFd->wantRead = false;
 	selectFd->wantWrite = true;
+}
+
+SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
+{
+	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::TlsConnect, 0, 0, strdup(remoteHost) );
+
+	startSslClient( clientCtx, remoteHost, selectFd );
+
 	selectFdList.append( selectFd );
 
 	return selectFd;
