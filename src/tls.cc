@@ -303,6 +303,22 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			selectFdReady( fd, readyMask );
 			break;
 
+		case SelectFd::Connect: {
+			if ( readyMask & WRITE_READY ) {
+				int option;
+				socklen_t optlen = sizeof(int);
+				getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
+				if ( option == 0 ) {
+					notifAsyncConnect( fd );
+				}
+				else {
+					log_ERROR( "failed async connect: " << strerror(option) );
+				}
+			}
+
+			break;
+		}
+
 		case SelectFd::PktListen: {
 			sockaddr_in peer;
 			socklen_t len = sizeof(sockaddr_in);

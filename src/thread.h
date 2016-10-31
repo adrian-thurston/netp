@@ -125,6 +125,7 @@ struct SelectFd
 {
 	enum State {
 		User = 1,
+		Connect,
 		PktListen,
 		PktData,
 		TlsAccept,
@@ -256,7 +257,7 @@ struct Thread
 		{ return pselectLoop( 0, timer, wantPoll ); }
 
 	int pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll );
-	int inetConnect( const char *host, uint16_t port );
+	int inetConnect( const char *host, uint16_t port, bool blocking = true );
 
 	virtual void recvSingle() {}
 
@@ -282,6 +283,7 @@ struct Thread
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 	virtual void data( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
+	virtual void notifAsyncConnect( SelectFd *fd ) {}
 	virtual void notifAccept( SelectFd *fd ) {}
 
 	/*

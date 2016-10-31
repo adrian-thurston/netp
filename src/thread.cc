@@ -478,7 +478,7 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 	return 0;
 }
 
-int Thread::inetConnect( const char *host, uint16_t port )
+int Thread::inetConnect( const char *host, uint16_t port, bool blocking )
 {
 	sockaddr_in servername;
 	hostent *hostinfo;
@@ -500,9 +500,12 @@ int Thread::inetConnect( const char *host, uint16_t port )
 
 	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
 
+	if ( !blocking )
+		makeNonBlocking( fd );
+
 	/* Connect to the listener. */
 	connectRes = ::connect( fd, (sockaddr*)&servername, sizeof(servername) );
-	if ( connectRes < 0 ) {
+	if ( connectRes < 0 && errno != EINPROGRESS ) {
 		::close( fd );
 		log_ERROR( "SocketConnectFailed" );
 		return -1;
