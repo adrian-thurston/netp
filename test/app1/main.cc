@@ -7,11 +7,15 @@
 int MainThread::main()
 {
 	UserThread *bare = new UserThread;
-	create( bare );
 
 	SendsToUser *sendsToUser = registerSendsToUser( bare );
 
-	mainSignal();
+	sendsToUser->openHello();
+	sendsToUser->send();
+
+	create( bare );
+
+	signalLoop();
 
 	sendsToUser->openShutdown();
 	sendsToUser->send();

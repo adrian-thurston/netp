@@ -6,9 +6,15 @@
 struct UserThread
 	: public UserGen
 {
+	UserThread()
+	{
+		recvRequiresSignal = true;
+	}
+
 	int main();
 
 	void recvShutdown( Shutdown *msg );
+	void recvHello( Hello *msg );
 };
 
 #endif

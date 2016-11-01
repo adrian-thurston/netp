@@ -213,7 +213,11 @@ struct Thread
 	Thread( const char *type )
 	:
 		type( type ),
+		pthread_this( 0 ),
+		pthread_parent( 0 ),
+		tid( 0 ),
 		recvRequiresSignal( false ),
+		pendingNotifSignal( false ),
 		logFile( &std::cerr ),
 		loop( true )
 	{
@@ -223,7 +227,10 @@ struct Thread
 	struct endp {};
 	typedef List<Thread> ThreadList;
 
-	pthread_t pthread;
+	/* First value is for use by child and is retrieved on startup, second is
+	 * for use by parent and is set by pthread_create. */
+	pthread_t pthread_this;
+	pthread_t pthread_parent;
 	pid_t tid;
 
 	void breakLoop()
@@ -237,6 +244,12 @@ struct Thread
 	 * by listening for genf messages. Signals will be sent automatically on
 	 * message send. */
 	bool recvRequiresSignal;
+
+	/* If a sender tries to signal this thread before it has started up and
+	 * properly set it's self paramter then this will be tripped and the thread
+	 * will send itself the signal in order to break from any syscal and handle
+	 * the message. */
+	bool pendingNotifSignal;
 
 	std::ostream *logFile;
 	ItQueue control;

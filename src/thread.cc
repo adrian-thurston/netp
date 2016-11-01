@@ -75,7 +75,7 @@ ItWriter *ItQueue::registerWriter( Thread *writer, Thread *reader )
 		}
 	}
 
-	/* No Existing index to use. Append. */
+	/* No existing index to use. Append. */
 	itWriter->id = writerVect.size();
 	writerVect.push_back( itWriter );
 
@@ -155,8 +155,15 @@ void ItQueue::send( ItWriter *writer, bool sendSignal )
 
 	pthread_mutex_unlock( &mutex );
 
-	if ( sendSignal || writer->reader->recvRequiresSignal )
-		pthread_kill( writer->reader->pthread, SIGUSR1 );
+	if ( sendSignal || writer->reader->recvRequiresSignal ) {
+		if ( writer->reader->pthread_this != 0 )
+			pthread_kill( writer->reader->pthread_this, SIGUSR1 );
+		else {
+			/* If the this (self) hasn't been set yet, tell the thread it has
+			 * to send itself the signal when it does get set. */
+			writer->reader->pendingNotifSignal = true;
+		}
+	}
 }
 
 ItHeader *ItQueue::wait()
@@ -521,6 +528,10 @@ void Thread::initId()
 {
 	tid = syscall( SYS_gettid );
 	pthread_setspecific( thisKey, this );
+	pthread_this = pthread_self();
+	if ( pendingNotifSignal )
+		pthread_kill( pthread_this, SIGUSR1 );
+
 }
 
 void *thread_start_routine( void *arg )

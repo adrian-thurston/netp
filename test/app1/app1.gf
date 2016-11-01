@@ -11,6 +11,11 @@ message Shutdown
 {
 };
 
+message Hello
+{
+};
+
 Main starts User;
 
 Main sends Shutdown to User;
+Main sends Hello to User;
