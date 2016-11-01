@@ -148,7 +148,7 @@ void optDeclare( P: program )
 		}
 		case [`string] {
 			send Output
-				"std::string MainGen::[OD.id] = "";
+				"std::string MainGen::[OD.id] = \"\";
 
 		}
 		case [`long] {
