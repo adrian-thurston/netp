@@ -13,16 +13,72 @@
 #define CERT_FILE "/etc/ssl/certs/ssl-cert-snakeoil.pem"
 #define KEY_FILE "/etc/ssl/private/ssl-cert-snakeoil.key"
 
+static void cryptoLock(int mode, int type, const char *file, int line)
+{
+	static int modes[CRYPTO_NUM_LOCKS]; /* = {0, 0, ... } */
+	const char *errstr = NULL;
+	int rw;
+
+	rw = mode & ( CRYPTO_READ | CRYPTO_WRITE );
+	if (!((rw == CRYPTO_READ) || (rw == CRYPTO_WRITE))) {
+		errstr = "invalid mode";
+		goto err;
+	}
+
+	if ( type < 0 || type >= CRYPTO_NUM_LOCKS ) {
+		errstr = "type out of bounds";
+		goto err;
+	}
+
+	if (mode & CRYPTO_LOCK) {
+		if (modes[type]) {
+			errstr = "already locked";
+			/*
+			 * must not happen in a single-threaded program (would deadlock)
+			 */
+			goto err;
+		}
+
+		modes[type] = rw;
+	}
+	else if (mode & CRYPTO_UNLOCK) {
+		if (!modes[type]) {
+			errstr = "not locked";
+			goto err;
+		}
+
+		if (modes[type] != rw) {
+			errstr = (rw == CRYPTO_READ) ?
+				"CRYPTO_r_unlock on write lock" :
+				"CRYPTO_w_unlock on read lock";
+		}
+
+		modes[type] = 0;
+	}
+	else {
+		errstr = "invalid mode";
+		goto err;
+	}
+
+err:
+	if ( errstr ) {
+		log_ERROR( "openssl (lock_dbg_cb): " << errstr << " (mode=" <<
+				mode << ", type=" << type << ") at " << file << ":" << line );
+	}
+}
+
+
 /* Do this once at startup. */
 void Thread::sslInit()
 {
 	/* Global initialization. */
+	CRYPTO_set_locking_callback( cryptoLock );
 	SSL_load_error_strings();
 	ERR_load_BIO_strings();
 	OpenSSL_add_all_algorithms();
 	SSL_library_init();
 }
-    
+
 SSL_CTX *Thread::sslClientCtx()
 {
 	/* Create the SSL_CTX. */
