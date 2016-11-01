@@ -7,7 +7,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-
 #define PEER_CN_NAME_LEN 256
 
 #define CA_CERT_FILE "/etc/ssl/certs/ca-certificates.crt"
@@ -238,31 +237,31 @@ void Thread::sslError( int e )
 {
 	switch ( e ) {
 		case SSL_ERROR_NONE:
-			log_ERROR("ssl error: SSL_ERROR_NONE\n");
+			log_ERROR("ssl error: SSL_ERROR_NONE");
 			break;
 		case SSL_ERROR_ZERO_RETURN:
-			log_ERROR("ssl error: SSL_ERROR_ZERO_RETURN\n");
+			log_ERROR("ssl error: SSL_ERROR_ZERO_RETURN");
 			break;
 		case SSL_ERROR_WANT_READ:
-			log_ERROR("ssl error: SSL_ERROR_WANT_READ\n");
+			log_ERROR("ssl error: SSL_ERROR_WANT_READ");
 			break;
 		case SSL_ERROR_WANT_WRITE:
-			log_ERROR("ssl error: SSL_ERROR_WANT_WRITE\n");
+			log_ERROR("ssl error: SSL_ERROR_WANT_WRITE");
 			break;
 		case SSL_ERROR_WANT_CONNECT:
-			log_ERROR("ssl error: SSL_ERROR_WANT_CONNECT\n");
+			log_ERROR("ssl error: SSL_ERROR_WANT_CONNECT");
 			break;
 		case SSL_ERROR_WANT_ACCEPT:
-			log_ERROR("ssl error: SSL_ERROR_WANT_ACCEPT\n");
+			log_ERROR("ssl error: SSL_ERROR_WANT_ACCEPT");
 			break;
 		case SSL_ERROR_WANT_X509_LOOKUP:
-			log_ERROR("ssl error: SSL_ERROR_WANT_X509_LOOKUP\n");
+			log_ERROR("ssl error: SSL_ERROR_WANT_X509_LOOKUP");
 			break;
 		case SSL_ERROR_SYSCALL:
-			log_ERROR("ssl error: SSL_ERROR_SYSCALL\n");
+			log_ERROR("ssl error: SSL_ERROR_SYSCALL");
 			break;
 		case SSL_ERROR_SSL:
-			log_ERROR("ssl error: SSL_ERROR_SSL\n");
+			log_ERROR("ssl error: SSL_ERROR_SSL");
 			break;
 	}
 }
