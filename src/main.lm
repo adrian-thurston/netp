@@ -44,7 +44,6 @@ void generateMainHeader( P: program )
 		~	void close( SelectFd *fd );
 		~
 		~	void handleSignal( int sig );
-		~	void funnelSigs( sigset_t *set );
 		~	void signalSetup();
 		~	int signalLoop( struct timeval *timer = 0 );
 		~	int selectLoop( timeval *timer = 0, bool wantPoll = true );
@@ -320,15 +319,6 @@ void generateMainCode( P: ref<program> )
 		~{
 		~}
 		~
-		~void MainGen::funnelSigs( sigset_t *set )
-		~{
-		~	sigaddset( set, SIGHUP );
-		~	sigaddset( set, SIGINT );
-		~	sigaddset( set, SIGQUIT );
-		~	sigaddset( set, SIGKILL );
-		~	sigaddset( set, SIGTERM );
-		~	sigaddset( set, SIGCHLD );
-		~}
 		~
 		~void MainGen::signalSetup()
 		~{
@@ -339,6 +329,9 @@ void generateMainCode( P: ref<program> )
 		~	sigemptyset( &set );
 		~
 		~	funnelSigs( &set );
+		~
+		~	sigaddset( &set, SIGUSR1 );
+		~	sigaddset( &set, SIGUSR2 );
 		~
 		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
 		~}

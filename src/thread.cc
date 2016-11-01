@@ -282,6 +282,16 @@ void thread_funnel_handler( int s )
 	funnelSig = s;
 }
 
+void Thread::funnelSigs( sigset_t *set )
+{
+	sigaddset( set, SIGHUP );
+	sigaddset( set, SIGINT );
+	sigaddset( set, SIGQUIT );
+	sigaddset( set, SIGKILL );
+	sigaddset( set, SIGTERM );
+	sigaddset( set, SIGCHLD );
+}
+
 int Thread::signalLoop( sigset_t *set, struct timeval *timer )
 {
 	struct timeval left, last;
@@ -486,6 +496,18 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 	/* close( listenFd ); */
 
 	return 0;
+}
+
+int Thread::selectLoop( timeval *timer, bool wantPoll )
+{
+	sigset_t set;
+	sigemptyset( &set );
+
+	/* Funnel sigs go to main. For pselect we need to mask what we don't want.
+	 * We leave the user sigs unmasked. */
+	funnelSigs( &set );
+
+	return pselectLoop( &set, timer, wantPoll );
 }
 
 int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
