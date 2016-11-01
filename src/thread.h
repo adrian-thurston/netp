@@ -423,6 +423,9 @@ inline std::ostream &operator <<( std::ostream &out, const log_array &a )
 	return out;
 }
 
+/* FIXME: There is a gotchas here. The class-specific of log_prefix does not
+ * work with static functions. */
+
 /* The log_prefix() expression can reference a struct or a function that
  * returns something used to write a different prefix. The macros don't care.
  * This allows for context-dependent log messages. */
@@ -444,8 +447,8 @@ inline std::ostream &operator <<( std::ostream &out, const log_array &a )
 	msg << std::endl << log_unlock()
 
 #define log_debug( realm, msg ) \
-	if ( Thread::enabledRealms & realm ) \
+	do { if ( Thread::enabledRealms & realm ) \
 		*genf::lf << log_lock() << "debug: " << log_prefix() << \
-		msg << std::endl << log_unlock()
+		msg << std::endl << log_unlock(); } while(0)
 
 #endif
