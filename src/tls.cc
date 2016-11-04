@@ -3,6 +3,7 @@
 
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/rand.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -17,7 +18,6 @@ static pthread_mutex_t crypto_mutex_arr[CRYPTO_NUM_LOCKS];
 
 static void cryptoLock(int mode, int n, const char *file, int line)
 {
-
 	if ( mode & CRYPTO_LOCK )
 		pthread_mutex_lock( &crypto_mutex_arr[n] );
 	else
@@ -30,10 +30,12 @@ static unsigned long cryptoId(void)
 } 
 
 /* Do this once at startup. */
-void Thread::sslInit()
+void Thread::tlsStartup( const char *randFile )
 {
 	for ( int i = 0; i < CRYPTO_NUM_LOCKS; i++ )
 		pthread_mutex_init( &crypto_mutex_arr[i], 0 );
+	
+	CRYPTO_mem_ctrl( CRYPTO_MEM_CHECK_ON );
 
 	/* Global initialization. */
 	CRYPTO_set_locking_callback( cryptoLock );
@@ -43,6 +45,14 @@ void Thread::sslInit()
 	ERR_load_BIO_strings();
 	OpenSSL_add_all_algorithms();
 	SSL_library_init();
+
+	if ( randFile != 0 )
+		RAND_load_file( randFile, 1024 );
+}
+
+void Thread::tlsShutdown()
+{
+
 }
 
 SSL_CTX *Thread::sslClientCtx()

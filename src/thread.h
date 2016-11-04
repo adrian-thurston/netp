@@ -320,7 +320,8 @@ struct Thread
 	int write( SelectFd *fd, char *data, int len );
 	int read( SelectFd *fd, void *buf, int len );
 
-	void sslInit();
+	void tlsStartup( const char *randFile = 0 );
+	void tlsShutdown();
 
 	virtual void writeRetry( SelectFd *fd ) {}
 
