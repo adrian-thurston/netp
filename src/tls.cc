@@ -4,6 +4,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/rand.h>
+#include <openssl/err.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -41,6 +42,7 @@ void Thread::tlsStartup( const char *randFile )
 	CRYPTO_set_locking_callback( cryptoLock );
 	CRYPTO_set_id_callback( cryptoId ); 
 
+	ERR_load_crypto_strings();
 	SSL_load_error_strings();
 	ERR_load_BIO_strings();
 	OpenSSL_add_all_algorithms();
