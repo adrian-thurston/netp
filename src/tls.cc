@@ -100,14 +100,33 @@ SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert )
 
 	int result = SSL_CTX_use_PrivateKey_file( ctx, key, SSL_FILETYPE_PEM );
 	if ( result != 1 )
-		log_FATAL( "failed to load TLS KEY file " << key );
+		log_FATAL( "failed to load TLS key file " << key );
 
 	result = SSL_CTX_use_certificate_chain_file( ctx, cert );
 	if ( result != 1 )
-		log_FATAL( "failed to load TLS CRT file " << cert );
+		log_FATAL( "failed to load TLS certificates file " << cert );
 
 	return ctx;
 }
+
+SSL_CTX *Thread::sslServerCtx( EVP_PKEY *pkey, X509 *x509 )
+{
+	/* Create the SSL_CTX. */
+	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
+	if ( ctx == NULL )
+		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
+
+	int result = SSL_CTX_use_PrivateKey( ctx, pkey );
+	if ( result != 1 )
+		log_FATAL( "failed to load TLS key" );
+
+	result = SSL_CTX_use_certificate( ctx, x509 );
+	if ( result != 1 )
+		log_FATAL( "failed to load TLS certificate" );
+
+	return ctx;
+}
+
 
 void Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectFd *selectFd )
 {
