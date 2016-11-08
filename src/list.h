@@ -2,8 +2,8 @@
  *  Copyright 2001 Adrian Thurston <thurston@complang.org>
  */
 
-#ifndef _AAPL_DLIST_H
-#define _AAPL_DLIST_H
+#ifndef _GENF_LIST_H
+#define _GENF_LIST_H
 
 #define BASE_EL(name) name
 #define DLMEL_TEMPDEF class Element
@@ -803,5 +803,5 @@ template <DLMEL_TEMPDEF> void DList<DLMEL_TEMPUSE>::abandon()
 #undef DLMEL_TEMPUSE
 #undef DList
 
-#endif /* _AAPL_DLIST_H */
+#endif /* _GENF_LIST_H */
 
