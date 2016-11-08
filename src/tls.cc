@@ -185,21 +185,14 @@ void Thread::clientConnect( SelectFd *fd )
 		/* No connect yet. May need more data. */
 		result = SSL_get_error( fd->ssl, result );
 
-		fd->wantRead = false;
-		fd->wantWrite = false;
-		if ( result == SSL_ERROR_WANT_READ )
-			fd->wantRead = true;
-		else if ( result == SSL_ERROR_WANT_WRITE )
-			fd->wantWrite = true;
-		else {
-			sslError( result );
-		}
+		prepNextRound( fd, result );
 	}
 	else {
 		/* Check the verification result. */
 		long verifyResult = SSL_get_verify_result( fd->ssl );
 		if ( verifyResult != X509_V_OK ) {
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
+			sslError( verifyResult );
 		}
 
 		/* Check the cert chain. The chain length is automatically checked by
@@ -315,6 +308,9 @@ void Thread::sslError( int e )
 			break;
 		case SSL_ERROR_SSL:
 			log_ERROR("ssl error: SSL_ERROR_SSL");
+			break;
+		default:
+			log_ERROR("ssl error: not handled");
 			break;
 	}
 }

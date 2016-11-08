@@ -528,6 +528,7 @@ int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
 	if ( hostinfo == NULL ) {
 		::close( fd );
 		log_ERROR( "SocketConnectFailed" );
+		return -1;
 	}
 
 	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
