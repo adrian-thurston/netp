@@ -17,12 +17,22 @@ dnl pthread
 AC_CHECK_HEADER( [pthread.h] )
 AC_CHECK_LIB( [pthread], [pthread_create] )
 
-dnl C-ARES
-AC_CHECK_HEADER( [ares.h] )
-AC_CHECK_HEADER( [ares], [ares_init] )
+dnl openssl
+AC_CHECK_HEADER( [openssl/openssl.h] )
+AC_CHECK_LIB( [ssl], [SSL_library_init] )
+AC_CHECK_LIB( [crypto], [CRYPTO_thread_id]  )
 
-AC_CHECK_COLM([0.13.0.4])
+dnl c-ares (dns resolving)
+AC_CHECK_HEADER( [ares.h] )
+AC_CHECK_LIB( [cares], [ares_library_init] )
+
+dnl Data structures
 AC_CHECK_AAPL()
+
+dnl Colm
+AC_CHECK_COLM([0.13.0.4])
+
+
 AC_SUBST(SED_SUBST)
 
 AC_CONFIG_HEADERS(src/config.h)
