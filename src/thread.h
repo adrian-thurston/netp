@@ -222,6 +222,7 @@ struct Thread
 		recvRequiresSignal( false ),
 		pendingNotifSignal( false ),
 		logFile( &std::cerr ),
+		selectTimeout( 0 ),
 		loop( true )
 	{
 		ares_init( &ac );
@@ -260,6 +261,17 @@ struct Thread
 
 	ThreadList childList;
 
+	/* Default timeout for select. This is not a timer, but rather a maximum
+	 * time to wait in select call. Unlike a timer it resets with every run
+	 * around the loop. Only used if there is no timer. No specific action can
+	 * be triggered, just causes a poll of the message queue. Default value of
+	 * zero means no timeout. */
+	int selectTimeout;
+
+protected:
+	bool loop;
+
+public:
 	Thread *prev, *next;
 
 	void breakLoop()
@@ -344,8 +356,6 @@ struct Thread
 
 	void asyncResolve( const char *name );
 
-protected:
-	bool loop;
 };
 
 void *thread_start_routine( void *arg );

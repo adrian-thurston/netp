@@ -16,6 +16,12 @@ void UserThread::recvHello( Hello *msg )
 {
 	log_message( "received hello" );
 	ares_query( ac, "www.google.ca", ns_c_in, ns_t_a, ::cb, this );
+	sleep(1);
+}
+
+void UserThread::handleTimer()
+{
+	log_message( "timer" );
 }
 
 void UserThread::recvShutdown( Shutdown *msg )
@@ -81,9 +87,13 @@ int UserThread::main()
 {
 	log_message( "starting up" );
 
+	struct timeval t;
+	t.tv_sec = 2;
+	t.tv_usec = 0;
+
 	ares_query( ac, "www.google.com", ns_c_in, ns_t_a, ::cb, this );
 
-	selectLoop();
+	selectLoop( &t );
 	log_message( "exiting" );
 	return 0;
 }

@@ -382,31 +382,36 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 
 		/* Use what's left on the genf timer, or select a default for breaking
 		 * out of select. */
-		timeval tv;
+		timeval tv, avs, *pvs = 0;
 		if ( timer != 0 ) {
 			tv.tv_sec = left.tv_sec;
 			tv.tv_usec = left.tv_usec;
+			pvs = &tv;
 		}
-		else {
-			/* Wait no longer than a second, even if there is no timer. This
-			 * will allow us to read messages when msg-signaling is turned off. */
-			tv.tv_sec = 1;
+
+		if ( selectTimeout > 0 && pvs == 0 ) {
+			/* Wait no longer than selectTimeout when there is no timer. This
+			 * can allow us to read messages when msg-signaling is turned off. */
+			tv.tv_sec = selectTimeout;
 			tv.tv_usec = 0;
+			pvs = &tv;
 		}
 
 		/* Factor in the ares timeout. */
-		timeval avs, *pvs;
-		pvs = ares_timeout( ac, &tv, &avs );
+		pvs = ares_timeout( ac, pvs, &avs );
 
 		/* Convert to timespec. */
-		timespec ts;
-		ts.tv_sec = pvs->tv_sec;
-		ts.tv_nsec = pvs->tv_usec * 1000;
+		timespec ts, *pts = 0;
+		if ( pvs != 0 ) {
+			ts.tv_sec = pvs->tv_sec;
+			ts.tv_nsec = pvs->tv_usec * 1000;
+			pts = &ts;
+		}
 
 		/* If the nothing was added to any select loop then nfds will be zero
 		 * and the file descriptor sets will be empty. This is is a portable
 		 * sleep (with signal handling) according to select manpage. */
-		int result = pselect( nfds, &readSet, &writeSet, 0, &ts, sigmask );
+		int result = pselect( nfds, &readSet, &writeSet, 0, pts, sigmask );
 
 		/*
 		 * Signal handling first.
