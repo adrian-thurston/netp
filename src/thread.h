@@ -358,7 +358,7 @@ public:
 
 };
 
-void *thread_start_routine( void *arg );
+extern "C" void *genf_thread_start( void *arg );
 void thread_funnel_handler( int s );
 
 struct log_prefix { };

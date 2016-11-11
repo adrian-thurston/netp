@@ -114,7 +114,7 @@ void createChildDefs( Thread: thread )
 			"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
 			"{
 			"	childList.append( child );
-			"	pthread_create( &child->pthread_parent, 0, thread_start_routine, child );
+			"	pthread_create( &child->pthread_parent, 0, genf_thread_start, child );
 			"}
 			"
 	}

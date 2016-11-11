@@ -481,7 +481,6 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		/* Ares library */
 		ares_process( ac, &readSet, &writeSet );
 
-
 		/*
 		 * Handle file descriptors.
 		 */
@@ -577,7 +576,7 @@ void Thread::initId()
 
 }
 
-void *thread_start_routine( void *arg )
+extern "C" void *genf_thread_start( void *arg )
 {
 	Thread *thread = (Thread*)arg;
 	thread->initId();
