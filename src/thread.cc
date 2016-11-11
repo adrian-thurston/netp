@@ -350,7 +350,7 @@ int Thread::signalLoop( sigset_t *set, struct timeval *timer )
 
 int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 {
-	struct timeval left, last;
+	timeval left, last;
 
 	if ( timer != 0 ) {
 		left = *timer;
@@ -363,11 +363,12 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		fd_set readSet, writeSet;
 		FD_ZERO( &readSet );
 		FD_ZERO( &writeSet );
-		int highest = -1;
+
+		int nfds = ares_fds( ac, &readSet, &writeSet );
 		
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
-			if ( ( fd->wantRead || fd->wantWrite ) && fd->fd > highest )
-				highest = fd->fd;
+			if ( ( fd->wantRead || fd->wantWrite ) && fd->fd >= nfds )
+				nfds = fd->fd + 1;
 
 			if ( fd->wantRead )
 				FD_SET( fd->fd, &readSet );
@@ -379,23 +380,33 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 			fd->abortRound = false;
 		}
 
-		timespec ts;
+		/* Use what's left on the genf timer, or select a default for breaking
+		 * out of select. */
+		timeval tv;
 		if ( timer != 0 ) {
-			ts.tv_sec = left.tv_sec;
-			ts.tv_nsec = left.tv_usec * 1000;
+			tv.tv_sec = left.tv_sec;
+			tv.tv_usec = left.tv_usec;
 		}
 		else {
 			/* Wait no longer than a second, even if there is no timer. This
-			 * will allow us to read messages when msg-signaling is turned off.
-			 * */
-			ts.tv_nsec = 0;
-			ts.tv_sec = 1;
+			 * will allow us to read messages when msg-signaling is turned off. */
+			tv.tv_sec = 1;
+			tv.tv_usec = 0;
 		}
+
+		/* Factor in the ares timeout. */
+		timeval avs, *pvs;
+		pvs = ares_timeout( ac, &tv, &avs );
+
+		/* Convert to timespec. */
+		timespec ts;
+		ts.tv_sec = pvs->tv_sec;
+		ts.tv_nsec = pvs->tv_usec * 1000;
 
 		/* If the nothing was added to any select loop then nfds will be zero
 		 * and the file descriptor sets will be empty. This is is a portable
 		 * sleep (with signal handling) according to select manpage. */
-		int result = pselect( highest+1, &readSet, &writeSet, 0, &ts, sigmask );
+		int result = pselect( nfds, &readSet, &writeSet, 0, &ts, sigmask );
 
 		/*
 		 * Signal handling first.
@@ -462,6 +473,10 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 			}
 		}
 
+		/* Ares library */
+		ares_process( ac, &readSet, &writeSet );
+
+
 		/*
 		 * Handle file descriptors.
 		 */
@@ -519,7 +534,7 @@ int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
 	/* Create the socket. */
 	int fd = socket( PF_INET, SOCK_STREAM, 0 );
 	if ( fd < 0 )
-		log_ERROR( "SocketConnectFailed" );
+		log_ERROR( "inet connect: socket creation failed: " << strerror(errno) );
 
 	/* Lookup the host. */
 	servername.sin_family = AF_INET;
@@ -527,7 +542,7 @@ int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
 	hostinfo = gethostbyname( host );
 	if ( hostinfo == NULL ) {
 		::close( fd );
-		log_ERROR( "SocketConnectFailed" );
+		log_ERROR( "inet connect: name resoluation failed: " << strerror(errno) );
 		return -1;
 	}
 
@@ -540,7 +555,7 @@ int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
 	connectRes = ::connect( fd, (sockaddr*)&servername, sizeof(servername) );
 	if ( connectRes < 0 && errno != EINPROGRESS ) {
 		::close( fd );
-		log_ERROR( "SocketConnectFailed" );
+		log_ERROR( "inet connect: name connect call failed: " << strerror(errno) );
 		return -1;
 	}
 

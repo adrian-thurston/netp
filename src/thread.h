@@ -17,6 +17,9 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 
+#include <ares.h>
+#include <arpa/nameser.h>
+
 #define IT_BLOCK_SZ 4098
 
 /* TLS */
@@ -221,6 +224,12 @@ struct Thread
 		logFile( &std::cerr ),
 		loop( true )
 	{
+		ares_init( &ac );
+	}
+
+	Thread()
+	{
+		ares_destroy( ac );
 	}
 
 	const char *type;
@@ -233,12 +242,7 @@ struct Thread
 	pthread_t pthread_parent;
 	pid_t tid;
 
-	void breakLoop()
-		{ loop = false; }
-	bool loopContinue()
-		{ return loop; }
-	void loopBegin()
-		{ loop = true; }
+	ares_channel ac;
 
 	/* Set this true in a thread's constructor if the main loop is not driven
 	 * by listening for genf messages. Signals will be sent automatically on
@@ -254,9 +258,16 @@ struct Thread
 	std::ostream *logFile;
 	ItQueue control;
 
+	ThreadList childList;
+
 	Thread *prev, *next;
 
-	ThreadList childList;
+	void breakLoop()
+		{ loop = false; }
+	bool loopContinue()
+		{ return loop; }
+	void loopBegin()
+		{ loop = true; }
 
 	virtual int start() = 0;
 
@@ -330,6 +341,8 @@ struct Thread
 	void prepNextRound( SelectFd *fd, int result );
 	void serverAccept( SelectFd *fd );
 	virtual void notifServerAccept( SelectFd *fd ) {}
+
+	void asyncResolve( const char *name );
 
 protected:
 	bool loop;

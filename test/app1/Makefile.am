@@ -9,7 +9,7 @@ app1_SOURCES = \
 	user.cc \
 	$(BUILT_SOURCES)
 
-app1_LDADD = -lgenf -lpthread -lcrypto -lssl
+app1_LDADD = -lgenf -lpthread -lcrypto -lssl -lcares
 
 BUILT_SOURCES = \
 	main_gen.h \

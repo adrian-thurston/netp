@@ -17,6 +17,10 @@ dnl pthread
 AC_CHECK_HEADER( [pthread.h] )
 AC_CHECK_LIB( [pthread], [pthread_create] )
 
+dnl C-ARES
+AC_CHECK_HEADER( [ares.h] )
+AC_CHECK_HEADER( [ares], [ares_init] )
+
 AC_CHECK_COLM([0.13.0.4])
 AC_CHECK_AAPL()
 AC_SUBST(SED_SUBST)

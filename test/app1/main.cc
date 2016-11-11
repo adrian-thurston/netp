@@ -6,6 +6,8 @@
 
 int MainThread::main()
 {
+	log_message( "starting up" );
+
 	UserThread *bare = new UserThread;
 
 	SendsToUser *sendsToUser = registerSendsToUser( bare );

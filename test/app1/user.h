@@ -6,12 +6,11 @@
 struct UserThread
 	: public UserGen
 {
-	UserThread()
-	{
-		recvRequiresSignal = true;
-	}
+	UserThread();
 
 	int main();
+
+	void *cb( int status, int timeouts, unsigned char *abuf, int alen );
 
 	void recvShutdown( Shutdown *msg );
 	void recvHello( Hello *msg );
