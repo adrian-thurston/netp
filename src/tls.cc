@@ -185,14 +185,18 @@ void Thread::clientConnect( SelectFd *fd )
 		/* No connect yet. May need more data. */
 		result = SSL_get_error( fd->ssl, result );
 
-		prepNextRound( fd, result );
+		bool retry = prepNextRound( fd, result );
+		if ( !retry ) {
+			/* Not a retry failure. */
+			tlsConnectResult( fd, result );
+		}
 	}
 	else {
 		/* Check the verification result. */
 		long verifyResult = SSL_get_verify_result( fd->ssl );
 		if ( verifyResult != X509_V_OK ) {
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
-			sslError( verifyResult );
+			tlsError( verifyResult );
 		}
 
 		/* Check the cert chain. The chain length is automatically checked by
@@ -217,7 +221,7 @@ void Thread::clientConnect( SelectFd *fd )
 		/* Just wrapped the bio, update in select fd. */
 		fd->bio = bio;
 
-		sslConnectSuccess( fd, fd->ssl, bio );
+		tlsConnectResult( fd, SSL_ERROR_NONE );
 	}
 }
 
@@ -279,7 +283,7 @@ int Thread::write( SelectFd *fd, char *data, int length )
 	return written;
 }
 
-void Thread::sslError( int e )
+void Thread::tlsError( int e )
 {
 	switch ( e ) {
 		case SSL_ERROR_NONE:
@@ -303,19 +307,35 @@ void Thread::sslError( int e )
 		case SSL_ERROR_WANT_X509_LOOKUP:
 			log_ERROR("ssl error: SSL_ERROR_WANT_X509_LOOKUP");
 			break;
-		case SSL_ERROR_SYSCALL:
-			log_ERROR("ssl error: SSL_ERROR_SYSCALL");
+		case SSL_ERROR_SYSCALL: {
+			while ( true ) {
+				int eq = ERR_get_error(); 
+				if ( eq == 0 )
+					break;
+
+				log_ERROR("SSL_ERROR_SYSCALL: : " << ERR_error_string( eq, NULL ) );
+			}
 			break;
-		case SSL_ERROR_SSL:
-			log_ERROR("ssl error: SSL_ERROR_SSL");
+		}
+		case SSL_ERROR_SSL: {
+			while ( true ) {
+				int eq = ERR_get_error(); 
+				if ( eq == 0 )
+					break;
+
+				log_ERROR("SSL_ERROR_SSL: " << ERR_error_string( eq, NULL ) );
+			}
 			break;
-		default:
-			log_ERROR("ssl error: not handled");
+		}
+		default: {
+			log_ERROR("SSL_ERROR_ERROR: not handled");
 			break;
+		}
 	}
 }
 
-void Thread::prepNextRound( SelectFd *fd, int result )
+/* Returns true if failue was due to a retry request. */
+bool Thread::prepNextRound( SelectFd *fd, int result )
 {
 	fd->wantRead = false;
 	fd->wantWrite = false;
@@ -323,8 +343,8 @@ void Thread::prepNextRound( SelectFd *fd, int result )
 		fd->wantRead = true;
 	else if ( result == SSL_ERROR_WANT_WRITE )
 		fd->wantWrite = true;
-	else
-		sslError( result );
+
+	return fd->wantRead || fd->wantWrite;
 }
 
 void Thread::serverAccept( SelectFd *fd )
@@ -338,11 +358,13 @@ void Thread::serverAccept( SelectFd *fd )
 		/* No accept yet, may need more data. */
 		result = SSL_get_error( fd->ssl, result );
 
-		prepNextRound( fd, result );
+		bool retry = prepNextRound( fd, result );
+		if ( !retry ) {
+			/* Notify of connection error. */
+			tlsAcceptResult( fd, result );
+		}
 	}
 	else {
-		// log_debug( DBG_THREAD, "accept succeeded" );
-
 		/* Success. Stop the select loop. Create a BIO for the ssl wrapper. */
 		BIO *bio = BIO_new(BIO_f_ssl());
 		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
@@ -350,7 +372,7 @@ void Thread::serverAccept( SelectFd *fd )
 
 		fd->wantRead = fd->wantWrite = false;
 
-		notifServerAccept( fd );
+		tlsAcceptResult( fd, SSL_ERROR_NONE );
 	}
 }
 

@@ -340,7 +340,6 @@ public:
 	void startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectFd *selectFd );
 
 	void clientConnect( SelectFd *fd );
-	virtual void sslConnectSuccess( SelectFd *fd, SSL *ssl, BIO *bio ) {}
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
 	int write( SelectFd *fd, char *data, int len );
 	int read( SelectFd *fd, void *buf, int len );
@@ -350,13 +349,14 @@ public:
 
 	virtual void writeRetry( SelectFd *fd ) {}
 
-	void sslError( int e );
-	void prepNextRound( SelectFd *fd, int result );
+	void tlsError( int e );
+	bool prepNextRound( SelectFd *fd, int result );
 	void serverAccept( SelectFd *fd );
-	virtual void notifServerAccept( SelectFd *fd ) {}
+
+	virtual void tlsConnectResult( SelectFd *fd, int sslError ) {}
+	virtual void tlsAcceptResult( SelectFd *fd, int sslError ) {}
 
 	void asyncResolve( const char *name );
-
 };
 
 extern "C" void *genf_thread_start( void *arg );
