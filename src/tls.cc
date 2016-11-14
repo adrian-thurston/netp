@@ -329,6 +329,10 @@ void Thread::prepNextRound( SelectFd *fd, int result )
 
 void Thread::serverAccept( SelectFd *fd )
 {
+	bool nb = makeNonBlocking( fd->fd );
+	if ( !nb )
+		log_ERROR( "non-blocking IO not available" );
+
 	int result = SSL_accept( fd->ssl );
 	if ( result <= 0 ) {
 		/* No accept yet, may need more data. */
@@ -343,10 +347,6 @@ void Thread::serverAccept( SelectFd *fd )
 		BIO *bio = BIO_new(BIO_f_ssl());
 		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
 		fd->bio = bio;
-
-		bool nb = makeNonBlocking( fd->fd );
-		if ( !nb )
-			log_ERROR( "non-blocking IO not available" );
 
 		fd->wantRead = fd->wantWrite = false;
 
