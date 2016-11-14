@@ -529,6 +529,17 @@ int Thread::selectLoop( timeval *timer, bool wantPoll )
 	return pselectLoop( &set, timer, wantPoll );
 }
 
+static void lookupCallback( void *arg, int status, int timeouts, unsigned char *abuf, int alen )
+{
+	SelectFd *fd = static_cast<SelectFd*>(arg);
+	fd->thread->lookupCallback( fd, status, timeouts, abuf, alen );
+}
+
+void Thread::asyncLookup( SelectFd *selectFd, const char *host )
+{
+	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
+}
+
 int Thread::inetConnect( sockaddr_in *sa, bool nonBlocking )
 {
 	/* Create the socket. */

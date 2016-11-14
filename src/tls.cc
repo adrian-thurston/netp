@@ -150,7 +150,7 @@ void Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectF
 
 SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
 {
-	SelectFd *selectFd = new SelectFd( connFd, 0, SelectFd::TlsConnect, 0, 0, strdup(remoteHost) );
+	SelectFd *selectFd = new SelectFd( this, connFd, 0, SelectFd::TlsConnect, 0, 0, strdup(remoteHost) );
 
 	startSslClient( clientCtx, remoteHost, selectFd );
 
@@ -168,7 +168,7 @@ SelectFd *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
 	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
 	SSL_set_bio( ssl, bio, bio );
 
-	SelectFd *selectFd = new SelectFd( fd, 0, SelectFd::TlsAccept, ssl, bio, 0 );
+	SelectFd *selectFd = new SelectFd( this, fd, 0, SelectFd::TlsAccept, ssl, bio, 0 );
 
 	selectFd->wantRead = true;
 	selectFd->wantWrite = false;
@@ -383,6 +383,10 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			selectFdReady( fd, readyMask );
 			break;
 
+		case SelectFd::Lookup:
+			/* Shouldn't happen. When in lookup state, events happen on the resolver. */
+			break;
+
 		case SelectFd::Connect: {
 			if ( readyMask & WRITE_READY ) {
 				int option;
@@ -405,7 +409,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 			if ( result >= 0 ) {
-				SelectFd *selectFd = new SelectFd( result, 0 );
+				SelectFd *selectFd = new SelectFd( this, result, 0 );
 				selectFd->state = SelectFd::PktData;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );

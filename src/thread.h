@@ -128,6 +128,7 @@ struct SelectFd
 {
 	enum State {
 		User = 1,
+		Lookup,
 		Connect,
 		PktListen,
 		PktData,
@@ -139,9 +140,10 @@ struct SelectFd
 		Closed
 	};
 
-	SelectFd( int fd, void *local )
+	SelectFd( Thread *thread, int fd, void *local )
 	:
 		state(User),
+		thread(thread),
 		fd(fd),
 		local(local),
 		wantRead(false),
@@ -152,9 +154,10 @@ struct SelectFd
 		remoteHost(0)
 	{}
 
-	SelectFd( int fd, void *local, State state, SSL *ssl, BIO *bio, const char *remoteHost )
+	SelectFd( Thread *thread, int fd, void *local, State state, SSL *ssl, BIO *bio, const char *remoteHost )
 	:
 		state(state),
+		thread(thread),
 		fd(fd),
 		local(local),
 		wantRead(false),
@@ -166,6 +169,7 @@ struct SelectFd
 	{}
 
 	State state;
+	Thread *thread;
 	int fd;
 	void *local;
 	bool wantRead;
@@ -338,6 +342,10 @@ public:
 
 	SelectFd *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
 	void startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectFd *selectFd );
+
+	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
+
+	void asyncLookup( SelectFd *fd, const char *host );
 
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
