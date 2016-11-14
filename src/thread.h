@@ -293,7 +293,7 @@ public:
 
 	const Thread &log_prefix() { return *this; }
 
-	virtual	int poll() = 0;
+	virtual	bool poll() = 0;
 	int inetListen( uint16_t port );
 	int selectLoop( timeval *timer = 0, bool wantPoll = true );
 

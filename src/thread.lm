@@ -80,7 +80,7 @@ void generateThreadHeader( Thread: thread )
 		"
 		"	void recvSingle();
 		"	int recvLoop();
-		"	int poll();
+		"	bool poll();
 		"	virtual void data( SelectFd *fd );
 		"	void close( SelectFd *fd );
 		"
@@ -244,14 +244,15 @@ void generateThreadCode( Thread: thread )
 		"
 
 	send Output
-		"int [Thread->Id]Gen::poll()
+		"bool [Thread->Id]Gen::poll()
 		"{
 		"	if ( control.poll() ) {
 		"		ItHeader *header = control.wait();
 		"		recvHeader( &control, header );
 		"		control.release( header );
+		"		return true;
 		"	}
-		"	return 0;
+		"	return false;
 		"}
 		"
 

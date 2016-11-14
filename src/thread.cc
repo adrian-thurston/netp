@@ -419,7 +419,7 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		if ( result < 0 ) {
 			if ( errno == EINTR ) {
 				if ( wantPoll )
-					poll();
+					while ( poll() ) {}
 
 				handleSignal( funnelSig );
 				continue;
@@ -508,7 +508,7 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		}
 
 		if ( wantPoll )
-			poll();
+			while ( poll() ) {}
 	}
 
 	/* finalTimerRun( c ); */

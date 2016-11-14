@@ -38,7 +38,7 @@ void generateMainHeader( P: program )
 		~	int start();
 		~	void join();
 		~	virtual int main() { return 0; }
-		~	virtual int poll() { return 0; }
+		~	virtual bool poll() { return false; }
 		~
 		~	virtual void data( SelectFd *fd );
 		~	void close( SelectFd *fd );
