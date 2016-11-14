@@ -294,6 +294,7 @@ public:
 	int selectLoop( timeval *timer = 0, bool wantPoll = true );
 
 	int pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll );
+	int inetConnect( sockaddr_in *sa, bool nonBlocking );
 	int inetConnect( const char *host, uint16_t port, bool nonBlocking = false );
 
 	virtual void recvSingle() {}

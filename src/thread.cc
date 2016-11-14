@@ -529,34 +529,24 @@ int Thread::selectLoop( timeval *timer, bool wantPoll )
 	return pselectLoop( &set, timer, wantPoll );
 }
 
-int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
+int Thread::inetConnect( sockaddr_in *sa, bool nonBlocking )
 {
-	sockaddr_in servername;
-	hostent *hostinfo;
-	long connectRes;
-
 	/* Create the socket. */
 	int fd = socket( PF_INET, SOCK_STREAM, 0 );
-	if ( fd < 0 )
+	if ( fd < 0 ) {
 		log_ERROR( "inet connect: socket creation failed: " << strerror(errno) );
-
-	/* Lookup the host. */
-	servername.sin_family = AF_INET;
-	servername.sin_port = htons(port);
-	hostinfo = gethostbyname( host );
-	if ( hostinfo == NULL ) {
-		::close( fd );
-		log_ERROR( "inet connect: name resoluation failed: " << strerror(errno) );
 		return -1;
 	}
 
-	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
-
-	if ( nonBlocking )
-		makeNonBlocking( fd );
-
+	if ( nonBlocking ) {
+		bool nbres = makeNonBlocking( fd );
+		if ( !nbres ) {
+			log_ERROR( "failed to make FD non-blocking" );
+		}
+	}
+	
 	/* Connect to the listener. */
-	connectRes = ::connect( fd, (sockaddr*)&servername, sizeof(servername) );
+	int connectRes = ::connect( fd, (sockaddr*)sa, sizeof(*sa) );
 	if ( connectRes < 0 && errno != EINPROGRESS ) {
 		::close( fd );
 		log_ERROR( "inet connect: name connect call failed: " << strerror(errno) );
@@ -564,6 +554,23 @@ int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
 	}
 
 	return fd;
+}
+
+int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
+{
+	/* Lookup the host. */
+	hostent *hostinfo = gethostbyname( host );
+	if ( hostinfo == NULL ) {
+		log_ERROR( "inet connect: name resoluation failed: " << strerror(errno) );
+		return -1;
+	}
+
+	sockaddr_in servername;
+	servername.sin_family = AF_INET;
+	servername.sin_port = htons(port);
+	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
+
+	return inetConnect( &servername, nonBlocking );
 }
 
 void Thread::initId()
