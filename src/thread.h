@@ -154,20 +154,6 @@ struct SelectFd
 		remoteHost(0)
 	{}
 
-	SelectFd( Thread *thread, int fd, void *local, State state, SSL *ssl, BIO *bio, const char *remoteHost )
-	:
-		state(state),
-		thread(thread),
-		fd(fd),
-		local(local),
-		wantRead(false),
-		wantWrite(false),
-		abortRound(false),
-		ssl(ssl),
-		bio(bio),
-		remoteHost(remoteHost)
-	{}
-
 	State state;
 	Thread *thread;
 	int fd;
@@ -338,10 +324,8 @@ public:
 
 	static bool makeNonBlocking( int fd );
 
-	SelectFd *startSslServer( SSL_CTX *defaultCtx, int fd );
-
-	SelectFd *startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd );
-	void startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectFd *selectFd );
+	void startSslServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
+	void startSslClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
 
 	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
 
