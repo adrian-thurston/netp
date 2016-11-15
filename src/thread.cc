@@ -537,6 +537,8 @@ static void lookupCallback( void *arg, int status, int timeouts, unsigned char *
 void Thread::asyncLookup( SelectFd *selectFd, const char *host )
 {
 	selectFd->state = SelectFd::Lookup;
+	if ( selectFd->remoteHost == 0 )
+		selectFd->remoteHost = strdup(host);
 	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
 }
 

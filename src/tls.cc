@@ -142,7 +142,9 @@ void Thread::startSslClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char 
 
 	selectFd->ssl = ssl;
 	selectFd->bio = bio;
-	selectFd->remoteHost = strdup(remoteHost);
+
+	if ( selectFd->remoteHost == 0 )
+		selectFd->remoteHost = strdup(remoteHost);
 
 	selectFd->state = SelectFd::TlsConnect;
 	selectFd->wantRead = false;
