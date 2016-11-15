@@ -251,10 +251,13 @@ int Thread::write( SelectFd *fd, char *data, int length )
 			fd->wantWrite = BIO_should_write(fd->bio);
 			fd->abortRound = true;
 			fd->state = SelectFd::TlsWriteRetry;
+
+			/* Indicate we wrote nothing for a legit reason. */
+			written = 0;
 		}
 		else {
-			/* Write failed for some non-retry reason. */
-			log_ERROR( "SSL write failed for non-retry reason" );
+			/* Indicate error. */
+			written = -1;
 		}
 	}
 	else {
