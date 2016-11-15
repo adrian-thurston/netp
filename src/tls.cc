@@ -146,6 +146,8 @@ void Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, SelectF
 	selectFd->state = SelectFd::TlsConnect;
 	selectFd->wantRead = false;
 	selectFd->wantWrite = true;
+
+	SSL_set_ex_data( ssl, 0, selectFd );
 }
 
 SelectFd *Thread::startSslClient( SSL_CTX *clientCtx, const char *remoteHost, int connFd )
@@ -169,6 +171,8 @@ SelectFd *Thread::startSslServer( SSL_CTX *defaultCtx, int fd )
 	SSL_set_bio( ssl, bio, bio );
 
 	SelectFd *selectFd = new SelectFd( this, fd, 0, SelectFd::TlsAccept, ssl, bio, 0 );
+
+	SSL_set_ex_data( ssl, 0, selectFd );
 
 	selectFd->wantRead = true;
 	selectFd->wantWrite = false;
