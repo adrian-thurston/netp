@@ -142,13 +142,12 @@ void ItQueue::send( ItWriter *writer, bool sendSignal )
 	/* Put on the end of the message list. */
 	if ( head == 0 ) {
 		head = tail = writer->toSend;
-		head->next = 0;
 	}
 	else {
 		tail->next = writer->toSend;
 		tail = writer->toSend;
 	}
-
+	tail->next = 0;
 
 	/* Notify anyone waiting. */
 	pthread_cond_broadcast( &cond );
