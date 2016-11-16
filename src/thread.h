@@ -214,12 +214,10 @@ struct Thread
 		selectTimeout( 0 ),
 		loop( true )
 	{
-		ares_init( &ac );
 	}
 
 	Thread()
 	{
-		ares_destroy( ac );
 	}
 
 	const char *type;

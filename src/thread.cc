@@ -599,7 +599,9 @@ extern "C" void *genf_thread_start( void *arg )
 {
 	Thread *thread = (Thread*)arg;
 	thread->initId();
+	ares_init( &thread->ac );
 	long r = thread->start();
+	ares_destroy( thread->ac );
 	return (void*)r;
 }
 
