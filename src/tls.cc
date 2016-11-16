@@ -442,7 +442,6 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			writeRetry( fd );
 			break;
 
-		case SelectFd::TlsPaused:
 		case SelectFd::Closed:
 			/* This shouldn't come in. We need to disable the flags. */
 			fd->wantRead = false;

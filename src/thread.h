@@ -136,7 +136,6 @@ struct SelectFd
 		TlsConnect,
 		TlsEstablished,
 		TlsWriteRetry,
-		TlsPaused,
 		Closed
 	};
 
