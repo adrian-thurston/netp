@@ -333,8 +333,8 @@ public:
 
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
-	int write( SelectFd *fd, char *data, int len );
-	int read( SelectFd *fd, void *buf, int len );
+	int tlsWrite( SelectFd *fd, char *data, int len );
+	int tlsRead( SelectFd *fd, void *buf, int len );
 
 	void tlsStartup( const char *randFile = 0 );
 	void tlsShutdown();

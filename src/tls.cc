@@ -220,7 +220,7 @@ void Thread::clientConnect( SelectFd *fd )
 	}
 }
 
-int Thread::read( SelectFd *fd, void *buf, int len )
+int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 {
 	int nbytes = BIO_read( fd->bio, buf, len );
 
@@ -238,7 +238,7 @@ int Thread::read( SelectFd *fd, void *buf, int len )
 	return nbytes;
 }
 
-int Thread::write( SelectFd *fd, char *data, int length )
+int Thread::tlsWrite( SelectFd *fd, char *data, int length )
 {
 	int written = BIO_write( fd->bio, data, length );
 

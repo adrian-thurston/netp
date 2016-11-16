@@ -490,17 +490,16 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 				SelectFdList::Iter next = fd.next();
 
 				/* Check for round abort on the FD. */
-				if ( fd->abortRound )
-					continue;
+				if ( !fd->abortRound ) {
+					uint8_t readyField = 0;
+					if ( FD_ISSET( fd->fd, &readSet ) )
+						readyField |= READ_READY;
+					if ( FD_ISSET( fd->fd, &writeSet ) )
+						readyField |= WRITE_READY;
 
-				uint8_t readyField = 0;
-				if ( FD_ISSET( fd->fd, &readSet ) )
-					readyField |= READ_READY;
-				if ( FD_ISSET( fd->fd, &writeSet ) )
-					readyField |= WRITE_READY;
-
-				if ( readyField )
-					_selectFdReady( fd, readyField );
+					if ( readyField )
+						_selectFdReady( fd, readyField );
+				}
 
 				fd = next;
 			}
