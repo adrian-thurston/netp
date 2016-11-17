@@ -366,13 +366,23 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		int nfds = ares_fds( ac, &readSet, &writeSet );
 		
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
-			if ( ( fd->wantRead || fd->wantWrite ) && fd->fd >= nfds )
+			bool wantRead =
+					fd->state != SelectFd::TlsEstablished ?
+					fd->wantRead :
+					( fd->tlsWantRead || ( fd->tlsWantWrite & fd->tlsWriteWantsRead ) );
+
+			bool wantWrite =
+					fd->state != SelectFd::TlsEstablished ?
+					fd->wantWrite :
+					( fd->tlsWantWrite || ( fd->tlsWantRead & fd->tlsReadWantsWrite ) );
+
+			if ( ( wantRead || wantWrite ) && fd->fd >= nfds )
 				nfds = fd->fd + 1;
 
-			if ( fd->wantRead )
+			if ( wantRead )
 				FD_SET( fd->fd, &readSet );
 
-			if ( fd->wantWrite )
+			if ( wantWrite )
 				FD_SET( fd->fd, &writeSet );
 
 			/* Use this opportunity to reset the round abort flag. */

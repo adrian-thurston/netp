@@ -135,7 +135,6 @@ struct SelectFd
 		TlsAccept,
 		TlsConnect,
 		TlsEstablished,
-		TlsWriteRetry,
 		Closed
 	};
 
@@ -150,7 +149,11 @@ struct SelectFd
 		abortRound(false),
 		ssl(0),
 		bio(0),
-		remoteHost(0)
+		remoteHost(0),
+		tlsWantRead(false),
+		tlsWantWrite(false),
+		tlsWriteWantsRead(false),
+		tlsReadWantsWrite(false)
 	{}
 
 	State state;
@@ -163,6 +166,13 @@ struct SelectFd
 	SSL *ssl;
 	BIO *bio;
 	const char *remoteHost;
+
+	/* If connection is tls, the application should use these. */
+	bool tlsWantRead;
+	bool tlsWantWrite;
+
+	bool tlsWriteWantsRead;
+	bool tlsReadWantsWrite;
 
 	SelectFd *prev, *next;
 };
@@ -332,6 +342,8 @@ public:
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
 	int tlsWrite( SelectFd *fd, char *data, int len );
 	int tlsRead( SelectFd *fd, void *buf, int len );
+
+	virtual void tlsSelectFdReady( SelectFd *fd, uint8_t readyMask ) {}
 
 	void tlsStartup( const char *randFile = 0 );
 	void tlsShutdown();

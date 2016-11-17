@@ -222,17 +222,22 @@ void Thread::clientConnect( SelectFd *fd )
 
 int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 {
+	fd->tlsReadWantsWrite = false;
+
 	int nbytes = BIO_read( fd->bio, buf, len );
 
-	if ( nbytes <= 0 && BIO_should_retry( fd->bio ) ) {
-		// log_debug( DBG_THREAD, "bio should retry" );
-		fd->wantRead = true; // BIO_should_read(fd->bio);
-		fd->wantWrite = BIO_should_write(fd->bio);
+	if ( nbytes <= 0 ) {
+		if ( BIO_should_retry( fd->bio ) ) {
+			/* Read failure is retry-related. */
+			fd->tlsReadWantsWrite = BIO_should_write(fd->bio);
 
-		return 0;
-	}
-	else if ( nbytes <= 0 ) {
-		return -1;
+			/* Indicate wrote nothing for legit reason. */
+			nbytes = 0;
+		}
+		else {
+			/* Indicate error. */
+			nbytes = -1;
+		}
 	}
 
 	return nbytes;
@@ -240,6 +245,8 @@ int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 
 int Thread::tlsWrite( SelectFd *fd, char *data, int length )
 {
+	fd->tlsWriteWantsRead = false;
+
 	int written = BIO_write( fd->bio, data, length );
 
 	if ( written <= 0 ) {
@@ -247,10 +254,7 @@ int Thread::tlsWrite( SelectFd *fd, char *data, int length )
 		 * */
 		if ( BIO_should_retry( fd->bio ) ) {
 			/* Write failure is retry-related. */
-			fd->wantRead = BIO_should_read(fd->bio);
-			fd->wantWrite = BIO_should_write(fd->bio);
-			fd->abortRound = true;
-			fd->state = SelectFd::TlsWriteRetry;
+			fd->tlsWriteWantsRead = BIO_should_read(fd->bio);
 
 			/* Indicate we wrote nothing for a legit reason. */
 			written = 0;
@@ -258,23 +262,6 @@ int Thread::tlsWrite( SelectFd *fd, char *data, int length )
 		else {
 			/* Indicate error. */
 			written = -1;
-		}
-	}
-	else {
-		/* Wrote something. Write it all? */
-		if ( written < length ) {
-			fd->wantRead = false;
-			fd->wantWrite = true;
-			fd->abortRound = true;
-			fd->state = SelectFd::TlsWriteRetry;
-		}
-		else {
-			/* Wrote it all. Ensure other half is back in the established state
-			 * from write retry state (maybe never left -- depending on where
-			 * we were called from). */
-			fd->state = SelectFd::TlsEstablished;
-			fd->wantRead = true;
-			fd->wantWrite = false;
 		}
 	}
 
@@ -368,7 +355,7 @@ void Thread::serverAccept( SelectFd *fd )
 		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
 		fd->bio = bio;
 
-		fd->wantRead = fd->wantWrite = false;
+		//fd->wantRead = fd->wantWrite = false;
 
 		tlsAcceptResult( fd, SSL_ERROR_NONE );
 	}
@@ -435,11 +422,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 
 		case SelectFd::TlsEstablished:
-			sslReadReady( fd );
-			break;
-
-		case SelectFd::TlsWriteRetry:
-			writeRetry( fd );
+			tlsSelectFdReady( fd, readyMask );
 			break;
 
 		case SelectFd::Closed:
