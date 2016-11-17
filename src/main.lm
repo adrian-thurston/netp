@@ -408,10 +408,13 @@ void generateMainCode( P: ref<program> )
 		~	genf::lf = new lfdostream( 2 );
 		~	ares_library_init( 0);
 		~	MainThread main;
+		~	ares_init( &main.ac );
 		~	main.initId();
 		~	main.init( argc, argv );
+		~	int r = main.start();
+		~	ares_destroy( main.ac );
 		~	ares_library_cleanup();
-		~	return main.start();
+		~	return r;
 		~}
 		~
 
