@@ -313,7 +313,8 @@ public:
 	/* Must be called from the thread this struct represents before it is run. */
 	void initId();
 
-	static long enabledRealms;
+	typedef long RealmSet;
+	static RealmSet enabledRealms;
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 	virtual void data( SelectFd *fd ) {}
@@ -350,7 +351,7 @@ public:
 
 	virtual void writeRetry( SelectFd *fd ) {}
 
-	void tlsError( int e );
+	void tlsError( RealmSet realm, int e );
 	bool prepNextRound( SelectFd *fd, int result );
 	void serverAccept( SelectFd *fd );
 

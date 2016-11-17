@@ -24,7 +24,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 
-long Thread::enabledRealms = 0;
+Thread::RealmSet Thread::enabledRealms = 0;
 pthread_key_t Thread::thisKey;
 
 namespace genf

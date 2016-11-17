@@ -191,7 +191,6 @@ void Thread::clientConnect( SelectFd *fd )
 		long verifyResult = SSL_get_verify_result( fd->ssl );
 		if ( verifyResult != X509_V_OK ) {
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
-			tlsError( verifyResult );
 		}
 
 		/* Check the cert chain. The chain length is automatically checked by
@@ -268,29 +267,29 @@ int Thread::tlsWrite( SelectFd *fd, char *data, int length )
 	return written;
 }
 
-void Thread::tlsError( int e )
+void Thread::tlsError( RealmSet realm, int e )
 {
 	switch ( e ) {
 		case SSL_ERROR_NONE:
-			log_ERROR("ssl error: SSL_ERROR_NONE");
+			log_debug( realm, "ssl error: SSL_ERROR_NONE" );
 			break;
 		case SSL_ERROR_ZERO_RETURN:
-			log_ERROR("ssl error: SSL_ERROR_ZERO_RETURN");
+			log_debug( realm, "ssl error: SSL_ERROR_ZERO_RETURN" );
 			break;
 		case SSL_ERROR_WANT_READ:
-			log_ERROR("ssl error: SSL_ERROR_WANT_READ");
+			log_debug( realm, "ssl error: SSL_ERROR_WANT_READ" );
 			break;
 		case SSL_ERROR_WANT_WRITE:
-			log_ERROR("ssl error: SSL_ERROR_WANT_WRITE");
+			log_debug( realm, "ssl error: SSL_ERROR_WANT_WRITE" );
 			break;
 		case SSL_ERROR_WANT_CONNECT:
-			log_ERROR("ssl error: SSL_ERROR_WANT_CONNECT");
+			log_debug( realm, "ssl error: SSL_ERROR_WANT_CONNECT" );
 			break;
 		case SSL_ERROR_WANT_ACCEPT:
-			log_ERROR("ssl error: SSL_ERROR_WANT_ACCEPT");
+			log_debug( realm, "ssl error: SSL_ERROR_WANT_ACCEPT" );
 			break;
 		case SSL_ERROR_WANT_X509_LOOKUP:
-			log_ERROR("ssl error: SSL_ERROR_WANT_X509_LOOKUP");
+			log_debug( realm, "ssl error: SSL_ERROR_WANT_X509_LOOKUP" );
 			break;
 		case SSL_ERROR_SYSCALL: {
 			while ( true ) {
@@ -298,7 +297,7 @@ void Thread::tlsError( int e )
 				if ( eq == 0 )
 					break;
 
-				log_ERROR("SSL_ERROR_SYSCALL: : " << ERR_error_string( eq, NULL ) );
+				log_debug(  realm, "SSL_ERROR_SYSCALL: : " << ERR_error_string( eq, NULL ) );
 			}
 			break;
 		}
@@ -308,12 +307,12 @@ void Thread::tlsError( int e )
 				if ( eq == 0 )
 					break;
 
-				log_ERROR("SSL_ERROR_SSL: " << ERR_error_string( eq, NULL ) );
+				log_debug(  realm, "SSL_ERROR_SSL: " << ERR_error_string( eq, NULL ) );
 			}
 			break;
 		}
 		default: {
-			log_ERROR("SSL_ERROR_ERROR: not handled");
+			log_debug( realm, "SSL_ERROR_ERROR: not handled");
 			break;
 		}
 	}
