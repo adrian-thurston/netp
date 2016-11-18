@@ -125,7 +125,7 @@ void optDefine( P: program )
 		}
 		case [`string] {
 			send Output
-				"static std::string [OD.id];
+				"static const char *[OD.id];
 
 		}
 		case [`long] {
@@ -148,7 +148,7 @@ void optDeclare( P: program )
 		}
 		case [`string] {
 			send Output
-				"std::string MainGen::[OD.id] = \"\";
+				"const char *MainGen::[OD.id] = 0;
 
 		}
 		case [`long] {
