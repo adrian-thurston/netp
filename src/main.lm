@@ -160,33 +160,44 @@ void optDeclare( P: program )
 	send Output "
 }
 
-void parseOption( OD: option_def, Src: str )
+void parseOption( P: program, OD: option_def, Src: str )
 {
-	switch OD.option_type
-	case [`bool] {
-		send Output
-			"[OD.id] = true;
+	if $OD.id == "__debug" {
+		# Handle debug realms directly, rather than collecting into program
+		# state.
+		for D: debug_def in P {
+			send Output
+				"	if ( strcmp( [Src], \"[D.id]\" ) == 0 )
+				"		enabledRealms |= DBG_[D.id];
+		}
 	}
-	case [`string] {
-		send Output
-			"[OD.id] = [Src];
+	else {
+		switch OD.option_type
+		case [`bool] {
+			send Output
+				"[OD.id] = true;
+		}
+		case [`string] {
+			send Output
+				"[OD.id] = [Src];
 
+		}
+		case [`long] {
+			send Output
+				"char *eptr;
+				"if ( *[Src] == 0 )
+				"	log_FATAL( \"no characters found in [OD.id] (long) value\" );
+				"
+				"[OD.id] = strtol( [Src], &eptr, 10 );
+				"
+				"if ( *eptr != 0 )
+				"	log_FATAL( \"invalid characters in [OD.id] (long) value: \" << [Src] );
+				"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE )
+				"	log_FATAL( \"[OD.id] (long) out of range: \" << [Src] );
+				"if ( [OD.id] == 0 && errno != 0 )
+				"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
+		}	
 	}
-	case [`long] {
-		send Output
-			"char *eptr;
-			"if ( *[Src] == 0 )
-			"	log_FATAL( \"no characters found in [OD.id] (long) value\" );
-			"
-			"[OD.id] = strtol( [Src], &eptr, 10 );
-			"
-			"if ( *eptr != 0 )
-			"	log_FATAL( \"invalid characters in [OD.id] (long) value: \" << [Src] );
-			"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE )
-			"	log_FATAL( \"[OD.id] (long) out of range: \" << [Src] );
-			"if ( [OD.id] == 0 && errno != 0 )
-			"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
-	}	
 }
 
 void parseOptions( P: ref<program> )
@@ -207,7 +218,7 @@ void parseOptions( P: ref<program> )
 
 			send Output
 				"			case '[OS.short]': {
-				"				[parseOption( OD, 'optarg' )]
+				"				[parseOption( P, OD, 'optarg' )]
 				"				break;
 				"			}
 		}
@@ -222,7 +233,7 @@ void parseOptions( P: ref<program> )
 			require OS [`-- long]
 			send Output
 				"				case [OS.Ind]:
-				"					[parseOption( OD, '(argv[optind-1])' )]
+				"					[parseOption( P, OD, '(argv[optind-1])' )]
 				"					break;
 		}
 	}
@@ -296,8 +307,6 @@ void generateMainCode( P: ref<program> )
 		~int MainGen::start()
 		~{
 		~	parseOptions();
-		~	if ( debugEnabled )
-		~		enabledRealms = 0xffffffff;
 		~	maybeBackground();
 		~	signalSetup();
 		~	return main();
