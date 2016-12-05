@@ -21,6 +21,8 @@ AC_CHECK_GENF_DEPS()
 
 AC_SUBST(SED_SUBST)
 
+AC_CHECK_FUNC([X509_check_host], [AC_DEFINE([HAVE_X509_CHECK_HOST], [1], [define if X509_check_host exists])])
+
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_FILES([
 	Makefile

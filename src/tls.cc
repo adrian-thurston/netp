@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include "config.h"
 
 #define PEER_CN_NAME_LEN 256
 
@@ -202,11 +203,13 @@ void Thread::clientConnect( SelectFd *fd )
 		X509_NAME_get_text_by_NID( X509_get_subject_name(peer),
 				NID_commonName, peer_CN, PEER_CN_NAME_LEN );
 
+#ifdef HAVE_X509_CHECK_HOST
 		int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
 		if ( cr != 1 ) {
 			log_ERROR( "ssl peer cn host mismatch: requested " <<
 					fd->remoteHost << " but cert is for " << peer_CN );
 		}
+#endif
 
 		/* Create a BIO for the ssl wrapper. */
 		BIO *bio = BIO_new( BIO_f_ssl() );
