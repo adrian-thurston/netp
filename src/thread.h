@@ -11,8 +11,8 @@
 #include <sys/time.h>
 
 #include "list.h"
-#include <vector.h>
-#include <rope.h>
+#include <aapl/vector.h>
+#include <aapl/rope.h>
 
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
