@@ -10,5 +10,5 @@ module.c: filter.gf $(GENF)
 	$(GENF) --kernf filter.gf
 
 filter.ko: $(SOURCES)
-	make -C /lib/modules/3.13.0-37-generic/build/ M=`pwd`  
+	make -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
 
