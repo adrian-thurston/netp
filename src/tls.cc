@@ -13,8 +13,6 @@
 #define PEER_CN_NAME_LEN 256
 
 #define CA_CERT_FILE "/etc/ssl/certs/ca-certificates.crt"
-#define CERT_FILE "/etc/ssl/certs/ssl-cert-snakeoil.pem"
-#define KEY_FILE "/etc/ssl/private/ssl-cert-snakeoil.key"
 
 static pthread_mutex_t crypto_mutex_arr[CRYPTO_NUM_LOCKS];
 
@@ -70,24 +68,6 @@ SSL_CTX *Thread::sslClientCtx()
 	if ( !result ) {
 		log_ERROR( EC_SSL_CA_CERT_LOAD_FAILURE << " failed to load CA cert file " << CA_CERT_FILE );
 	}
-
-	return ctx;
-}
-
-SSL_CTX *Thread::sslServerCtx()
-{
-	/* Create the SSL_CTX. */
-	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
-	if ( ctx == NULL )
-		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
-
-	int result = SSL_CTX_use_certificate_chain_file( ctx, CERT_FILE );
-	if ( result != 1 )
-		log_FATAL( "failed to load TLS CRT file " << CERT_FILE );
-
-	result = SSL_CTX_use_PrivateKey_file( ctx, KEY_FILE, SSL_FILETYPE_PEM );
-	if ( result != 1 )
-		log_FATAL( "failed to load TLS KEY file " << KEY_FILE );
 
 	return ctx;
 }

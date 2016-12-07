@@ -326,7 +326,7 @@ public:
 	 * SSL
 	 */
 	SSL_CTX *sslClientCtx();
-	SSL_CTX *sslServerCtx();
+
 	SSL_CTX *sslServerCtx( const char *key, const char *cert );
 	SSL_CTX *sslServerCtx( EVP_PKEY *pkey, X509 *x509 );
 
