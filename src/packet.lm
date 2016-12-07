@@ -82,13 +82,23 @@ void packetReceives( Thread: thread )
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
 			"		case (int) [Packet->Id]::ID: {
-			"			char data\[8192\];
+			"			char data\[8192*2\];
 			"			[Packet->Id] *pkt = ([Packet->Id]*)data;
-			"			len = ::read( fd->fd, pkt, header.length - sizeof(header) );
-			"			if ( len == 0 ) {
-			"				log_ERROR( \"unexpected read result\" );
-			"				close( fd );
-			"				return;
+			"			int have = 0, need = header.length - sizeof(header);
+			"			while ( have < need ) {
+			"				int len = ::read( fd->fd, data+have, need-have );
+			"				if ( len < 0 ) {
+			"					/* try again */
+			"					sleep(1);
+			"				}
+			"				else if ( len == 0 ) {
+			"					log_ERROR( \"unexpected read result\" );
+			"					close( fd );
+			"					return;
+			"				}
+			"				else {
+			"					have += len;
+			"				}
 			"			}
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
