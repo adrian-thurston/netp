@@ -22,11 +22,13 @@ struct link
 	struct kobject kobj;
 	char name[32];
 	struct net_device *inside, *outside;
+	struct net_device *dev;
 
 	struct list_head link_list;
 };
 
 struct list_head link_list;
+static int create_netdev( struct link *l, const char *name );
 
 
 static inline struct link *get_link( const struct net_device *dev )
@@ -164,6 +166,7 @@ static ssize_t filter_add_store( struct filter *obj,
 	create_link( &link, name, &root_obj->kobj );
 	list_add_tail( &link->link_list, &link_list );
 	strcpy( link->name, name );
+	create_netdev( link, name );
 	return 0;
 }
 
@@ -182,10 +185,13 @@ static ssize_t filter_del_store( struct filter *obj, const char *name )
 
 	if ( link ) {
 		printk( "found link, removing\n" );
+
 		// dev_set_promiscuity( link->inside, -1 );
 		// dev_set_promiscuity( link->outside, -1 );
 		// dev_put( link->inside );
 		// dev_put( link->outside );
+
+		unregister_netdevice_queue( link->dev, NULL );
 		list_del( &link->link_list );
 		kobject_put( &link->kobj );
 	}
@@ -202,6 +208,98 @@ static int filter_device_event( struct notifier_block *unused,
 static struct notifier_block filter_device_notifier = {
 	.notifier_call = filter_device_event
 };
+
+static const struct net_device_ops inline_netdev_ops = {
+	.ndo_open              = 0,
+	.ndo_stop              = 0,
+	.ndo_init              = 0,
+	.ndo_start_xmit        = 0,
+	.ndo_get_stats64       = 0,
+	.ndo_set_mac_address   = 0,
+	.ndo_set_rx_mode       = 0,
+	.ndo_change_rx_flags   = 0,
+	.ndo_change_mtu        = 0,
+	.ndo_do_ioctl          = 0,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_netpoll_setup     = 0,
+	.ndo_netpoll_cleanup   = 0,
+	.ndo_poll_controller   = 0,
+#endif
+	.ndo_add_slave         = 0,
+	.ndo_del_slave         = 0,
+	.ndo_fix_features      = 0,
+	.ndo_fdb_add           = 0,
+	.ndo_fdb_del           = 0,
+	.ndo_fdb_dump          = 0,
+	.ndo_bridge_getlink    = 0,
+	.ndo_bridge_setlink    = 0,
+	.ndo_bridge_dellink    = 0,
+};
+
+static void inline_dev_free(struct net_device *dev)
+{
+	free_netdev(dev);
+}
+
+static const struct ethtool_ops inline_ethtool_ops = {
+	.get_drvinfo = 0, /* br_getinfo, */
+	.get_link   = 0, /* ethtool_op_get_link, */
+};
+
+static struct device_type inline_type = {
+	.name   = "inline",
+};
+
+#define COMMON_FEATURES ( NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | NETIF_F_GSO_MASK | NETIF_F_HW_CSUM )
+
+void inline_dev_setup(struct net_device *dev)
+{
+	eth_hw_addr_random(dev);
+	ether_setup(dev);
+
+	dev->netdev_ops = &inline_netdev_ops;
+	dev->destructor = inline_dev_free;
+	dev->ethtool_ops = &inline_ethtool_ops;
+	SET_NETDEV_DEVTYPE( dev, &inline_type );
+	dev->tx_queue_len = 0;
+	
+	/* dev->priv_flags = IFF_?; */
+
+	dev->features = COMMON_FEATURES | NETIF_F_LLTX | NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
+	dev->hw_features = COMMON_FEATURES | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
+	dev->vlan_features = COMMON_FEATURES;
+}
+
+struct rtnl_link_ops inline_link_ops __read_mostly = {
+	.kind       = "bridge",
+	.priv_size  = 4,
+	.setup      = 0,
+	.validate   = 0,
+	.newlink    = 0,
+	.dellink    = 0,
+};
+
+static int create_netdev( struct link *l, const char *name )
+{
+	int res;
+	struct net_device *dev;
+
+	dev = alloc_netdev( 4, name, inline_dev_setup );
+
+	if (!dev)
+		return -ENOMEM;
+
+	dev_net_set( dev, &init_net );
+	dev->rtnl_link_ops = &inline_link_ops;
+
+	res = register_netdev(dev);
+	if (res)
+		free_netdev(dev);
+	else {
+		l->dev = dev;
+	}
+	return res;
+}
 
 static int filter_init(void)
 {
