@@ -287,7 +287,7 @@ public:
 	const Thread &log_prefix() { return *this; }
 
 	virtual	bool poll() = 0;
-	int inetListen( uint16_t port );
+	int inetListen( uint16_t port, bool transparent = false );
 	int selectLoop( timeval *timer = 0, bool wantPoll = true );
 
 	int pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll );

@@ -224,7 +224,7 @@ void ItQueue::release( ItHeader *header )
 	writer->hoff += length;
 };
 
-int Thread::inetListen( uint16_t port )
+int Thread::inetListen( uint16_t port, bool transparent )
 {
 	/* Create the socket. */
 	int listenFd = socket( PF_INET, SOCK_STREAM, 0 );
@@ -237,6 +237,16 @@ int Thread::inetListen( uint16_t port )
 	int optionVal = 1;
 	setsockopt( listenFd, SOL_SOCKET, SO_REUSEADDR,
 			(char*)&optionVal, sizeof(int) );
+	
+	if ( transparent ) {
+		int optionVal = 1;
+		/* Maybe set transparent (for accepting connections on any address, used by
+		 * transparent proxy). */
+		int r = setsockopt( listenFd, SOL_IP, IP_TRANSPARENT, &optionVal, sizeof(optionVal) );
+		if ( r < 0 ) {
+			log_ERROR( "failed to set IP_TRANSPARENT flag on socket: " << strerror(r) );
+		}
+	}
 
 	/* bind. */
 	sockaddr_in sockName;
