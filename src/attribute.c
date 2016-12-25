@@ -4,6 +4,11 @@
 #include <linux/rtnetlink.h>
 #include <linux/list.h>
 #include <linux/kobject.h>
+#include <linux/if_ether.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
+#include <linux/etherdevice.h>
+#include <net/route.h>
 
 /* Root object. */
 struct filter
@@ -29,6 +34,20 @@ static inline struct link *get_link( const struct net_device *dev )
 	return rcu_dereference( dev->rx_handler_data );
 }
 
+int filter_handle_frame_finish(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct iphdr *iph = ip_hdr(skb);
+
+	int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev);
+	printk( "route err: %d  dst same: %d\n", err, skb_dst(skb)->dev == dev );
+
+	memcpy( eth_hdr(skb)->h_dest, dev->dev_addr, ETH_ALEN );
+	skb->pkt_type = PACKET_HOST;
+
+	return 0;
+}
+
 rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
@@ -40,6 +59,24 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 	}
 
 	if ( skb->dev == link->inside ) {
+		if ( eth_hdr(skb)->h_proto == htons( ETH_P_IP ) ) {
+			// printk( "filter.ko: ip traffic\n" );
+			if ( ip_hdr(skb)->protocol == IPPROTO_TCP ) {
+				const int ihlen = ip_hdr(skb)->ihl * 4;
+				struct tcphdr *th = (struct tcphdr*) ( ( (char*)ip_hdr(skb)) + ihlen );
+
+				// printk( "filter.ko: ihl: %u\n", (unsigned) ip_hdr(skb)->ihl );
+				// printk( "filter.ko: version: %u\n", (unsigned) ip_hdr(skb)->version );
+				// printk( "filter.ko: tcp dest: %hu\n", ntohs(th->dest) );
+
+				if ( th->dest == htons( 443 ) ) {
+//					// printk( "filter.ko: ssl traffic\n" );
+//					NF_HOOK( NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL, filter_handle_frame_finish );
+//					kfree_skb( skb );
+//					return RX_HANDLER_PASS;
+				}
+			}
+		}
 		skb->dev = link->outside;
 		skb_push(skb, ETH_HLEN);
 		dev_queue_xmit( skb );
