@@ -9,3 +9,5 @@ echo eth2 >/sys/filter/filter1/port_del
 
 echo filter1 >/sys/filter/del
 
+rmmod filter
+
