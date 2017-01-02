@@ -9,6 +9,7 @@
 #include <linux/tcp.h>
 #include <linux/etherdevice.h>
 #include <net/route.h>
+#include <linux/etherdevice.h>
 
 /* Root object. */
 struct filter
@@ -202,6 +203,77 @@ static ssize_t filter_del_store( struct filter *obj, const char *name )
 static int filter_device_event( struct notifier_block *unused,
 		unsigned long event, void *ptr )
 {
+	printk( "filter_device_event\n" );
+	return 0;
+}
+
+static int filter_dev_open(struct net_device *dev)
+{
+	printk( "filter_dev_open\n" );
+	netdev_update_features( dev );
+	netif_start_queue( dev );
+	return 0;
+}
+
+static int filter_dev_stop( struct net_device *dev )
+{
+	printk( "filter_dev_stop\n" );
+	netif_stop_queue( dev );
+	return 0;
+}
+
+static int filter_dev_init(struct net_device *dev)
+{
+	printk( "filter_dev_init\n" );
+	return 0;
+}
+
+static void filter_dev_uninit(struct net_device *dev)
+{
+	printk( "filter_dev_uninit\n" );
+}
+
+netdev_tx_t filter_dev_xmit( struct sk_buff *skb, struct net_device *dev )
+{
+	printk( "filter_dev_xmit\n" );
+	return NETDEV_TX_OK;
+}
+
+int filter_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	printk( "filter_dev_ioctl\n" );
+	return -EOPNOTSUPP;
+}
+
+static struct rtnl_link_stats64 *filter_get_stats64( struct net_device *dev,
+		struct rtnl_link_stats64 *stats )
+{
+	printk("filter_get_stats64\n");
+	stats->tx_bytes   = 0;
+	stats->tx_packets = 0;
+	stats->rx_bytes   = 0;
+	stats->rx_packets = 0;
+	return stats;
+}
+
+static void filter_dev_set_multicast_list( struct net_device *dev )
+{
+	printk("filter_dev_set_multicast_list\n");
+}
+
+static int filter_change_mtu( struct net_device *dev, int new_mtu )
+{
+	printk("filter_change_mtu\n");
+	return -EOPNOTSUPP;
+}
+
+static int filter_change_carrier(struct net_device *dev, bool new_carrier)
+{
+	printk("filter_change_carrier\n");
+	if ( new_carrier )
+		netif_carrier_on( dev );
+	else
+		netif_carrier_off( dev );
 	return 0;
 }
 
@@ -210,30 +282,19 @@ static struct notifier_block filter_device_notifier = {
 };
 
 static const struct net_device_ops inline_netdev_ops = {
-	.ndo_open              = 0,
-	.ndo_stop              = 0,
-	.ndo_init              = 0,
-	.ndo_start_xmit        = 0,
-	.ndo_get_stats64       = 0,
-	.ndo_set_mac_address   = 0,
-	.ndo_set_rx_mode       = 0,
-	.ndo_change_rx_flags   = 0,
-	.ndo_change_mtu        = 0,
-	.ndo_do_ioctl          = 0,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_netpoll_setup     = 0,
-	.ndo_netpoll_cleanup   = 0,
-	.ndo_poll_controller   = 0,
-#endif
-	.ndo_add_slave         = 0,
-	.ndo_del_slave         = 0,
-	.ndo_fix_features      = 0,
-	.ndo_fdb_add           = 0,
-	.ndo_fdb_del           = 0,
-	.ndo_fdb_dump          = 0,
-	.ndo_bridge_getlink    = 0,
-	.ndo_bridge_setlink    = 0,
-	.ndo_bridge_dellink    = 0,
+	.ndo_init              = filter_dev_init,
+	.ndo_uninit            = filter_dev_uninit,
+	.ndo_start_xmit        = filter_dev_xmit,
+	.ndo_validate_addr     = eth_validate_addr,
+	.ndo_set_rx_mode       = filter_dev_set_multicast_list,
+	.ndo_set_mac_address   = eth_mac_addr,
+	.ndo_get_stats64       = filter_get_stats64,
+	.ndo_change_carrier    = filter_change_carrier,
+
+	.ndo_open              = filter_dev_open,
+	.ndo_stop              = filter_dev_stop,
+	.ndo_change_mtu        = filter_change_mtu,
+	.ndo_do_ioctl          = filter_dev_ioctl,
 };
 
 static void inline_dev_free(struct net_device *dev)
