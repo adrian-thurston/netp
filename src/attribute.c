@@ -28,9 +28,13 @@ struct link
 	struct list_head link_list;
 };
 
+struct inline_dev_priv
+{
+	struct link *link;
+};
+
 struct list_head link_list;
 static int create_netdev( struct link *l, const char *name );
-
 
 static inline struct link *get_link( const struct net_device *dev )
 {
@@ -233,9 +237,17 @@ static void filter_dev_uninit(struct net_device *dev)
 	printk( "filter_dev_uninit\n" );
 }
 
+/* Transmit always called with BH disabled. */
 netdev_tx_t filter_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 {
-	printk( "filter_dev_xmit\n" );
+	struct inline_dev_priv *priv = netdev_priv( dev );
+
+	printk( "filter_dev_xmit, skb: %p, inside: %p\n", skb, priv->link->inside );
+
+	/* Probably need to find the right mac address now. */
+	skb->dev = priv->link->inside;
+	dev_queue_xmit( skb );
+
 	return NETDEV_TX_OK;
 }
 
@@ -333,31 +345,35 @@ void inline_dev_setup(struct net_device *dev)
 
 struct rtnl_link_ops inline_link_ops __read_mostly = {
 	.kind       = "bridge",
-	.priv_size  = 4,
+	.priv_size  = sizeof(struct inline_dev_priv),
 	.setup      = 0,
 	.validate   = 0,
 	.newlink    = 0,
 	.dellink    = 0,
 };
 
-static int create_netdev( struct link *l, const char *name )
+static int create_netdev( struct link *link, const char *name )
 {
 	int res;
 	struct net_device *dev;
+	struct inline_dev_priv *priv;
 
-	dev = alloc_netdev( 4, name, inline_dev_setup );
+	dev = alloc_netdev( sizeof(struct inline_dev_priv), name, inline_dev_setup );
 
 	if (!dev)
 		return -ENOMEM;
 
 	dev_net_set( dev, &init_net );
 	dev->rtnl_link_ops = &inline_link_ops;
+	
+	priv = netdev_priv( dev );
+	priv->link = link;
 
 	res = register_netdev(dev);
-	if (res)
+	if ( res )
 		free_netdev(dev);
 	else {
-		l->dev = dev;
+		link->dev = dev;
 	}
 	return res;
 }
