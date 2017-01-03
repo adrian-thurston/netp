@@ -66,7 +66,14 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 	}
 
 	if ( skb->dev == link->inside ) {
-		if ( eth_hdr(skb)->h_proto == htons( ETH_P_IP ) ) {
+		if ( eth_hdr(skb)->h_proto == htons( ETH_P_ARP ) ) {
+			struct sk_buff *up = skb_clone( skb, GFP_ATOMIC );
+			printk( "filter.ko: sending up arp\n" );
+			up->dev = link->dev;
+			up->pkt_type = PACKET_HOST;
+			netif_receive_skb( up );
+		}
+		else if ( eth_hdr(skb)->h_proto == htons( ETH_P_IP ) ) {
 			// printk( "filter.ko: ip traffic\n" );
 			if ( ip_hdr(skb)->protocol == IPPROTO_TCP ) {
 				const int ihlen = ip_hdr(skb)->ihl * 4;
