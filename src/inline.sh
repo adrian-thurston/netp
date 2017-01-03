@@ -12,6 +12,6 @@ iptables -t mangle -A DIVERT -j MARK --set-mark 101
 iptables -t mangle -A DIVERT -j ACCEPT
 
 ip rule add fwmark 101 lookup 101
-ip route add local default dev eth1 table 101
+ip route add local default dev filter1 table 101
 
 iptables -t mangle -A PREROUTING -p tcp -m tcp --dport 443 -j TPROXY  --on-port 4430 --tproxy-mark 101/101

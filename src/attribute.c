@@ -41,17 +41,12 @@ static inline struct link *get_link( const struct net_device *dev )
 	return rcu_dereference( dev->rx_handler_data );
 }
 
-int filter_handle_frame_finish(struct sk_buff *skb)
+int filter_handle_frame_finish( struct sk_buff *skb )
 {
-	struct net_device *dev = skb->dev;
 	struct iphdr *iph = ip_hdr(skb);
-
-	int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev);
-	printk( "route err: %d  dst same: %d\n", err, skb_dst(skb)->dev == dev );
-
-	memcpy( eth_hdr(skb)->h_dest, dev->dev_addr, ETH_ALEN );
+	ip_route_input( skb, iph->daddr, iph->saddr, iph->tos, skb->dev );
 	skb->pkt_type = PACKET_HOST;
-
+	netif_receive_skb( skb );
 	return 0;
 }
 
@@ -84,10 +79,11 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 				// printk( "filter.ko: tcp dest: %hu\n", ntohs(th->dest) );
 
 				if ( th->dest == htons( 443 ) ) {
-//					// printk( "filter.ko: ssl traffic\n" );
-//					NF_HOOK( NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL, filter_handle_frame_finish );
-//					kfree_skb( skb );
-//					return RX_HANDLER_PASS;
+					// printk( "filter.ko: ssl traffic\n" );
+					skb->dev = link->dev;
+					NF_HOOK( NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL, filter_handle_frame_finish );
+					//kfree_skb( skb );
+					return RX_HANDLER_CONSUMED;
 				}
 			}
 		}
@@ -171,8 +167,7 @@ static ssize_t link_port_del_store(
 	return 0;
 }
 
-static ssize_t filter_add_store( struct filter *obj,
-		const char *name )
+static ssize_t filter_add_store( struct filter *obj, const char *name )
 {
 	struct link *link = 0;
 	create_link( &link, name, &root_obj->kobj );
@@ -218,7 +213,7 @@ static int filter_device_event( struct notifier_block *unused,
 	return 0;
 }
 
-static int filter_dev_open(struct net_device *dev)
+static int filter_dev_open( struct net_device *dev )
 {
 	printk( "filter_dev_open\n" );
 	netdev_update_features( dev );
@@ -376,9 +371,10 @@ static int create_netdev( struct link *link, const char *name )
 	priv = netdev_priv( dev );
 	priv->link = link;
 
-	res = register_netdev(dev);
-	if ( res )
+	res = register_netdev( dev );
+	if ( res ) {
 		free_netdev(dev);
+	}
 	else {
 		link->dev = dev;
 	}
