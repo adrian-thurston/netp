@@ -41,15 +41,6 @@ static inline struct link *get_link( const struct net_device *dev )
 	return rcu_dereference( dev->rx_handler_data );
 }
 
-int filter_handle_frame_finish( struct sk_buff *skb )
-{
-	struct iphdr *iph = ip_hdr(skb);
-	ip_route_input( skb, iph->daddr, iph->saddr, iph->tos, skb->dev );
-	skb->pkt_type = PACKET_HOST;
-	netif_receive_skb( skb );
-	return 0;
-}
-
 rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
@@ -81,8 +72,8 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 				if ( th->dest == htons( 443 ) ) {
 					// printk( "filter.ko: ssl traffic\n" );
 					skb->dev = link->dev;
-					NF_HOOK( NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL, filter_handle_frame_finish );
-					//kfree_skb( skb );
+					skb->pkt_type = PACKET_HOST;
+					netif_receive_skb( skb );
 					return RX_HANDLER_CONSUMED;
 				}
 			}
