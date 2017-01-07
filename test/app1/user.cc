@@ -16,7 +16,7 @@ void UserThread::recvHello( Hello *msg )
 {
 	log_message( "received hello" );
 	ares_query( ac, "www.google.ca", ns_c_in, ns_t_a, ::cb, this );
-	sleep(1);
+	// sleep(1);
 }
 
 void UserThread::handleTimer()

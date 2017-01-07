@@ -7,6 +7,8 @@ app1_SOURCES = \
 	main.cc \
 	user.h \
 	user.cc \
+	listen.h \
+	listen.cc \
 	$(BUILT_SOURCES)
 
 BUILT_SOURCES = \
@@ -14,6 +16,8 @@ BUILT_SOURCES = \
 	main_gen.cc \
 	user_gen.h \
 	user_gen.cc \
+	listen_gen.h \
+	listen_gen.cc \
 	itq_gen.h \
 	itq_gen.cc \
 	packet_gen.h \

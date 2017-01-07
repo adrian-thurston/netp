@@ -6,6 +6,7 @@
 struct MainThread
 	: public MainGen
 {
+	void recvBigPacket( SelectFd *fd, BigPacket *pkt );
 	int main();
 };
 
