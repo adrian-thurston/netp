@@ -12,6 +12,7 @@ void generatePacketHeader( P: program )
 		~
 		~#include <sys/types.h>
 		~#include <sys/socket.h>
+		~#include <errno.h>
 		~
 		~struct PacketWriter;
 		~
@@ -70,56 +71,105 @@ void packetReceives( Thread: thread )
 	send Output
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
-		"	PacketHeader head;
-		"
-		"	int len = ::read( fd->fd, &head, sizeof(head) );
-		"	if ( len == 0 ) {
-		"		close( fd );
-		"		return;
-		"	}
-		"
-		"	int *nextLen = &head.firstLen;
-		"
-		"	while ( true ) {
-		"		char *data = fd->recvBuf.appendBlock( sizeof(PacketBlockHeader) + *nextLen );
-		"
-		"		int need = sizeof(int) + *nextLen;
-		"		int have = 0;
-		"		
-		"		while ( have < need ) {
-		"			int len = ::read( fd->fd, data + have, need - have );
-		"			if ( len > 0 ) {
-		"				have += len;
+		"	switch ( fd->recv.state ) {
+		"	case SelectFd::Recv::WantHead: {
+		"		const int sz = sizeof(fd->recv.head);
+		"		int len = ::read( fd->fd, &fd->recv.head + fd->recv.have, sz - fd->recv.have );
+		"		if ( len < 0 ) {
+		"			/* Error. */
+		"			if ( errno == EAGAIN || errno == EWOULDBLOCK )
+		"				return;
+		"			else {
+		"				/* fatal error. */
 		"			}
 		"		}
+		"		else if ( len == 0 ) {
+		"			/* EOF. */
+		"			close( fd );
+		"			return;
+		"		}
+		"		else if ( fd->recv.have + len < sz )  {
+		"			/* Don't have it all. Need to wait for more. */
+		"			fd->recv.have += len;
+		"			return;
+		"		}
 		"
-		"		nextLen = (int*)data;
-		"		if ( *nextLen == 0 )
-		"			break;
+		"		/* Completed read of header. */
+		"		fd->recv.nextLen = &fd->recv.head.firstLen;
+		"		fd->recv.state = SelectFd::Recv::WantBlock;
+		"	
+		"		fd->recv.need = sizeof(PacketBlockHeader) + *fd->recv.nextLen;
+		"		fd->recv.have = 0;
+		"
+		"		/* Deliberate fall through. */
+		"		fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
 		"	}
 		"
-		"	switch ( head.msgId )  {
+		"	case SelectFd::Recv::WantBlock: {
+		"		while ( true ) {
+		"			while ( fd->recv.have < fd->recv.need ) {
+		"				int len = ::read( fd->fd, fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
+		"				if ( len < 0 ) {
+		"					/* Error. */
+		"					if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+		"						/* continue. */
+		"						return;
+		"					}
+		"					else {
+		"						/* fatal error. */
+		"					}
+		"				}
+		"				else if ( len == 0 ) {
+		"					/* EOF. */
+		"					close( fd );
+		"					return;
+		"				}
+		"				else if ( fd->recv.have + len < fd->recv.need )  {
+		"					/* Don't have it all. Need to wait for more. */
+		"					fd->recv.have += len;
+		"					return;
+		"				}
+		"
+		"				if ( len > 0 ) {
+		"					fd->recv.have += len;
+		"				}
+		"			}
+		"
+		"			fd->recv.nextLen = (int*)fd->recv.data;
+		"			if ( *fd->recv.nextLen == 0 )
+		"				break;
+		"
+		"			fd->recv.need = sizeof(PacketBlockHeader) + *fd->recv.nextLen;
+		"			fd->recv.have = 0;
+
+		"			fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
+		"		}
+		"
+		"		fd->recv.state = SelectFd::Recv::WantHead;
+		"		switch ( fd->recv.head.msgId ) {
 
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
-			"		case (int) [Packet->Id]::ID: {
-			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recvBuf, 0 );
+			"			case (int) [Packet->Id]::ID: {
+			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recv.buf, 0 );
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`string] {
 				send Output
-					"	pkt->[FD.id] = pktFind( &fd->recvBuf, (long)pkt->[FD.id] );
+					"			pkt->[FD.id] = pktFind( &fd->recv.buf, (long)pkt->[FD.id] );
 			}
 		}
 		send Output
-			"			recv[Packet->Id]( fd, pkt );
-			"			break;
-			"		}
+			"				recv[Packet->Id]( fd, pkt );
+			"				break;
+			"			}
 	}
 
 	send Output
-		"	}
-		"	fd->recvBuf.empty();
+		"		}
+		"		fd->recv.buf.empty();
+		"		break;
+		"	}}
 		"}
 		"
 		"void [Thread->Id]Gen::close( SelectFd *fd )
@@ -189,16 +239,9 @@ void generatePacketCode( P: program )
 
 		#
 		# format:
-		#   PacketHeader, which contains first len
-		#   ( nextLen, block )*
+		#   PacketHeader, which contains first len, then ( nextLen, block )*
 		#
 		# The block lengths don't include the size of the nextLen field (int)
-		#
-		# Probably change to
-		#
-		# ( nextlen block )* 
-		#
-		# Where packet header is included in the first block.
 		#
 
 		send Output
@@ -207,7 +250,8 @@ void generatePacketCode( P: program )
 			"	RopeBlock *rb = writer->buf.hblk;
 			"
 			"	writer->toSend->length = writer->length();
-			"	writer->toSend->firstLen = writer->buf.length(rb) - sizeof(PacketHeader) - sizeof(PacketBlockHeader);
+			"	writer->toSend->firstLen = writer->buf.length(rb) -
+			"			sizeof(PacketHeader) - sizeof(PacketBlockHeader);
 			"
 			"	int n = 0;
 			"	for ( ; rb != 0; rb = rb->next ) {
@@ -216,8 +260,7 @@ void generatePacketCode( P: program )
 			"
 			"		int *nextLen;
 			"		if ( n == 0 ) {
-			"			//data += sizeof(PacketHeader);
-			"			//blockLen -= sizeof(PacketHeader);
+			"			/* First block explicitly contains the packet block header. */
 			"			nextLen = (int*)(data + sizeof(PacketHeader));
 			"		}
 			"		else {

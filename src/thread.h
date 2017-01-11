@@ -124,8 +124,45 @@ struct ItQueue
 	ItWriterVect writerVect;
 };
 
+struct PacketHeader
+{
+	int msgId;
+	int writerId;
+	int length;
+	int firstLen;
+};
+
+typedef int PacketBlockHeader;
+
 struct SelectFd
 {
+	struct Recv
+	{
+		Recv()
+		:
+			state(WantHead),
+			nextLen(0),
+			have(0)
+		{}
+
+		enum State
+		{
+			WantHead = 1,
+			WantBlock
+		};
+
+		State state;
+		int *nextLen;
+		PacketHeader head;
+		Rope buf;
+		char *data;
+
+		/* If read fails in the middle of something we need, amount we have is
+		 * recorded here. */
+		int have;
+		int need;
+	};
+
 	enum State {
 		User = 1,
 		Lookup,
@@ -174,7 +211,7 @@ struct SelectFd
 	bool tlsWriteWantsRead;
 	bool tlsReadWantsWrite;
 
-	Rope recvBuf;
+	Recv recv;
 
 	SelectFd *prev, *next;
 };
@@ -205,15 +242,6 @@ struct PacketWriter
 		{ buf.empty(); }
 };
 
-struct PacketHeader
-{
-	int msgId;
-	int writerId;
-	int length;
-	int firstLen;
-};
-
-typedef int PacketBlockHeader;
 
 struct Thread
 {
