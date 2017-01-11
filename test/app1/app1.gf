@@ -19,7 +19,9 @@ message Hello
 
 packet BigPacket
 {
-	string big;
+	string big1;
+	string big2;
+	string big3;
 };
 
 

@@ -46,8 +46,11 @@ void ListenThread::writeReady( SelectFd *fd )
 {
 	PacketWriter writer( fd->fd );
 
+	log_message( "sending big data" );
 	BigPacket *msg = BigPacket::open( &writer );
-	msg->set_big( &writer, ::data );
+	msg->set_big2( &writer, "foo" );
+	msg->set_big1( &writer, ::data );
+	msg->set_big3( &writer, ::data );
 	BigPacket::send( &writer );
 
 	fd->wantWrite = false;

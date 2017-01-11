@@ -174,6 +174,8 @@ struct SelectFd
 	bool tlsWriteWantsRead;
 	bool tlsReadWantsWrite;
 
+	Rope recvBuf;
+
 	SelectFd *prev, *next;
 };
 
@@ -183,7 +185,10 @@ struct PacketHeader;
 struct PacketWriter
 {
 	PacketWriter( int fd )
-		: fd(fd) {}
+	: fd(fd)
+	{
+		buf.blkHdrSz = sizeof(int);
+	}
 
 	int fd;
 	PacketHeader *toSend;
@@ -191,10 +196,7 @@ struct PacketWriter
 	Rope buf;
 
 	char *allocBytes( int nb )
-	{
-		char *b = buf.append( 0, nb );
-		return b;
-	}
+		{ return buf.append( 0, nb ); }
 
 	int length()
 		{ return buf.length(); }
@@ -208,7 +210,10 @@ struct PacketHeader
 	int msgId;
 	int writerId;
 	int length;
+	int firstLen;
 };
+
+typedef int PacketBlockHeader;
 
 struct Thread
 {
@@ -359,6 +364,8 @@ public:
 	virtual void tlsAcceptResult( SelectFd *fd, int sslError ) {}
 
 	void asyncResolve( const char *name );
+
+	char *pktFind( Rope *rope, long l );
 };
 
 extern "C" void *genf_thread_start( void *arg );

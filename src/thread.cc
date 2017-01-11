@@ -615,6 +615,22 @@ void Thread::initId()
 
 }
 
+char *Thread::pktFind( Rope *rope, long l )
+{
+	RopeBlock *rb = rope->hblk;
+
+	while ( rb != 0 ) {
+		long avail = rope->length( rb ) - sizeof(PacketBlockHeader);
+		if ( l < avail )
+			return rope->data( rb ) + sizeof(PacketBlockHeader) + l;
+		
+		rb = rb->next;
+		l -= avail;
+	}
+
+	return 0;
+}
+
 extern "C" void *genf_thread_start( void *arg )
 {
 	Thread *thread = (Thread*)arg;

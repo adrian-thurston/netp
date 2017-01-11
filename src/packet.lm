@@ -70,41 +70,45 @@ void packetReceives( Thread: thread )
 	send Output
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
-		"	PacketHeader header;
-		"	int len = ::read( fd->fd, &header, sizeof(header) );
+		"	PacketHeader head;
+		"
+		"	int len = ::read( fd->fd, &head, sizeof(head) );
 		"	if ( len == 0 ) {
 		"		close( fd );
 		"		return;
 		"	}
 		"
-		"	switch ( header.msgId )  {
+		"	int *nextLen = &head.firstLen;
+		"
+		"	while ( true ) {
+		"		char *data = fd->recvBuf.appendBlock( sizeof(PacketBlockHeader) + *nextLen );
+		"
+		"		int need = sizeof(int) + *nextLen;
+		"		int have = 0;
+		"		
+		"		while ( have < need ) {
+		"			int len = ::read( fd->fd, data + have, need - have );
+		"			if ( len > 0 ) {
+		"				have += len;
+		"			}
+		"		}
+		"
+		"		nextLen = (int*)data;
+		"		if ( *nextLen == 0 )
+		"			break;
+		"	}
+		"
+		"	switch ( head.msgId )  {
 
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
 			"		case (int) [Packet->Id]::ID: {
-			"			char data\[8192*2\];
-			"			[Packet->Id] *pkt = ([Packet->Id]*)data;
-			"			int have = 0, need = header.length - sizeof(header);
-			"			while ( have < need ) {
-			"				int len = ::read( fd->fd, data+have, need-have );
-			"				if ( len < 0 ) {
-			"					/* try again */
-			"					sleep(1);
-			"				}
-			"				else if ( len == 0 ) {
-			"					log_ERROR( \"unexpected read result\" );
-			"					close( fd );
-			"					return;
-			"				}
-			"				else {
-			"					have += len;
-			"				}
-			"			}
+			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recvBuf, 0 );
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`string] {
 				send Output
-					"	pkt->[FD.id] = data + (long)pkt->[FD.id]-sizeof(header);
+					"	pkt->[FD.id] = pktFind( &fd->recvBuf, (long)pkt->[FD.id] );
 			}
 		}
 		send Output
@@ -115,6 +119,7 @@ void packetReceives( Thread: thread )
 
 	send Output
 		"	}
+		"	fd->recvBuf.empty();
 		"}
 		"
 		"void [Thread->Id]Gen::close( SelectFd *fd )
@@ -148,7 +153,9 @@ void generatePacketCode( P: program )
 					"void [Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
-					"	long offset = writer->length();
+					# We don't use the auto-allocated space in the first packet
+					# block.
+					"	long offset = writer->length() - sizeof(PacketHeader) - sizeof(PacketBlockHeader);
 					"	char *dest = writer->allocBytes( length );
 					"	(([Packet->Id]*)writer->content)->[FD.id] = (char*)offset;
 					"	memcpy( dest, src, length );
@@ -163,7 +170,8 @@ void generatePacketCode( P: program )
 			"	writer->reset();
 			"
 			"	/* Place the header. */
-			"	PacketHeader *header = (PacketHeader*) writer->allocBytes( sizeof(PacketHeader) );
+			"	PacketHeader *header = (PacketHeader*) writer->allocBytes(
+			"			sizeof(PacketHeader) + sizeof(PacketBlockHeader) );
 			"	
 			"	header->msgId = [Packet->Id]::ID;
 			"	header->writerId = 1; // writer->id;
@@ -179,12 +187,51 @@ void generatePacketCode( P: program )
 			"}
 			"
 
+		#
+		# format:
+		#   PacketHeader, which contains first len
+		#   ( nextLen, block )*
+		#
+		# The block lengths don't include the size of the nextLen field (int)
+		#
+		# Probably change to
+		#
+		# ( nextlen block )* 
+		#
+		# Where packet header is included in the first block.
+		#
+
 		send Output
 			"void [Packet->Id]::send( PacketWriter *writer )
 			"{
+			"	RopeBlock *rb = writer->buf.hblk;
+			"
 			"	writer->toSend->length = writer->length();
-			"	for ( RopeBlock *rb = writer->buf.hblk; rb != 0; rb = rb->next )
-			"		::write( writer->fd, writer->buf.data(rb), writer->buf.length(rb) );
+			"	writer->toSend->firstLen = writer->buf.length(rb) - sizeof(PacketHeader) - sizeof(PacketBlockHeader);
+			"
+			"	int n = 0;
+			"	for ( ; rb != 0; rb = rb->next ) {
+			"		char *data = writer->buf.data(rb);
+			"		int blockLen = writer->buf.length(rb);
+			"
+			"		int *nextLen;
+			"		if ( n == 0 ) {
+			"			//data += sizeof(PacketHeader);
+			"			//blockLen -= sizeof(PacketHeader);
+			"			nextLen = (int*)(data + sizeof(PacketHeader));
+			"		}
+			"		else {
+			"			data -= sizeof(int);
+			"			blockLen += sizeof(int);
+			"			nextLen = (int*)(data);
+			"		}
+
+			"		*nextLen = rb->next != 0 ? writer->buf.length(rb->next) : 0;
+			"
+			"		::write( writer->fd, data, blockLen );
+			"
+			"		n += 1;
+			"	}
 			"}
 			"
 	}
