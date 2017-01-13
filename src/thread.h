@@ -222,18 +222,16 @@ struct PacketHeader;
 struct PacketWriter
 {
 	PacketWriter( int fd )
-	: fd(fd)
-	{
-		buf.blkHdrSz = sizeof(int);
-	}
+	:
+		fd(fd)
+	{}
 
 	int fd;
 	PacketHeader *toSend;
 	void *content;
 	Rope buf;
 
-	char *allocBytes( int nb )
-		{ return buf.append( 0, nb ); }
+	char *allocBytes( int nb, long &offset );
 
 	int length()
 		{ return buf.length(); }

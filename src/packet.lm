@@ -98,7 +98,7 @@ void packetReceives( Thread: thread )
 		"		fd->recv.nextLen = &fd->recv.head.firstLen;
 		"		fd->recv.state = SelectFd::Recv::WantBlock;
 		"	
-		"		fd->recv.need = sizeof(PacketBlockHeader) + *fd->recv.nextLen;
+		"		fd->recv.need = *fd->recv.nextLen;
 		"		fd->recv.have = 0;
 		"
 		"		/* Deliberate fall through. */
@@ -139,7 +139,7 @@ void packetReceives( Thread: thread )
 		"			if ( *fd->recv.nextLen == 0 )
 		"				break;
 		"
-		"			fd->recv.need = sizeof(PacketBlockHeader) + *fd->recv.nextLen;
+		"			fd->recv.need = *fd->recv.nextLen;
 		"			fd->recv.have = 0;
 
 		"			fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
@@ -151,7 +151,7 @@ void packetReceives( Thread: thread )
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
 			"			case (int) [Packet->Id]::ID: {
-			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recv.buf, 0 );
+			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recv.buf, sizeof(PacketBlockHeader) );
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`string] {
@@ -203,10 +203,8 @@ void generatePacketCode( P: program )
 					"void [Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
-					# We don't use the auto-allocated space in the first packet
-					# block.
-					"	long offset = writer->length() - sizeof(PacketHeader) - sizeof(PacketBlockHeader);
-					"	char *dest = writer->allocBytes( length );
+					"	long offset = 0;
+					"	char *dest = writer->allocBytes( length, offset );
 					"	(([Packet->Id]*)writer->content)->[FD.id] = (char*)offset;
 					"	memcpy( dest, src, length );
 					"}
@@ -220,14 +218,15 @@ void generatePacketCode( P: program )
 			"	writer->reset();
 			"
 			"	/* Place the header. */
-			"	PacketHeader *header = (PacketHeader*) writer->allocBytes(
-			"			sizeof(PacketHeader) + sizeof(PacketBlockHeader) );
+			"	PacketHeader *header = (PacketHeader*) writer->buf.append(
+			"			0, sizeof(PacketHeader) + sizeof(PacketBlockHeader) );
 			"	
 			"	header->msgId = [Packet->Id]::ID;
 			"	header->writerId = 1; // writer->id;
 			"
 			"	/* Place the struct. */
-			"	[Packet->Id] *msg = ([Packet->Id]*) writer->allocBytes( sizeof([Packet->Id]) );
+			"	long offset = 0;
+			"	[Packet->Id] *msg = ([Packet->Id]*) writer->allocBytes( sizeof([Packet->Id]), offset );
 			"
 			"	header->length = 0;
 			"	writer->toSend = header;
@@ -241,7 +240,7 @@ void generatePacketCode( P: program )
 		# format:
 		#   PacketHeader, which contains first len, then ( nextLen, block )*
 		#
-		# The block lengths don't include the size of the nextLen field (int)
+		# The block lengths include the size of the nextLen field (int)
 		#
 
 		send Output
@@ -250,8 +249,7 @@ void generatePacketCode( P: program )
 			"	RopeBlock *rb = writer->buf.hblk;
 			"
 			"	writer->toSend->length = writer->length();
-			"	writer->toSend->firstLen = writer->buf.length(rb) -
-			"			sizeof(PacketHeader) - sizeof(PacketBlockHeader);
+			"	writer->toSend->firstLen = writer->buf.length(rb) - sizeof(PacketHeader);
 			"
 			"	int n = 0;
 			"	for ( ; rb != 0; rb = rb->next ) {
@@ -264,8 +262,6 @@ void generatePacketCode( P: program )
 			"			nextLen = (int*)(data + sizeof(PacketHeader));
 			"		}
 			"		else {
-			"			data -= sizeof(int);
-			"			blockLen += sizeof(int);
 			"			nextLen = (int*)(data);
 			"		}
 

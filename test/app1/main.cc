@@ -8,9 +8,11 @@
 void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 {
 	log_message( "received BigPacket" );
+
 	std::cout << pkt->big1 << std::endl;
 	std::cout << pkt->big2 << std::endl;
 	std::cout << pkt->big3 << std::endl;
+
 	std::cout.flush();
 
 	breakLoop();

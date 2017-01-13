@@ -224,6 +224,20 @@ void ItQueue::release( ItHeader *header )
 	writer->hoff += length;
 };
 
+char *PacketWriter::allocBytes( int nb, long &offset )
+{
+	if ( buf.tblk == 0 || nb <= ( buf.tblk->size - buf.toff ) ) {
+		offset = buf.length() - sizeof(PacketHeader);
+		return buf.append( 0, nb );
+	}
+	else {
+		/* Need to move to block 1 or up, so we include the block header. */
+		offset = buf.length() - sizeof(PacketHeader) + sizeof(PacketBlockHeader);
+		char *data = buf.append( 0, sizeof(PacketBlockHeader) + nb );
+		return data + sizeof(PacketBlockHeader);
+	}
+}
+
 int Thread::inetListen( uint16_t port, bool transparent )
 {
 	/* Create the socket. */
@@ -620,9 +634,9 @@ char *Thread::pktFind( Rope *rope, long l )
 	RopeBlock *rb = rope->hblk;
 
 	while ( rb != 0 ) {
-		long avail = rope->length( rb ) - sizeof(PacketBlockHeader);
+		long avail = rope->length( rb );
 		if ( l < avail )
-			return rope->data( rb ) + sizeof(PacketBlockHeader) + l;
+			return rope->data( rb ) + l;
 		
 		rb = rb->next;
 		l -= avail;
