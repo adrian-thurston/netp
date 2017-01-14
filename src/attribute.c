@@ -8,6 +8,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/etherdevice.h>
+#include <linux/inet.h>
 #include <net/route.h>
 #include <linux/etherdevice.h>
 
@@ -17,6 +18,8 @@ struct filter
 	struct kobject kobj;
 };
 
+#define LINK_IPS 32
+
 /* Passtrhough link. */
 struct link
 {
@@ -24,6 +27,9 @@ struct link
 	char name[32];
 	struct net_device *inside, *outside;
 	struct net_device *dev;
+
+	__be32 ips[LINK_IPS];
+	int nips;
 
 	struct list_head link_list;
 };
@@ -39,6 +45,16 @@ static int create_netdev( struct link *l, const char *name );
 static inline struct link *get_link( const struct net_device *dev )
 {
 	return rcu_dereference( dev->rx_handler_data );
+}
+
+bool in_ip_list( struct link *l, __be32 ip )
+{
+	int i;
+	for ( i = 0; i < l->nips; i++ ) {
+		if ( l->ips[i] == ip )
+			return true;
+	}
+	return false;
 }
 
 rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
@@ -69,7 +85,7 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 				// printk( "filter.ko: version: %u\n", (unsigned) ip_hdr(skb)->version );
 				// printk( "filter.ko: tcp dest: %hu\n", ntohs(th->dest) );
 
-				if ( th->dest == htons( 443 ) ) {
+				if ( th->dest == htons( 443 ) && ( in_ip_list( link, ip_hdr(skb)->daddr ) ) ) {
 					// printk( "filter.ko: ssl traffic\n" );
 					skb->dev = link->dev;
 					skb->pkt_type = PACKET_HOST;
@@ -154,6 +170,15 @@ static ssize_t link_port_del_store(
 	/* Once for the dev get by name above, and again for the release. */
 	dev_put( dev );
 	dev_put( dev );
+
+	return 0;
+}
+
+static ssize_t link_ip_add_store( struct link *obj, const char *ip )
+{
+	if ( obj->nips < LINK_IPS ) {
+		obj->ips[obj->nips++] = in_aton( ip );
+	}
 
 	return 0;
 }
