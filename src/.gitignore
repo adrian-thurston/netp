@@ -10,8 +10,8 @@
 
 /.tmp_versions
 /Module.symvers
-/filter.ko
-/filter.mod.c
+/shuttle.ko
+/shuttle.mod.c
 /module.c
 /modules.order
 /Kbuild

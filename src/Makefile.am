@@ -1,14 +1,14 @@
 GENF = @GENF@
 
-data_DATA = filter.ko
+data_DATA = shuttle.ko
 
-EXTRA_DIST = filter.gf attribute.c attribute.h
+EXTRA_DIST = shuttle.gf attribute.c attribute.h
 
 SOURCES = module.c attribute.c attribute.h
 
-module.c: filter.gf $(GENF)
-	$(GENF) --kernf filter.gf
+module.c: shuttle.gf $(GENF)
+	$(GENF) --kernf shuttle.gf
 
-filter.ko: $(SOURCES)
+shuttle.ko: $(SOURCES)
 	make -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
 

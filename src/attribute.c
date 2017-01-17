@@ -13,7 +13,7 @@
 #include <linux/etherdevice.h>
 
 /* Root object. */
-struct filter
+struct shuttle
 {
 	struct kobject kobj;
 };
@@ -34,7 +34,7 @@ struct link
 	struct list_head link_list;
 };
 
-struct inline_dev_priv
+struct shuttle_dev_priv
 {
 	struct link *link;
 };
@@ -57,7 +57,7 @@ bool in_ip_list( struct link *l, __be32 ip )
 	return false;
 }
 
-rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
+rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
 	struct link *link = get_link( skb->dev );
@@ -70,23 +70,23 @@ rx_handler_result_t filter_handle_frame( struct sk_buff **pskb )
 	if ( skb->dev == link->inside ) {
 		if ( eth_hdr(skb)->h_proto == htons( ETH_P_ARP ) ) {
 			struct sk_buff *up = skb_clone( skb, GFP_ATOMIC );
-			printk( "filter.ko: sending up arp\n" );
+			printk( "inline.ko: sending up arp\n" );
 			up->dev = link->dev;
 			up->pkt_type = PACKET_HOST;
 			netif_receive_skb( up );
 		}
 		else if ( eth_hdr(skb)->h_proto == htons( ETH_P_IP ) ) {
-			// printk( "filter.ko: ip traffic\n" );
+			// printk( "inline.ko: ip traffic\n" );
 			if ( ip_hdr(skb)->protocol == IPPROTO_TCP ) {
 				const int ihlen = ip_hdr(skb)->ihl * 4;
 				struct tcphdr *th = (struct tcphdr*) ( ( (char*)ip_hdr(skb)) + ihlen );
 
-				// printk( "filter.ko: ihl: %u\n", (unsigned) ip_hdr(skb)->ihl );
-				// printk( "filter.ko: version: %u\n", (unsigned) ip_hdr(skb)->version );
-				// printk( "filter.ko: tcp dest: %hu\n", ntohs(th->dest) );
+				// printk( "inline.ko: ihl: %u\n", (unsigned) ip_hdr(skb)->ihl );
+				// printk( "inline.ko: version: %u\n", (unsigned) ip_hdr(skb)->version );
+				// printk( "inline.ko: tcp dest: %hu\n", ntohs(th->dest) );
 
 				if ( th->dest == htons( 443 ) && ( in_ip_list( link, ip_hdr(skb)->daddr ) ) ) {
-					// printk( "filter.ko: ssl traffic\n" );
+					// printk( "inline.ko: ssl traffic\n" );
 					skb->dev = link->dev;
 					skb->pkt_type = PACKET_HOST;
 					netif_receive_skb( skb );
@@ -138,7 +138,7 @@ static ssize_t link_port_add_store(
 
 	rtnl_lock();
 	dev_set_promiscuity( dev, 1 );
-	netdev_rx_handler_register( dev, filter_handle_frame, obj );
+	netdev_rx_handler_register( dev, shuttle_handle_frame, obj );
 	rtnl_unlock();
 
 	return 0;
@@ -183,7 +183,7 @@ static ssize_t link_ip_add_store( struct link *obj, const char *ip )
 	return 0;
 }
 
-static ssize_t filter_add_store( struct filter *obj, const char *name )
+static ssize_t shuttle_add_store( struct shuttle *obj, const char *name )
 {
 	struct link *link = 0;
 	create_link( &link, name, &root_obj->kobj );
@@ -193,7 +193,7 @@ static ssize_t filter_add_store( struct filter *obj, const char *name )
 	return 0;
 }
 
-static ssize_t filter_del_store( struct filter *obj, const char *name )
+static ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
 {
 	/* Find the link by name. */
 	struct link *link = 0;
@@ -222,45 +222,45 @@ static ssize_t filter_del_store( struct filter *obj, const char *name )
 	return 0;
 }
 
-static int filter_device_event( struct notifier_block *unused,
+static int shuttle_device_event( struct notifier_block *unused,
 		unsigned long event, void *ptr )
 {
-	printk( "filter_device_event\n" );
+	printk( "shuttle_device_event\n" );
 	return 0;
 }
 
-static int filter_dev_open( struct net_device *dev )
+static int shuttle_dev_open( struct net_device *dev )
 {
-	printk( "filter_dev_open\n" );
+	printk( "shuttle_dev_open\n" );
 	netdev_update_features( dev );
 	netif_start_queue( dev );
 	return 0;
 }
 
-static int filter_dev_stop( struct net_device *dev )
+static int shuttle_dev_stop( struct net_device *dev )
 {
-	printk( "filter_dev_stop\n" );
+	printk( "shuttle_dev_stop\n" );
 	netif_stop_queue( dev );
 	return 0;
 }
 
-static int filter_dev_init(struct net_device *dev)
+static int shuttle_dev_init(struct net_device *dev)
 {
-	printk( "filter_dev_init\n" );
+	printk( "shuttle_dev_init\n" );
 	return 0;
 }
 
-static void filter_dev_uninit(struct net_device *dev)
+static void shuttle_dev_uninit(struct net_device *dev)
 {
-	printk( "filter_dev_uninit\n" );
+	printk( "shuttle_dev_uninit\n" );
 }
 
 /* Transmit always called with BH disabled. */
-netdev_tx_t filter_dev_xmit( struct sk_buff *skb, struct net_device *dev )
+netdev_tx_t shuttle_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 {
-	struct inline_dev_priv *priv = netdev_priv( dev );
+	struct shuttle_dev_priv *priv = netdev_priv( dev );
 
-	printk( "filter_dev_xmit, skb: %p, inside: %p\n", skb, priv->link->inside );
+	printk( "shuttle_dev_xmit, skb: %p, inside: %p\n", skb, priv->link->inside );
 
 	/* Probably need to find the right mac address now. */
 	skb->dev = priv->link->inside;
@@ -269,16 +269,16 @@ netdev_tx_t filter_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 	return NETDEV_TX_OK;
 }
 
-int filter_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+int shuttle_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	printk( "filter_dev_ioctl\n" );
+	printk( "shuttle_dev_ioctl\n" );
 	return -EOPNOTSUPP;
 }
 
-static struct rtnl_link_stats64 *filter_get_stats64( struct net_device *dev,
+static struct rtnl_link_stats64 *shuttle_get_stats64( struct net_device *dev,
 		struct rtnl_link_stats64 *stats )
 {
-	printk("filter_get_stats64\n");
+	printk("shuttle_get_stats64\n");
 	stats->tx_bytes   = 0;
 	stats->tx_packets = 0;
 	stats->rx_bytes   = 0;
@@ -286,20 +286,20 @@ static struct rtnl_link_stats64 *filter_get_stats64( struct net_device *dev,
 	return stats;
 }
 
-static void filter_dev_set_multicast_list( struct net_device *dev )
+static void shuttle_dev_set_multicast_list( struct net_device *dev )
 {
-	printk("filter_dev_set_multicast_list\n");
+	printk("shuttle_dev_set_multicast_list\n");
 }
 
-static int filter_change_mtu( struct net_device *dev, int new_mtu )
+static int shuttle_change_mtu( struct net_device *dev, int new_mtu )
 {
-	printk("filter_change_mtu\n");
+	printk("shuttle_change_mtu\n");
 	return -EOPNOTSUPP;
 }
 
-static int filter_change_carrier(struct net_device *dev, bool new_carrier)
+static int shuttle_change_carrier(struct net_device *dev, bool new_carrier)
 {
-	printk("filter_change_carrier\n");
+	printk("shuttle_change_carrier\n");
 	if ( new_carrier )
 		netif_carrier_on( dev );
 	else
@@ -307,51 +307,51 @@ static int filter_change_carrier(struct net_device *dev, bool new_carrier)
 	return 0;
 }
 
-static struct notifier_block filter_device_notifier = {
-	.notifier_call = filter_device_event
+static struct notifier_block shuttle_device_notifier = {
+	.notifier_call = shuttle_device_event
 };
 
-static const struct net_device_ops inline_netdev_ops = {
-	.ndo_init              = filter_dev_init,
-	.ndo_uninit            = filter_dev_uninit,
-	.ndo_start_xmit        = filter_dev_xmit,
+static const struct net_device_ops shuttle_netdev_ops = {
+	.ndo_init              = shuttle_dev_init,
+	.ndo_uninit            = shuttle_dev_uninit,
+	.ndo_start_xmit        = shuttle_dev_xmit,
 	.ndo_validate_addr     = eth_validate_addr,
-	.ndo_set_rx_mode       = filter_dev_set_multicast_list,
+	.ndo_set_rx_mode       = shuttle_dev_set_multicast_list,
 	.ndo_set_mac_address   = eth_mac_addr,
-	.ndo_get_stats64       = filter_get_stats64,
-	.ndo_change_carrier    = filter_change_carrier,
+	.ndo_get_stats64       = shuttle_get_stats64,
+	.ndo_change_carrier    = shuttle_change_carrier,
 
-	.ndo_open              = filter_dev_open,
-	.ndo_stop              = filter_dev_stop,
-	.ndo_change_mtu        = filter_change_mtu,
-	.ndo_do_ioctl          = filter_dev_ioctl,
+	.ndo_open              = shuttle_dev_open,
+	.ndo_stop              = shuttle_dev_stop,
+	.ndo_change_mtu        = shuttle_change_mtu,
+	.ndo_do_ioctl          = shuttle_dev_ioctl,
 };
 
-static void inline_dev_free(struct net_device *dev)
+static void shuttle_dev_free(struct net_device *dev)
 {
 	free_netdev(dev);
 }
 
-static const struct ethtool_ops inline_ethtool_ops = {
+static const struct ethtool_ops shuttle_ethtool_ops = {
 	.get_drvinfo = 0, /* br_getinfo, */
 	.get_link   = 0, /* ethtool_op_get_link, */
 };
 
-static struct device_type inline_type = {
+static struct device_type shuttle_type = {
 	.name   = "inline",
 };
 
 #define COMMON_FEATURES ( NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA | NETIF_F_GSO_MASK | NETIF_F_HW_CSUM )
 
-void inline_dev_setup(struct net_device *dev)
+void shuttle_dev_setup(struct net_device *dev)
 {
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
 
-	dev->netdev_ops = &inline_netdev_ops;
-	dev->destructor = inline_dev_free;
-	dev->ethtool_ops = &inline_ethtool_ops;
-	SET_NETDEV_DEVTYPE( dev, &inline_type );
+	dev->netdev_ops = &shuttle_netdev_ops;
+	dev->destructor = shuttle_dev_free;
+	dev->ethtool_ops = &shuttle_ethtool_ops;
+	SET_NETDEV_DEVTYPE( dev, &shuttle_type );
 	dev->tx_queue_len = 0;
 	
 	/* dev->priv_flags = IFF_?; */
@@ -361,9 +361,9 @@ void inline_dev_setup(struct net_device *dev)
 	dev->vlan_features = COMMON_FEATURES;
 }
 
-struct rtnl_link_ops inline_link_ops __read_mostly = {
+struct rtnl_link_ops shuttle_link_ops __read_mostly = {
 	.kind       = "bridge",
-	.priv_size  = sizeof(struct inline_dev_priv),
+	.priv_size  = sizeof(struct shuttle_dev_priv),
 	.setup      = 0,
 	.validate   = 0,
 	.newlink    = 0,
@@ -374,15 +374,15 @@ static int create_netdev( struct link *link, const char *name )
 {
 	int res;
 	struct net_device *dev;
-	struct inline_dev_priv *priv;
+	struct shuttle_dev_priv *priv;
 
-	dev = alloc_netdev( sizeof(struct inline_dev_priv), name, inline_dev_setup );
+	dev = alloc_netdev( sizeof(struct shuttle_dev_priv), name, shuttle_dev_setup );
 
 	if (!dev)
 		return -ENOMEM;
 
 	dev_net_set( dev, &init_net );
-	dev->rtnl_link_ops = &inline_link_ops;
+	dev->rtnl_link_ops = &shuttle_link_ops;
 	
 	priv = netdev_priv( dev );
 	priv->link = link;
@@ -397,9 +397,9 @@ static int create_netdev( struct link *link, const char *name )
 	return res;
 }
 
-static int filter_init(void)
+static int shuttle_init(void)
 {
-	int retval = register_netdevice_notifier( &filter_device_notifier );
+	int retval = register_netdevice_notifier( &shuttle_device_notifier );
 	if ( retval )
 		return retval;
 
@@ -408,7 +408,7 @@ static int filter_init(void)
 	return 0;
 }
 
-static void filter_exit(void)
+static void shuttle_exit(void)
 {
-	unregister_netdevice_notifier( &filter_device_notifier );
+	unregister_netdevice_notifier( &shuttle_device_notifier );
 }

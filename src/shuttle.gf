@@ -1,4 +1,4 @@
-module filter;
+module shuttle;
 
 kobj link
 {
