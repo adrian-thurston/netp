@@ -1,6 +1,10 @@
 GENF = @GENF@
 
+bin_PROGRAMS = client
+
 data_DATA = kring.ko
+
+client_SOURCES = client.c
 
 EXTRA_DIST = kring.gf attribute.c attribute.h
 

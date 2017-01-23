@@ -16,3 +16,6 @@
 /modules.order
 /Kbuild
 /attribute.h
+
+/client
+/.deps
