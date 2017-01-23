@@ -6,7 +6,7 @@
 #include <net/sock.h>
 #include <asm/cacheflush.h>
 
-#include "common.h"
+#include "kring.h"
 
 struct kring
 {
@@ -192,8 +192,11 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 
 void *alloc_shared_memory( int size )
 {
+	void *mem;
 	size = PAGE_ALIGN(size);
-	return vmalloc_user(size);
+	mem = vmalloc_user(size);
+	memset( mem, 0, size );
+	return mem;
 }
 
 void free_shared_memory( void *m )
@@ -205,7 +208,7 @@ static int kring_init(void)
 {
 	int i, rc;
 
-	sd = alloc_shared_memory( sizeof( struct shared_desc ) * NPAGES );
+	sd = alloc_shared_memory( KRING_CTRL_SZ );
 
 	pd = kmalloc( sizeof(struct page*) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
@@ -213,7 +216,6 @@ static int kring_init(void)
 		if ( unlikely( !pd[i] ) ) {
 			printk( "alloc_page for ring allocation failed\n" );
 		}
-		sd[i].what = i;
 	}
 
 	sock_register(&kring_family_ops);

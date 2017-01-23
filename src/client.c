@@ -7,34 +7,34 @@
 #include <stdio.h>
 #include <sys/mman.h>
 
-#include "common.h"
+#include "kring.h"
+
+struct user_page
+{
+	char d[KRING_PAGE_SIZE];
+};
 
 int main()
 {
-	int s, sz;
-	char *r;
-	
-	s = socket( 25, SOCK_RAW, htons(ETH_P_ALL) );
+	int s = socket( 25, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( s < 0 ) 
 		printf( "socket failed: %d %s\n", s, strerror(errno) );
 
 	{
-		sz = sizeof( struct shared_desc ) * NPAGES;
-		printf( "ctrl size: %d\n", sz );
-		r = mmap( 0, sz, PROT_READ | PROT_WRITE, MAP_SHARED, s, PGOFF_CTRL * KRING_PAGE_SIZE );
+		char *r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE, MAP_SHARED, s, PGOFF_CTRL * KRING_PAGE_SIZE );
 		printf( "ctrl %p %s\n", r, strerror(errno) );
 
 		if ( r != MAP_FAILED ) {
-			struct shared_desc *p = (struct shared_desc*)r;
-			printf( "c1: %d\n", (int)p[3].what );
-			printf( "c2: %d\n", (int)p[8].what );
+			struct shared_ctrl *c = (struct shared_ctrl*)r;
+			struct shared_desc *p = (struct shared_desc*)(r + sizeof(struct shared_ctrl));
+			printf( "next-w: %lu\n", c->whead );
+			printf( "c1: %hu\n", p[3].desc );
+			printf( "c2: %hu\n", p[8].desc );
 		}
 	}
 
 	{
-		sz = sizeof(struct user_page) * NPAGES;
-		printf( "data size: %d\n", sz );
-		r = mmap( 0, sz, PROT_READ | PROT_WRITE, MAP_SHARED, s, PGOFF_DATA * KRING_PAGE_SIZE );
+		char *r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE, MAP_SHARED, s, PGOFF_DATA * KRING_PAGE_SIZE );
 		printf( "data %p %s\n", r, strerror(errno) );
 
 		if ( r != MAP_FAILED ) {
