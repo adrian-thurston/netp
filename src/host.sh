@@ -6,8 +6,8 @@ set -x
 # Create the VE namespace
 ip netns add ve0
 
-mkdir -p /etc/netns/ve0/
-echo "nameserver 192.168.0.1" >/etc/netns/ve0/resolv.conf
+# Need a correct resolv.conf for the host network.
+# echo "nameserver 192.168.1.1" >/etc/netns/ve0/resolv.conf
 
 # Move all the physical devices we will use to the namespace.
 ip link set enp0s25 netns ve0
@@ -18,6 +18,8 @@ ip link set enx94103eb85caa netns ve0
 ip netns exec ve0 bash -c "
 
 set -x
+
+ifconfig lo 127.0.0.1 up
 
 # For VE to work right.
 iptables -P FORWARD DROP
