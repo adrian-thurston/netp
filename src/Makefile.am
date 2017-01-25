@@ -1,4 +1,5 @@
 GENF = @GENF@
+KRING_SYMVERS = @KRING_SYMVERS@
 
 data_DATA = shuttle.ko
 
@@ -10,5 +11,6 @@ module.c: shuttle.gf $(GENF)
 	$(GENF) --kernf shuttle.gf
 
 shuttle.ko: $(SOURCES)
-	make -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
+	cp $(KRING_SYMVERS) ./
+	make CPPFLAGS="@CPPFLAGS@" -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
 

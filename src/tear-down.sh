@@ -27,4 +27,5 @@ echo eth2 >/sys/shuttle/shuttle1/port_del
 echo shuttle1 >/sys/shuttle/del
 
 rmmod shuttle
+rmmod kring
 

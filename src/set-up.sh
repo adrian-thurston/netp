@@ -3,6 +3,7 @@
 
 set -x 
 
+insmod $HOME/devel/kring/src/kring.ko
 insmod ./shuttle.ko
 
 echo shuttle1 >/sys/shuttle/add

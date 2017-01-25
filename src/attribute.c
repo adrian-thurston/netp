@@ -12,6 +12,8 @@
 #include <net/route.h>
 #include <linux/etherdevice.h>
 
+#include <kring.h>
+
 /* Root object. */
 struct shuttle
 {
@@ -89,18 +91,23 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 					// printk( "inline.ko: ssl traffic\n" );
 					skb->dev = link->dev;
 					skb->pkt_type = PACKET_HOST;
+					kring_write( skb->data - ETH_HLEN, skb->len + ETH_HLEN );
 					netif_receive_skb( skb );
 					return RX_HANDLER_CONSUMED;
 				}
 			}
 		}
+
 		skb->dev = link->outside;
-		skb_push(skb, ETH_HLEN);
+		skb_push( skb, ETH_HLEN );
+		kring_write( skb->data, skb->len );
 		dev_queue_xmit( skb );
 	}
 	else if ( skb->dev == link->outside ) {
+
 		skb->dev = link->inside;
-		skb_push(skb, ETH_HLEN);
+		skb_push( skb, ETH_HLEN );
+		kring_write( skb->data, skb->len );
 		dev_queue_xmit( skb );
 	}
 	else {
@@ -264,6 +271,7 @@ netdev_tx_t shuttle_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Probably need to find the right mac address now. */
 	skb->dev = priv->link->inside;
+	kring_write( skb->data, skb->len );
 	dev_queue_xmit( skb );
 
 	return NETDEV_TX_OK;
