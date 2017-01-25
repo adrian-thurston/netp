@@ -18,6 +18,14 @@ struct shared_desc
 	unsigned short desc;
 };
 
+struct page_desc
+{
+	struct page *p;
+	void *m;
+};
+
 #define KRING_CTRL_SZ sizeof(struct shared_ctrl) + sizeof(struct shared_desc) * NPAGES
 
 #define KRING_DATA_SZ KRING_PAGE_SIZE * NPAGES
+
+void kring_write( void *d, int len );

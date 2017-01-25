@@ -2,13 +2,19 @@ GENF = @GENF@
 
 bin_PROGRAMS = client
 
-data_DATA = kring.ko
+kmod_DATA = kring.ko
+
+pkgdata_DATA = Module.symvers
+
+include_HEADERS = kring.h
 
 client_SOURCES = client.c
 
 EXTRA_DIST = kring.gf attribute.c attribute.h
 
 SOURCES = module.c attribute.c attribute.h
+
+Module.symvers: kring.ko
 
 module.c: kring.gf $(GENF)
 	$(GENF) --kernf kring.gf

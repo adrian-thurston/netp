@@ -28,6 +28,7 @@ int main()
 			struct shared_ctrl *c = (struct shared_ctrl*)r;
 			struct shared_desc *p = (struct shared_desc*)(r + sizeof(struct shared_ctrl));
 			printf( "next-w: %lu\n", c->whead );
+
 			printf( "c1: %hu\n", p[3].desc );
 			printf( "c2: %hu\n", p[8].desc );
 		}
@@ -39,10 +40,9 @@ int main()
 
 		if ( r != MAP_FAILED ) {
 			struct user_page *p = (struct user_page*)r;
+
 			printf( "d1: %d\n", (int)p[3].d[10] );
 			printf( "d2: %d\n", (int)p[8].d[12] );
-			p[3].d[10] = 3 * 10;
-			p[8].d[12] = 8 * 12;
 		}
 	}
 

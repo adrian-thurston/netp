@@ -71,8 +71,10 @@ static struct net_proto_family kring_family_ops = {
 	.owner = THIS_MODULE,
 };
 
-static struct page **pd;
+static struct page_desc *pd;
+static void *ctrl;
 static struct shared_desc *sd;
+static struct shared_ctrl *sc;
 
 static int kring_sock_release( struct socket *sock )
 {
@@ -92,8 +94,8 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 {
 	switch ( vma->vm_pgoff ) {
 		case PGOFF_CTRL: {
-			printk( "mapping control region" );
-			remap_vmalloc_range( vma, sd, 0 );
+			printk( "mapping control region\n" );
+			remap_vmalloc_range( vma, ctrl, 0 );
 			break;
 		}
 
@@ -102,7 +104,7 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 			unsigned long uaddr = vma->vm_start;
 			printk( "mapping data region %lu\n", uaddr );
 			for ( i = 0; i < NPAGES; i++ ) {
-				int r = vm_insert_page( vma, uaddr, pd[i] );
+				int r = vm_insert_page( vma, uaddr, pd[i].p );
 				if ( i == 0 || i == 1 )
 					printk("vm_insert_page: %d\n", r );
 				uaddr += PAGE_SIZE;
@@ -208,12 +210,18 @@ static int kring_init(void)
 {
 	int i, rc;
 
-	sd = alloc_shared_memory( KRING_CTRL_SZ );
+	ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
-	pd = kmalloc( sizeof(struct page*) * NPAGES, GFP_KERNEL );
+	sc = ctrl;
+	sd = ctrl + sizeof(struct shared_ctrl);
+
+	pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
-		pd[i] = alloc_page( GFP_KERNEL | __GFP_ZERO );
-		if ( unlikely( !pd[i] ) ) {
+		pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
+		if ( pd[i].p ) {
+			pd[i].m = page_address(pd[i].p);
+		}
+		else {
 			printk( "alloc_page for ring allocation failed\n" );
 		}
 	}
@@ -234,8 +242,31 @@ static void kring_exit(void)
 	proto_unregister( &kring_proto );
 
 	for ( i = 0; i < NPAGES; i++ )
-		__free_page( pd[i] );
+		__free_page( pd[i].p );
 
-	free_shared_memory( sd );
+	free_shared_memory( ctrl );
 	kfree( pd );
 }
+
+void kring_write( void *d, int len )
+{
+	int *plen;
+	void *pdata;
+
+	if ( len > (KRING_PAGE_SIZE - sizeof(int)) ) {
+		printk("kring large write: %d\n", len );
+		len = PAGE_SIZE - sizeof(int);
+	}
+
+	plen = pd[sc->whead].m;
+	pdata = (plen + 1);
+
+	*plen = len;
+	memcpy( pdata, d, len );
+
+	sc->whead += 1;
+	if ( sc->whead >= NPAGES )
+		sc->whead = 0;
+}
+
+EXPORT_SYMBOL_GPL(kring_write);
