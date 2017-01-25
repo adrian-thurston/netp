@@ -28,4 +28,4 @@ struct page_desc
 
 #define KRING_DATA_SZ KRING_PAGE_SIZE * NPAGES
 
-void kring_write( void *d, int len );
+void kring_write( int rid, void *d, int len );

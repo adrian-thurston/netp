@@ -13,6 +13,19 @@ struct kring
 	struct kobject kobj;
 };
 
+struct ring
+{
+	void *ctrl;
+
+	struct shared_desc *sd;
+	struct shared_ctrl *sc;
+
+	struct page_desc *pd;
+};
+
+static struct ring r0;
+static struct ring r1;
+
 static int kring_sock_release( struct socket *sock );
 static int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
 static int kring_sock_mmap(struct file *file, struct socket *sock, struct vm_area_struct *vma );
@@ -71,10 +84,6 @@ static struct net_proto_family kring_family_ops = {
 	.owner = THIS_MODULE,
 };
 
-static struct page_desc *pd;
-static void *ctrl;
-static struct shared_desc *sd;
-static struct shared_ctrl *sc;
 
 static int kring_sock_release( struct socket *sock )
 {
@@ -92,10 +101,11 @@ static int kring_sock_release( struct socket *sock )
 
 static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
-	switch ( vma->vm_pgoff ) {
+	struct ring *r = ( vma->vm_pgoff & 0xffff0000 ) ? &r1 : &r0;
+	switch ( vma->vm_pgoff & 0xffff ) {
 		case PGOFF_CTRL: {
 			printk( "mapping control region\n" );
-			remap_vmalloc_range( vma, ctrl, 0 );
+			remap_vmalloc_range( vma, r->ctrl, 0 );
 			break;
 		}
 
@@ -104,9 +114,7 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 			unsigned long uaddr = vma->vm_start;
 			printk( "mapping data region %lu\n", uaddr );
 			for ( i = 0; i < NPAGES; i++ ) {
-				int r = vm_insert_page( vma, uaddr, pd[i].p );
-				if ( i == 0 || i == 1 )
-					printk("vm_insert_page: %d\n", r );
+				vm_insert_page( vma, uaddr, r->pd[i].p );
 				uaddr += PAGE_SIZE;
 			}
 
@@ -206,25 +214,44 @@ void free_shared_memory( void *m )
 	vfree(m);
 }
 
-static int kring_init(void)
+static void ring_alloc( struct ring *r )
 {
-	int i, rc;
+	int i;
 
-	ctrl = alloc_shared_memory( KRING_CTRL_SZ );
+	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
-	sc = ctrl;
-	sd = ctrl + sizeof(struct shared_ctrl);
+	r->sc = r->ctrl;
+	r->sd = r->ctrl + sizeof(struct shared_ctrl);
 
-	pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
+	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
-		pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
-		if ( pd[i].p ) {
-			pd[i].m = page_address(pd[i].p);
+		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
+		if ( r->pd[i].p ) {
+			r->pd[i].m = page_address(r->pd[i].p);
 		}
 		else {
 			printk( "alloc_page for ring allocation failed\n" );
 		}
 	}
+}
+
+static void ring_free( struct ring *r )
+{
+	int i;
+	for ( i = 0; i < NPAGES; i++ )
+		__free_page( r->pd[i].p );
+
+	free_shared_memory( r->ctrl );
+	kfree( r->pd );
+
+}
+
+static int kring_init(void)
+{
+	int rc;
+
+	ring_alloc( &r0 );
+	ring_alloc( &r1 );
 
 	sock_register(&kring_family_ops);
 
@@ -236,37 +263,35 @@ static int kring_init(void)
 
 static void kring_exit(void)
 {
-	int i;
-
 	sock_unregister( KRING );
+
 	proto_unregister( &kring_proto );
 
-	for ( i = 0; i < NPAGES; i++ )
-		__free_page( pd[i].p );
-
-	free_shared_memory( ctrl );
-	kfree( pd );
+	ring_free( &r1 );
+	ring_free( &r0 );
 }
 
-void kring_write( void *d, int len )
+void kring_write( int rid, void *d, int len )
 {
 	int *plen;
 	void *pdata;
+
+	struct ring *r = rid == 0 ? &r0 : ( rid == 1 ? &r1 : 0 );
 
 	if ( len > (KRING_PAGE_SIZE - sizeof(int)) ) {
 		printk("kring large write: %d\n", len );
 		len = PAGE_SIZE - sizeof(int);
 	}
 
-	plen = pd[sc->whead].m;
+	plen = r->pd[r->sc->whead].m;
 	pdata = (plen + 1);
 
 	*plen = len;
 	memcpy( pdata, d, len );
 
-	sc->whead += 1;
-	if ( sc->whead >= NPAGES )
-		sc->whead = 0;
+	r->sc->whead += 1;
+	if ( r->sc->whead >= NPAGES )
+		r->sc->whead = 0;
 }
 
 EXPORT_SYMBOL_GPL(kring_write);
