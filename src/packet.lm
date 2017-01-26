@@ -17,8 +17,6 @@ void generatePacketHeader( P: program )
 		~struct PacketWriter;
 		~
 
-	ID: int = 1
-
 	for Packet: packet in PacketMap {
 		send Output
 			"struct [Packet->Id]
@@ -44,11 +42,9 @@ void generatePacketHeader( P: program )
 		send Output
 			"	static [Packet->Id] *open( PacketWriter *writer );
 			"	static void send( PacketWriter *writer );
-			"	static const unsigned short ID = [ID];
+			"	static const unsigned short ID = [Packet->NumID];
 			"};
 			"
-
-		ID = ID + 1
 	}
 
 	send Output

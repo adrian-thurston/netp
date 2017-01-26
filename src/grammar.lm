@@ -3,10 +3,12 @@ lex
 	literal `thread `message `packet `option `module
 	literal `bool `string `long `attribute
 	literal `starts `sends `to `receives `show `store `kobj
-	literal `debug
+	literal `debug `use `import
 	literal `: `; `{ `} `, `( `) `*
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
+
+	token string /'"' [^"]* '"'/
 
 	ignore /[ \t\n\r]+/
 	ignore /'#' [^\n]* '\r'/
@@ -105,6 +107,9 @@ def kobj_def
 def debug_def
 	[`debug id `;]
 
+def use_decl
+	[`use id string `;]
+
 def definition
 	[option_def]
 |	[thread_def]
@@ -118,6 +123,7 @@ def definition
 |	[attr_decl]
 |	[kobj_def]
 |	[debug_def]
+|	[use_decl]
 
 def program
 	[definition*]

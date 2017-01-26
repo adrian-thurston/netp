@@ -18,6 +18,7 @@ end
 context packet
 	Id: str
 	PacketDef: packet_def
+	NumID: int
 end
 
 context sends
@@ -163,6 +164,60 @@ void semanticAnalysis( P: program )
 		Packet: packet = consPacket( PacketDef )[]
 		PacketMap->insert( $PacketDef.id, Packet )
 	}
+
+	ID: int = 1
+	for Packet: packet in PacketMap {
+		Packet->NumID = ID
+		ID = ID + 1
+	}
+
+	for Use: use_decl in P {
+		print "use [Use.string]
+		S: str = $Use.string
+		S = S.suffix( 1 )
+		S = S.prefix( S.length - 1 )
+
+		Found: stream
+
+		for Path: str in OptInc {
+			print "checking [Path]/[S]
+			
+			Try: str = "[Path]/[S]"
+			Input: stream = open( Try, 'r' )
+
+			if ( Input ) {
+				Found = Input
+				break
+			}
+		}
+
+		if ( !Found ) {
+			send stderr "ERROR: could not find file for use statment: [Use]
+			exit( 1 )
+		}
+
+		UseP: program = parse program [Found]
+		if ( !UseP ) {
+			send stderr "ERROR: could not parse input: [error]
+			exit( 1 )
+		}
+
+		UsePacketMap: map<str, packet> = new map<str, packet>()
+		for PacketDef: packet_def in UseP {
+			Packet: packet = consPacket( PacketDef )[]
+			UsePacketMap->insert( $PacketDef.id, Packet )
+		}
+
+		ID: int = 1
+		for Packet: packet in UsePacketMap {
+			Packet->NumID = ID
+			ID = ID + 1
+		}
+
+		for Packet: packet in UsePacketMap
+			PacketMap->insert( Packet->Id, Packet )
+	}
+
 
 	for StartsDecl: starts_decl in P {
 		Owner: thread = findThread( StartsDecl.Owner )

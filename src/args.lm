@@ -2,6 +2,7 @@ global OptAutomake: bool = false
 global OptKernf: bool = false
 global OptHelp: bool = false
 global OptInputFn: str
+global OptInc: list<str> = new list<str>()
 
 namespace args
 
@@ -12,6 +13,7 @@ namespace args
 
 	lex
 		token single /[h]/
+		token single_arg /[I]/
 		token dash /'-'/
 
 		literal `help `automake `kernf
@@ -28,6 +30,7 @@ namespace args
 	def item
 		[`- single* zero]
 	|	[`- dash long zero]
+	|	[`- single_arg word zero]
 	|	[file zero]
 
 	def args 
@@ -59,6 +62,9 @@ void parseArgs()
 		}
 		case ["--kernf" args::zero] {
 			OptKernf = true
+		}
+		case ["-I" W: word zero] {
+			OptInc->push_tail( $W )
 		}
 		case [file zero] {
 			OptInputFn = $Item.file
