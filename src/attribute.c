@@ -176,9 +176,9 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 {
 	struct sock *sk;
 
-	/* Privs? */
-	if ( !capable( CAP_NET_ADMIN ) )
-		return -EPERM;
+//	/* Privs? */
+//	if ( !capable( CAP_NET_ADMIN ) )
+//		return -EPERM;
 
 	if ( sock->type != SOCK_RAW )
 		return -ESOCKTNOSUPPORT;
