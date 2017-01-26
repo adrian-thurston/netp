@@ -312,7 +312,7 @@ void kbuild( P: program )
 	send Output
 		"obj-m := [ModuleName].o
 		"[ModuleName]-objs := module.o
-		"
+		"ccflags-y := $(CPPFLAGS)
 		"module.o: attribute.h attribute.c
 
 	send Output [] eos
