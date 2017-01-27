@@ -42,7 +42,7 @@ void generatePacketHeader( P: program )
 		send Output
 			"	static [Packet->Id] *open( PacketWriter *writer );
 			"	static void send( PacketWriter *writer );
-			"	static const unsigned short ID = [Packet->NumID];
+			"	static const unsigned short ID = [Packet->AppID * 1000 + Packet->NumID];
 			"};
 			"
 	}
