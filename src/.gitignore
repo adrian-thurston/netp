@@ -7,6 +7,8 @@
 
 /.*.cmd
 /*.o
+/*.lo
+/*.la
 
 /.tmp_versions
 /Module.symvers
@@ -19,3 +21,4 @@
 
 /client
 /.deps
+/.libs

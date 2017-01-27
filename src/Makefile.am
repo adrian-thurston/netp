@@ -2,11 +2,15 @@ GENF = @GENF@
 
 bin_PROGRAMS = client
 
+lib_LTLIBRARIES = libkring.la
+
 kmod_DATA = kring.ko
+
+libkring_la_SOURCES = lib.c
 
 pkgdata_DATA = Module.symvers
 
-include_HEADERS = kring.h
+pkginclude_HEADERS = kring.h
 
 client_SOURCES = client.c
 
