@@ -16,7 +16,7 @@ extern "C" {
 #define DSC_READER_SHIFT    2
 
 #define KRING_ERR_SOCK -1
-#define KRING_ERR_MMAP -1
+#define KRING_ERR_MMAP -2
 
 /* Direction: from client, or from server. */
 #define KRING_DIR_CLIENT 1
@@ -64,11 +64,12 @@ struct kring_user
 	struct kring_page *g;
 	unsigned long rhead;
 	int _errno;
+	char *errstr;
 };
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type );
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
-
+char *kring_error( struct kring_user *u, int err );
 
 struct kring_packet
 {

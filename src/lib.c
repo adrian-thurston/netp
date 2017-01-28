@@ -10,6 +10,45 @@
 #include <linux/if_ether.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
+
+char *kring_error( struct kring_user *u, int err )
+{
+	int len;
+	const char *prefix, *errnostr;
+
+	prefix = "<unknown>";
+	switch ( err ) {
+		case KRING_ERR_SOCK:
+			prefix = "socket call failed";
+			break;
+		case KRING_ERR_MMAP:
+			prefix = "mmap call failed";
+			break;
+	}
+
+	/* start with the prefix. Always there (see above). */
+	len = strlen(prefix);
+
+	/* Maybe add errnostring. */
+	errnostr = strerror(u->_errno);
+	if ( errnostr )
+		len += 2 + strlen(errnostr);
+
+	/* Null. */
+	len += 1;
+
+	u->errstr = malloc( len );
+	strcpy( u->errstr, prefix );
+
+	if ( errnostr != 0 ) {
+		strcat( u->errstr, ": " );
+		strcat( u->errstr, errnostr );
+	}
+
+	return u->errstr;
+}
+
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type )
 {
@@ -17,7 +56,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type )
 
 	memset( u, 0, sizeof(struct kring_user) );
 
-	u->socket = socket( 25, SOCK_RAW, htons(ETH_P_ALL) );
+	u->socket = socket( KRING, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( u->socket < 0 )
 		goto err_socket;
 
@@ -81,9 +120,6 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	u->c->whead += 1;
 	if ( u->c->whead >= NPAGES )
 		u->c->whead = 0;
-
-
-
 
 	return 0;
 }   
