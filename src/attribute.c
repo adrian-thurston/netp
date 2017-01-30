@@ -271,22 +271,28 @@ static void kring_exit(void)
 	ring_free( &r0 );
 }
 
-void kring_write( int rid, void *d, int len )
+void kring_write( int rid, int dir, void *d, int len )
 {
 	int *plen;
+	char *pdir;
 	void *pdata;
 
 	struct ring *r = rid == 0 ? &r0 : ( rid == 1 ? &r1 : 0 );
 
-	if ( len > (KRING_PAGE_SIZE - sizeof(int)) ) {
+	/* Length, dir. */
+	const int headsz = sizeof(int) + 1;
+
+	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
 		printk("kring large write: %d\n", len );
-		len = PAGE_SIZE - sizeof(int);
+		len = PAGE_SIZE - headsz;
 	}
 
 	plen = r->pd[r->sc->whead].m;
-	pdata = (plen + 1);
+	pdir = (char*)plen + sizeof(int);
+	pdata = (char*)plen + headsz;
 
 	*plen = len;
+	*pdir = (char) dir;
 	memcpy( pdata, d, len );
 
 	r->sc->whead += 1;

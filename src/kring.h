@@ -22,6 +22,9 @@ extern "C" {
 #define KRING_DIR_CLIENT 1
 #define KRING_DIR_SERVER 2
 
+#define KRING_DIR_INSIDE  1
+#define KRING_DIR_OUTSIDE 2
+
 enum KRING_TYPE
 {
 	KRING_PACKETS = 1,
@@ -53,7 +56,7 @@ struct kring_page
 
 #define KRING_DATA_SZ KRING_PAGE_SIZE * NPAGES
 
-void kring_write( int rid, void *d, int len );
+void kring_write( int rid, int dir, void *d, int len );
 
 struct kring_user
 {
@@ -73,6 +76,7 @@ char *kring_error( struct kring_user *u, int err );
 
 struct kring_packet
 {
+	char dir;
 	int len;
 	int caplen;
 	unsigned char *bytes;
@@ -94,8 +98,10 @@ inline int kring_avail( struct kring_user *u )
 inline void kring_load_packet( struct kring_user *u, struct kring_packet *packet )
 {
 	int *plen = (int*)( u->g + u->rhead );
-	unsigned char *bytes = (unsigned char*)( plen + 1 );
+	char *pdir = (char*)plen + sizeof(int);
+	unsigned char *bytes = (unsigned char*)plen + sizeof(int) + 1;
 
+	packet->dir = *pdir;
 	packet->len = *plen;
 	packet->caplen = *plen;
 	packet->bytes = bytes;
