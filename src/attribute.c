@@ -12,7 +12,7 @@
 #include <net/route.h>
 #include <linux/etherdevice.h>
 
-#include <kring.h>
+#include <kring/kring.h>
 
 /* Root object. */
 struct shuttle
