@@ -233,6 +233,8 @@ static void ring_alloc( struct ring *r )
 			printk( "alloc_page for ring allocation failed\n" );
 		}
 	}
+
+	r->sc->whead = kring_one_back( 0 );
 }
 
 static void ring_free( struct ring *r )
@@ -271,28 +273,39 @@ static void kring_exit(void)
 	ring_free( &r0 );
 }
 
+static unsigned long inc_write_head( unsigned long w )
+{
+	w += 1;
+	if ( w >= NPAGES )
+		w = 0;
+	return w;
+}
+
 static unsigned long find_write_loc( struct ring *r )
 {
-	int skips = 0;
+	int skips = 0, desc = 0;
+	unsigned long whead = r->sc->whead;
 	while ( 1 ) {
-		/* read the descriptor. */
-		int desc = r->sd[r->sc->whead].desc;
+		/* Move to the next slot. */
+		whead = inc_write_head( whead );
+
+		/* Read the descriptor. */
+		desc = r->sd[whead].desc;
 
 		/* Check, if not okay, go on to next. */
 		if ( ! ( desc & DSC_EITHER_OWNED ) ) {
 			int newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
-			int before = __sync_val_compare_and_swap( &r->sd[r->sc->whead].desc, desc, newval );
+			int before = __sync_val_compare_and_swap( &r->sd[whead].desc, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
-				return r->sc->whead;
+				return whead;
 			}
 		}
 
-		r->sc->whead += 1;
-		skips += 1;
 		/* if skips == size, bail out. */
+		skips += 1;
 	}
 }
 
@@ -311,30 +324,24 @@ static void writer_release( struct ring *r )
 		printk( "writer release unexpected result" );
 }
 
-static void inc_write_head( struct ring *r )
-{
-	r->sc->whead += 1;
-	if ( r->sc->whead >= NPAGES )
-		r->sc->whead = 0;
-}
-
 void kring_write( int rid, int dir, void *d, int len )
 {
 	int *plen;
 	char *pdir;
 	void *pdata;
-
-	struct ring *r = rid == 0 ? &r0 : ( rid == 1 ? &r1 : 0 );
-
-	/* Length, dir. */
-	const int headsz = sizeof(int) + 1;
 	unsigned long whead;
 
+	/* Which ring? */
+	struct ring *r = rid == 0 ? &r0 : ( rid == 1 ? &r1 : 0 );
+
+	/* Limit the size. */
+	const int headsz = sizeof(int) + 1;
 	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
 		printk("kring large write: %d\n", len );
 		len = PAGE_SIZE - headsz;
 	}
 
+	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( r );
 
 	plen = r->pd[whead].m;
@@ -345,9 +352,11 @@ void kring_write( int rid, int dir, void *d, int len )
 	*pdir = (char) dir;
 	memcpy( pdata, d, len );
 
+	/* Clear the writer owned bit from the buffer. */
 	writer_release( r );
 
-	inc_write_head( r );
+	/* Write back the write head, thereby releasing the buffer to writer. */
+	r->sc->whead = whead;
 }
 
 EXPORT_SYMBOL_GPL(kring_write);

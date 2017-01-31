@@ -98,31 +98,6 @@ inline int kring_avail( struct kring_user *u )
 	return ( u->rhead != u->c->whead );
 }
 
-inline void kring_load_packet( struct kring_user *u, struct kring_packet *packet )
-{
-	int *plen = (int*)( u->g + u->rhead );
-	char *pdir = (char*)plen + sizeof(int);
-	unsigned char *bytes = (unsigned char*)plen + sizeof(int) + 1;
-
-	packet->dir = *pdir;
-	packet->len = *plen;
-	packet->caplen = *plen;
-	packet->bytes = bytes;
-}
-
-inline void kring_load_decrypted( struct kring_user *u, struct kring_decrypted *decrypted )
-{
-	int *plen = (int*)( u->g + u->rhead );
-	unsigned char *ptype = (unsigned char*)( plen + 1 );
-	unsigned char *phost = ptype + 1;
-	unsigned char *bytes = ptype + 64;
-
-	decrypted->type = *ptype;
-	decrypted->host = (char*)phost;
-	decrypted->len = *plen;
-	decrypted->bytes = bytes;
-}
-
 inline void kring_next( struct kring_user *u )
 {
 	/* Next. */
@@ -131,12 +106,51 @@ inline void kring_next( struct kring_user *u )
 		u->rhead = 0;
 }
 
-inline unsigned long kring_one_back( struct kring_user *u, unsigned long pos )
+inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
+{
+	int *plen;
+	char *pdir;
+	unsigned char *bytes;
+
+	kring_next( u );
+
+	plen = (int*)( u->g + u->rhead );
+	pdir = (char*)plen + sizeof(int);
+	bytes = (unsigned char*)plen + sizeof(int) + 1;
+
+	packet->dir = *pdir;
+	packet->len = *plen;
+	packet->caplen = *plen;
+	packet->bytes = bytes;
+}
+
+inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *decrypted )
+{
+	int *plen;
+	unsigned char *ptype;
+	unsigned char *phost;
+	unsigned char *bytes;
+
+	kring_next( u );
+
+	plen = (int*)( u->g + u->rhead );
+	ptype = (unsigned char*)( plen + 1 );
+	phost = ptype + 1;
+	bytes = ptype + 64;
+
+	decrypted->type = *ptype;
+	decrypted->host = (char*)phost;
+	decrypted->len = *plen;
+	decrypted->bytes = bytes;
+}
+
+
+inline unsigned long kring_one_back( unsigned long pos )
 {
 	return pos == 0 ? NPAGES - 1 : pos - 1;
 }
 
-inline unsigned long kring_one_forward( struct kring_user *u, unsigned long pos )
+inline unsigned long kring_one_forward( unsigned long pos )
 {
 	pos += 1;
 	return pos == NPAGES ? 0 : pos;
