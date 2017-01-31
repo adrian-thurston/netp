@@ -13,6 +13,8 @@ extern "C" {
 
 #define DSC_WRITER_OWNED    0x1
 #define DSC_READER_OWNED    0x2
+#define DSC_EITHER_OWNED    0x3
+
 #define DSC_READER_SHIFT    2
 
 #define KRING_ERR_SOCK -1
@@ -71,6 +73,7 @@ struct kring_user
 };
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type );
+
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );
 
@@ -126,6 +129,17 @@ inline void kring_next( struct kring_user *u )
 	u->rhead = u->rhead + 1;
 	if ( u->rhead >= NPAGES )
 		u->rhead = 0;
+}
+
+inline unsigned long kring_one_back( struct kring_user *u, unsigned long pos )
+{
+	return pos == 0 ? NPAGES - 1 : pos - 1;
+}
+
+inline unsigned long kring_one_forward( struct kring_user *u, unsigned long pos )
+{
+	pos += 1;
+	return pos == NPAGES ? 0 : pos;
 }
 
 #if defined(__cplusplus)

@@ -271,6 +271,53 @@ static void kring_exit(void)
 	ring_free( &r0 );
 }
 
+static unsigned long find_write_loc( struct ring *r )
+{
+	int skips = 0;
+	while ( 1 ) {
+		/* read the descriptor. */
+		int desc = r->sd[r->sc->whead].desc;
+
+		/* Check, if not okay, go on to next. */
+		if ( ! ( desc & DSC_EITHER_OWNED ) ) {
+			int newval = desc | DSC_WRITER_OWNED;
+
+			/* Okay. Attempt to claim with an atomic write back. */
+			int before = __sync_val_compare_and_swap( &r->sd[r->sc->whead].desc, desc, newval );
+			if ( before == desc ) {
+				/* Write back okay. We can use. */
+				return r->sc->whead;
+			}
+		}
+
+		r->sc->whead += 1;
+		skips += 1;
+		/* if skips == size, bail out. */
+	}
+}
+
+static void writer_release( struct ring *r )
+{
+	/* orig value. */
+	int desc = r->sd[r->sc->whead].desc;
+
+	/* Unrelease writer. */
+	int newval = desc & ~DSC_WRITER_OWNED;
+
+	/* Write back with check. No other reader or writer should have altered the
+	 * descriptor. */
+	int before = __sync_val_compare_and_swap( &r->sd[r->sc->whead].desc, desc, newval );
+	if ( before != desc )
+		printk( "writer release unexpected result" );
+}
+
+static void inc_write_head( struct ring *r )
+{
+	r->sc->whead += 1;
+	if ( r->sc->whead >= NPAGES )
+		r->sc->whead = 0;
+}
+
 void kring_write( int rid, int dir, void *d, int len )
 {
 	int *plen;
@@ -281,13 +328,16 @@ void kring_write( int rid, int dir, void *d, int len )
 
 	/* Length, dir. */
 	const int headsz = sizeof(int) + 1;
+	unsigned long whead;
 
 	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
 		printk("kring large write: %d\n", len );
 		len = PAGE_SIZE - headsz;
 	}
 
-	plen = r->pd[r->sc->whead].m;
+	whead = find_write_loc( r );
+
+	plen = r->pd[whead].m;
 	pdir = (char*)plen + sizeof(int);
 	pdata = (char*)plen + headsz;
 
@@ -295,9 +345,9 @@ void kring_write( int rid, int dir, void *d, int len )
 	*pdir = (char) dir;
 	memcpy( pdata, d, len );
 
-	r->sc->whead += 1;
-	if ( r->sc->whead >= NPAGES )
-		r->sc->whead = 0;
+	writer_release( r );
+
+	inc_write_head( r );
 }
 
 EXPORT_SYMBOL_GPL(kring_write);
