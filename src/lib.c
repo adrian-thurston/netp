@@ -49,7 +49,6 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
-
 int kring_open( struct kring_user *u, enum KRING_TYPE type )
 {
 	void *r;
@@ -82,6 +81,22 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type )
 	u->g = (struct kring_page*)r;
 
 	u->rhead = u->c->whead;
+
+	int desc = u->p[u->rhead].desc;
+	if ( desc & DSC_WRITER_OWNED ) {
+		/* Fatal error. Writer should not own from prev write head. */
+	}
+	else {
+		int newval = desc | DSC_READER_OWNED;
+		int before = __sync_val_compare_and_swap( &u->p[u->rhead].desc, desc, newval );
+		if ( before != desc ) {
+			/* writer got in, retry. */
+		}
+		else {
+			/* Okay good. */
+		}
+	}
+
 
 	return 0;
 

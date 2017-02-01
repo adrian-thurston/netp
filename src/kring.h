@@ -106,13 +106,32 @@ inline void kring_next( struct kring_user *u )
 		u->rhead = 0;
 }
 
+inline unsigned long kring_next2( struct kring_user *u )
+{
+	/* Next. */
+	unsigned long n = u->rhead + 1;
+	if ( n >= NPAGES )
+		n = 0;
+	return n;
+}
+
+
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
 	int *plen;
 	char *pdir;
 	unsigned char *bytes;
 
-	kring_next( u );
+	unsigned long next = kring_next2( u );
+
+	/* reserve next. */
+	u->p[next].desc |= DSC_READER_OWNED;
+
+	/* unreserve prev. */
+	u->p[u->rhead].desc &= ~DSC_READER_OWNED;
+
+	/* set rhead. */
+	u->rhead = next;
 
 	plen = (int*)( u->g + u->rhead );
 	pdir = (char*)plen + sizeof(int);
