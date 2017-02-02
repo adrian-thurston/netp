@@ -310,17 +310,17 @@ static unsigned long find_write_loc( struct ring *r )
 	}
 }
 
-static void writer_release( struct ring *r )
+static void writer_release( struct ring *r, shr_off_t whead )
 {
 	/* orig value. */
-	shr_desc_t desc = r->sd[r->sc->whead].desc;
+	shr_desc_t desc = r->sd[whead].desc;
 
 	/* Unrelease writer. */
 	shr_desc_t newval = desc & ~DSC_WRITER_OWNED;
 
 	/* Write back with check. No other reader or writer should have altered the
 	 * descriptor. */
-	shr_desc_t before = __sync_val_compare_and_swap( &r->sd[r->sc->whead].desc, desc, newval );
+	shr_desc_t before = __sync_val_compare_and_swap( &r->sd[whead].desc, desc, newval );
 	if ( before != desc )
 		printk( "writer release unexpected result" );
 }
@@ -357,7 +357,7 @@ void kring_write( int rid, int dir, void *d, int len )
 	memcpy( pdata, d, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	writer_release( r );
+	writer_release( r, whead );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
 	r->sc->whead = whead;

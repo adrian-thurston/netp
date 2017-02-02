@@ -128,11 +128,14 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 
 	shr_off_t rhead = u->rhead;
 	shr_off_t prev = u->rhead;
+	shr_desc_t desc;
 	while ( 1 ) {
 		rhead += 1;
+		if ( rhead >= NPAGES )
+			rhead = 0;
 
 		/* reserve next. */
-		shr_desc_t desc = u->p[rhead].desc;
+		desc = u->p[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
 			shr_desc_t newval = desc | DSC_READER_OWNED;
