@@ -110,15 +110,14 @@ inline void kring_next( struct kring_user *u )
 		u->rhead = 0;
 }
 
-inline unsigned long kring_next2( struct kring_user *u )
+inline shr_off_t kring_next2( shr_off_t off )
 {
 	/* Next. */
-	unsigned long n = u->rhead + 1;
-	if ( n >= NPAGES )
-		n = 0;
-	return n;
+	off += 1;
+	if ( off  >= NPAGES )
+		off = 0;
+	return off;
 }
-
 
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
@@ -130,9 +129,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	shr_off_t prev = u->rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
-		rhead += 1;
-		if ( rhead >= NPAGES )
-			rhead = 0;
+		rhead = kring_next2( rhead );
 
 		/* reserve next. */
 		desc = u->p[rhead].desc;
