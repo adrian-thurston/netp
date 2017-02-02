@@ -126,16 +126,36 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	char *pdir;
 	unsigned char *bytes;
 
-	unsigned long next = kring_next2( u );
+	shr_off_t rhead = u->rhead;
+	shr_off_t prev = u->rhead;
+	while ( 1 ) {
+		rhead += 1;
 
-	/* reserve next. */
-	u->p[next].desc |= DSC_READER_OWNED;
+		/* reserve next. */
+		shr_desc_t desc = u->p[rhead].desc;
+		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
+			/* Okay we can take it. */
+			shr_desc_t newval = desc | DSC_READER_OWNED;
+		
+			/* Attemp write back. */
+			shr_desc_t before = __sync_val_compare_and_swap( &u->p[rhead].desc, desc, newval );
+			if ( before == desc ) {
+				/* Write back okay. We can use. */
+				break;
+			}
+		}
 
-	/* unreserve prev. */
-	u->p[u->rhead].desc &= ~DSC_READER_OWNED;
+		/* Todo: limit the number of skips. If we get to whead then we skipped
+		 * over invalid buffers until we got to the write head. There is
+		 * nothing to read. Not a normal situation because whead should not
+		 * advance unless a successful write was made. */
+	}
 
-	/* set rhead. */
-	u->rhead = next;
+	/* Set the rheadset rhead. */
+	u->rhead = rhead;
+	
+	/* Unreserve prev. */
+	u->p[prev].desc &= ~DSC_READER_OWNED;
 
 	plen = (int*)( u->g + u->rhead );
 	pdir = (char*)plen + sizeof(int);
