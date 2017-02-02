@@ -159,7 +159,7 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
-	struct ring *r = &r0;
+	struct ring *r = flags == 0 ? &r0 : &r1;
 	shr_off_t swhead = r->sc->whead;
 	wait_event_interruptible( r->reader_waitqueue, r->sc->whead != swhead );
 	return 0;
