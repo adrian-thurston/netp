@@ -21,6 +21,8 @@ struct ring
 	struct shared_ctrl *sc;
 
 	struct page_desc *pd;
+
+	wait_queue_head_t reader_waitqueue;
 };
 
 static struct ring r0;
@@ -157,7 +159,9 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
-	printk( "kring_recvmsg\n" );
+	struct ring *r = &r0;
+	shr_off_t swhead = r->sc->whead;
+	wait_event_interruptible( r->reader_waitqueue, r->sc->whead != swhead );
 	return 0;
 }
 
@@ -235,6 +239,8 @@ static void ring_alloc( struct ring *r )
 	}
 
 	r->sc->whead = r->sc->wresv = kring_one_back( 0 );
+
+	init_waitqueue_head( &r->reader_waitqueue );
 }
 
 static void ring_free( struct ring *r )
@@ -273,14 +279,6 @@ static void kring_exit(void)
 	ring_free( &r0 );
 }
 
-static unsigned long inc_write_head( unsigned long w )
-{
-	w += 1;
-	if ( w >= NPAGES )
-		w = 0;
-	return w;
-}
-
 static unsigned long find_write_loc( struct ring *r )
 {
 	int skips = 0;
@@ -288,7 +286,7 @@ static unsigned long find_write_loc( struct ring *r )
 	shr_off_t whead = r->sc->whead;
 	while ( 1 ) {
 		/* Move to the next slot. */
-		whead = inc_write_head( whead );
+		whead = kring_next2( whead );
 
 		/* Read the descriptor. */
 		desc = r->sd[whead].desc;
@@ -323,6 +321,7 @@ static void writer_release( struct ring *r, shr_off_t whead )
 	shr_desc_t before = __sync_val_compare_and_swap( &r->sd[whead].desc, desc, newval );
 	if ( before != desc )
 		printk( "writer release unexpected result" );
+	
 }
 
 void kring_write( int rid, int dir, void *d, int len )
@@ -338,7 +337,7 @@ void kring_write( int rid, int dir, void *d, int len )
 	/* Limit the size. */
 	const int headsz = sizeof(int) + 1;
 	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
-		printk("kring large write: %d\n", len );
+		printk("KRING: large write: %d\n", len );
 		len = PAGE_SIZE - headsz;
 	}
 
@@ -361,6 +360,8 @@ void kring_write( int rid, int dir, void *d, int len )
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
 	r->sc->whead = whead;
+
+	wake_up_interruptible_all( &r->reader_waitqueue );
 }
 
 EXPORT_SYMBOL_GPL(kring_write);
