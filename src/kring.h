@@ -33,14 +33,18 @@ enum KRING_TYPE
 	KRING_DECRYPTED
 };
 
+typedef unsigned short shr_desc_t;
+typedef unsigned long shr_off_t;
+
 struct shared_ctrl
 {
-	unsigned long whead;
+	shr_off_t whead;
+	shr_off_t wresv;
 };
 
 struct shared_desc
 {
-	unsigned short desc;
+	shr_desc_t desc;
 };
 
 struct page_desc
