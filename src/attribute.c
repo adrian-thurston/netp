@@ -166,7 +166,8 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 
 static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
-	printk( "kring_sendmsg\n" );
+	struct ring *r = &r1;
+	wake_up_interruptible_all( &r->reader_waitqueue );
 	return 0;
 }
 

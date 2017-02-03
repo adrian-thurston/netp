@@ -116,6 +116,7 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 	shr_off_t whead;
+	char buf[1];
 
 	if ( (unsigned)len > (KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header) ) )
 		len = KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
@@ -147,6 +148,7 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	u->shared.control->whead = whead;
 
 	/* Wake up here. */
+	send( u->socket, buf, 1, 0 );
 
 	return 0;
 }   
