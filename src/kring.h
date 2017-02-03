@@ -64,12 +64,17 @@ struct kring_page
 
 void kring_write( int rid, int dir, void *d, int len );
 
+struct kring_shared
+{
+	struct shared_desc *descriptors;
+	struct shared_ctrl *control;
+};
+
 struct kring_user
 {
 	int socket;
 
-	struct shared_ctrl *c;
-	struct shared_desc *p;
+	struct kring_shared shared;
 	struct kring_page *g;
 	unsigned long rhead;
 	int _errno;
@@ -99,18 +104,10 @@ struct kring_decrypted
 
 inline int kring_avail( struct kring_user *u )
 {
-	return ( u->rhead != u->c->whead );
+	return ( u->rhead != u->shared.control->whead );
 }
 
-inline void kring_next( struct kring_user *u )
-{
-	/* Next. */
-	u->rhead = u->rhead + 1;
-	if ( u->rhead >= NPAGES )
-		u->rhead = 0;
-}
-
-inline shr_off_t kring_next2( shr_off_t off )
+inline shr_off_t kring_next( shr_off_t off )
 {
 	/* Next. */
 	off += 1;
@@ -129,16 +126,16 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	shr_off_t prev = u->rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
-		rhead = kring_next2( rhead );
+		rhead = kring_next( rhead );
 
 		/* reserve next. */
-		desc = u->p[rhead].desc;
+		desc = u->shared.descriptors[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
 			shr_desc_t newval = desc | DSC_READER_OWNED;
 		
 			/* Attemp write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &u->p[rhead].desc, desc, newval );
+			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptors[rhead].desc, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				break;
@@ -155,7 +152,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	u->rhead = rhead;
 	
 	/* Unreserve prev. */
-	u->p[prev].desc &= ~DSC_READER_OWNED;
+	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
 
 	plen = (int*)( u->g + u->rhead );
 	pdir = (char*)plen + sizeof(int);
@@ -174,7 +171,37 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	unsigned char *phost;
 	unsigned char *bytes;
 
-	kring_next( u );
+	shr_off_t rhead = u->rhead;
+	shr_off_t prev = u->rhead;
+	shr_desc_t desc;
+	while ( 1 ) {
+		rhead = kring_next( rhead );
+
+		/* reserve next. */
+		desc = u->shared.descriptors[rhead].desc;
+		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
+			/* Okay we can take it. */
+			shr_desc_t newval = desc | DSC_READER_OWNED;
+		
+			/* Attemp write back. */
+			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptors[rhead].desc, desc, newval );
+			if ( before == desc ) {
+				/* Write back okay. We can use. */
+				break;
+			}
+		}
+
+		/* Todo: limit the number of skips. If we get to whead then we skipped
+		 * over invalid buffers until we got to the write head. There is
+		 * nothing to read. Not a normal situation because whead should not
+		 * advance unless a successful write was made. */
+	}
+
+	/* Set the rheadset rhead. */
+	u->rhead = rhead;
+	
+	/* Unreserve prev. */
+	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
 
 	plen = (int*)( u->g + u->rhead );
 	ptype = (unsigned char*)( plen + 1 );
@@ -198,6 +225,53 @@ inline unsigned long kring_one_forward( unsigned long pos )
 	pos += 1;
 	return pos == NPAGES ? 0 : pos;
 }
+
+inline unsigned long find_write_loc( struct kring_shared *shared )
+{
+	int skips = 0;
+	shr_desc_t desc = 0;
+	shr_off_t whead = shared->control->whead;
+	while ( 1 ) {
+		/* Move to the next slot. */
+		whead = kring_next( whead );
+
+		/* Read the descriptor. */
+		desc = shared->descriptors[whead].desc;
+
+		/* Check, if not okay, go on to next. */
+		if ( ! ( desc & DSC_EITHER_OWNED ) ) {
+			shr_desc_t newval = desc | DSC_WRITER_OWNED;
+
+			/* Okay. Attempt to claim with an atomic write back. */
+			shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptors[whead].desc, desc, newval );
+			if ( before == desc ) {
+				/* Write back okay. We can use. */
+				return whead;
+			}
+		}
+
+		/* if skips == size, bail out. */
+		skips += 1;
+	}
+}
+
+inline int writer_release( struct kring_shared *shared, shr_off_t whead )
+{
+	/* orig value. */
+	shr_desc_t desc = shared->descriptors[whead].desc;
+
+	/* Unrelease writer. */
+	shr_desc_t newval = desc & ~DSC_WRITER_OWNED;
+
+	/* Write back with check. No other reader or writer should have altered the
+	 * descriptor. */
+	shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptors[whead].desc, desc, newval );
+	if ( before != desc )
+		return -1;
+
+	return 0;
+}
+
 
 #if defined(__cplusplus)
 }

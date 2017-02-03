@@ -68,8 +68,8 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type )
 	if ( r == MAP_FAILED )
 		goto err_mmap;
 
-	u->c = (struct shared_ctrl*)r;
-	u->p = (struct shared_desc*)((char*)r + sizeof(struct shared_ctrl));
+	u->shared.control = (struct shared_ctrl*)r;
+	u->shared.descriptors = (struct shared_desc*)((char*)r + sizeof(struct shared_ctrl));
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -80,15 +80,15 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type )
 
 	u->g = (struct kring_page*)r;
 
-	u->rhead = u->c->whead;
+	u->rhead = u->shared.control->whead;
 
-	int desc = u->p[u->rhead].desc;
+	int desc = u->shared.descriptors[u->rhead].desc;
 	if ( desc & DSC_WRITER_OWNED ) {
 		/* Fatal error. Writer should not own from prev write head. */
 	}
 	else {
 		int newval = desc | DSC_READER_OWNED;
-		int before = __sync_val_compare_and_swap( &u->p[u->rhead].desc, desc, newval );
+		int before = __sync_val_compare_and_swap( &u->shared.descriptors[u->rhead].desc, desc, newval );
 		if ( before != desc ) {
 			/* writer got in, retry. */
 		}
@@ -113,13 +113,23 @@ err_socket:
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len )
 {
+	int *plen;
+	char *ptype, *phost, *pdata;
+	shr_off_t whead;
+
 	if ( (unsigned)len > (KRING_PAGE_SIZE - sizeof(int) - 64) )
 		len = KRING_PAGE_SIZE - sizeof(int) - 64;
 
-	int *plen = (int*)( u->g + u->c->whead );
-	char *ptype = (char*)plen + sizeof(int);
-	char *phost = ptype + 1;
-	char *pdata = ptype + 64;
+	/* Find the place to write to, skipping ahead as necessary. */
+	whead = find_write_loc( &u->shared );
+
+	/* Reserve the space. */
+	u->shared.control->wresv = whead;
+
+	plen = (int*)( u->g + u->shared.control->whead );
+	ptype = (char*)plen + sizeof(int);
+	phost = ptype + 1;
+	pdata = ptype + 64;
 
 	*plen = len;
 	*ptype = type;
@@ -132,9 +142,13 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 
 	memcpy( pdata, data, len );
 
-	u->c->whead += 1;
-	if ( u->c->whead >= NPAGES )
-		u->c->whead = 0;
+	/* Clear the writer owned bit from the buffer. */
+	writer_release( &u->shared, whead );
+
+	/* Write back the write head, thereby releasing the buffer to writer. */
+	u->shared.control->whead = whead;
+
+	/* Wake up here. */
 
 	return 0;
 }   

@@ -17,8 +17,7 @@ struct ring
 {
 	void *ctrl;
 
-	struct shared_desc *sd;
-	struct shared_ctrl *sc;
+	struct kring_shared shared;
 
 	struct page_desc *pd;
 
@@ -160,8 +159,8 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct ring *r = flags == 0 ? &r0 : &r1;
-	shr_off_t swhead = r->sc->whead;
-	wait_event_interruptible( r->reader_waitqueue, r->sc->whead != swhead );
+	shr_off_t swhead = r->shared.control->whead;
+	wait_event_interruptible( r->reader_waitqueue, r->shared.control->whead != swhead );
 	return 0;
 }
 
@@ -224,8 +223,8 @@ static void ring_alloc( struct ring *r )
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
-	r->sc = r->ctrl;
-	r->sd = r->ctrl + sizeof(struct shared_ctrl);
+	r->shared.control = r->ctrl;
+	r->shared.descriptors = r->ctrl + sizeof(struct shared_ctrl);
 
 	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
@@ -238,7 +237,7 @@ static void ring_alloc( struct ring *r )
 		}
 	}
 
-	r->sc->whead = r->sc->wresv = kring_one_back( 0 );
+	r->shared.control->whead = r->shared.control->wresv = kring_one_back( 0 );
 
 	init_waitqueue_head( &r->reader_waitqueue );
 }
@@ -279,51 +278,6 @@ static void kring_exit(void)
 	ring_free( &r0 );
 }
 
-static unsigned long find_write_loc( struct ring *r )
-{
-	int skips = 0;
-	shr_desc_t desc = 0;
-	shr_off_t whead = r->sc->whead;
-	while ( 1 ) {
-		/* Move to the next slot. */
-		whead = kring_next2( whead );
-
-		/* Read the descriptor. */
-		desc = r->sd[whead].desc;
-
-		/* Check, if not okay, go on to next. */
-		if ( ! ( desc & DSC_EITHER_OWNED ) ) {
-			shr_desc_t newval = desc | DSC_WRITER_OWNED;
-
-			/* Okay. Attempt to claim with an atomic write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &r->sd[whead].desc, desc, newval );
-			if ( before == desc ) {
-				/* Write back okay. We can use. */
-				return whead;
-			}
-		}
-
-		/* if skips == size, bail out. */
-		skips += 1;
-	}
-}
-
-static void writer_release( struct ring *r, shr_off_t whead )
-{
-	/* orig value. */
-	shr_desc_t desc = r->sd[whead].desc;
-
-	/* Unrelease writer. */
-	shr_desc_t newval = desc & ~DSC_WRITER_OWNED;
-
-	/* Write back with check. No other reader or writer should have altered the
-	 * descriptor. */
-	shr_desc_t before = __sync_val_compare_and_swap( &r->sd[whead].desc, desc, newval );
-	if ( before != desc )
-		printk( "writer release unexpected result" );
-	
-}
-
 void kring_write( int rid, int dir, void *d, int len )
 {
 	int *plen;
@@ -342,10 +296,10 @@ void kring_write( int rid, int dir, void *d, int len )
 	}
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( r );
+	whead = find_write_loc( &r->shared );
 
 	/* Reserve the space. */
-	r->sc->wresv = whead;
+	r->shared.control->wresv = whead;
 
 	plen = r->pd[whead].m;
 	pdir = (char*)plen + sizeof(int);
@@ -356,10 +310,11 @@ void kring_write( int rid, int dir, void *d, int len )
 	memcpy( pdata, d, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	writer_release( r, whead );
+	if ( writer_release( &r->shared, whead ) < 0 )
+		printk( "writer release unexected value\n" );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->sc->whead = whead;
+	r->shared.control->whead = whead;
 
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
