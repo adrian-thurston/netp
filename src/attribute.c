@@ -160,7 +160,20 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 {
 	struct ring *r = flags == 0 ? &r0 : &r1;
 	shr_off_t swhead = r->shared.control->whead;
+	sigset_t blocked, oldset;
+
+	/* Allow kill, stop and the user sigs. This assumes we are operating under
+	 * the genf program framework where we want to atomically unmask the user
+	 * signals so we can receive genf inter-thread messages. */
+	siginitsetinv( &blocked, sigmask(SIGKILL) | sigmask(SIGSTOP) |
+			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
+	sigprocmask(SIG_SETMASK, &blocked, &oldset);
+
 	wait_event_interruptible( r->reader_waitqueue, r->shared.control->whead != swhead );
+
+	memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
+	set_restore_sigmask();
+
 	return 0;
 }
 
