@@ -102,6 +102,19 @@ struct kring_decrypted
 	 unsigned char *bytes;
 };
 
+struct kring_packet_header
+{
+	int len;
+	char dir;
+};
+
+struct kring_decrypted_header
+{
+	int len;
+	char type;
+	char host[63];
+};
+
 inline int kring_avail( struct kring_user *u )
 {
 	return ( u->rhead != u->shared.control->whead );
@@ -118,8 +131,7 @@ inline shr_off_t kring_next( shr_off_t off )
 
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
-	int *plen;
-	char *pdir;
+	struct kring_packet_header *h;
 	unsigned char *bytes;
 
 	shr_off_t rhead = u->rhead;
@@ -154,21 +166,18 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	/* Unreserve prev. */
 	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
 
-	plen = (int*)( u->g + u->rhead );
-	pdir = (char*)plen + sizeof(int);
-	bytes = (unsigned char*)plen + sizeof(int) + 1;
+	h = (struct kring_packet_header*)( u->g + u->rhead );
+	bytes = (unsigned char*)( h + 1 );
 
-	packet->dir = *pdir;
-	packet->len = *plen;
-	packet->caplen = *plen;
+	packet->len = h->len;
+	packet->caplen = h->len;
+	packet->dir = h->dir;
 	packet->bytes = bytes;
 }
 
 inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *decrypted )
 {
-	int *plen;
-	unsigned char *ptype;
-	unsigned char *phost;
+	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 
 	shr_off_t rhead = u->rhead;
@@ -203,14 +212,12 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	/* Unreserve prev. */
 	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
 
-	plen = (int*)( u->g + u->rhead );
-	ptype = (unsigned char*)( plen + 1 );
-	phost = ptype + 1;
-	bytes = ptype + 64;
+	h = (struct kring_decrypted_header*)( u->g + u->rhead );
+	bytes = (unsigned char*)( h + 1 );
 
-	decrypted->type = *ptype;
-	decrypted->host = (char*)phost;
-	decrypted->len = *plen;
+	decrypted->len = h->len;
+	decrypted->type = h->type;
+	decrypted->host = h->host;
 	decrypted->bytes = bytes;
 }
 

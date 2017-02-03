@@ -113,12 +113,12 @@ err_socket:
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len )
 {
-	int *plen;
-	char *ptype, *phost, *pdata;
+	struct kring_decrypted_header *h;
+	unsigned char *bytes;
 	shr_off_t whead;
 
-	if ( (unsigned)len > (KRING_PAGE_SIZE - sizeof(int) - 64) )
-		len = KRING_PAGE_SIZE - sizeof(int) - 64;
+	if ( (unsigned)len > (KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header) ) )
+		len = KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
 
 	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( &u->shared );
@@ -126,21 +126,19 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	/* Reserve the space. */
 	u->shared.control->wresv = whead;
 
-	plen = (int*)( u->g + u->shared.control->whead );
-	ptype = (char*)plen + sizeof(int);
-	phost = ptype + 1;
-	pdata = ptype + 64;
+	h = (struct kring_decrypted_header*)( u->g + whead );
+	bytes = (unsigned char*)( h + 1 );
 
-	*plen = len;
-	*ptype = type;
+	h->len = len;
+	h->type = type;
 	if ( remoteHost == 0 )
-		phost[0] = 0;
+		h->host[0] = 0;
 	else {
-		strcpy( phost, remoteHost );
-		phost[62] = 0;
+		strncpy( h->host, remoteHost, sizeof(h->host) );
+		h->host[sizeof(h->host)-1] = 0;
 	}   
 
-	memcpy( pdata, data, len );
+	memcpy( bytes, data, len );
 
 	/* Clear the writer owned bit from the buffer. */
 	writer_release( &u->shared, whead );

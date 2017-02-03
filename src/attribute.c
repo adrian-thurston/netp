@@ -280,8 +280,7 @@ static void kring_exit(void)
 
 void kring_write( int rid, int dir, void *d, int len )
 {
-	int *plen;
-	char *pdir;
+	struct kring_packet_header *h;
 	void *pdata;
 	shr_off_t whead;
 
@@ -289,7 +288,7 @@ void kring_write( int rid, int dir, void *d, int len )
 	struct ring *r = rid == 0 ? &r0 : ( rid == 1 ? &r1 : 0 );
 
 	/* Limit the size. */
-	const int headsz = sizeof(int) + 1;
+	const int headsz = sizeof(struct kring_packet_header);
 	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
 		printk("KRING: large write: %d\n", len );
 		len = PAGE_SIZE - headsz;
@@ -301,12 +300,11 @@ void kring_write( int rid, int dir, void *d, int len )
 	/* Reserve the space. */
 	r->shared.control->wresv = whead;
 
-	plen = r->pd[whead].m;
-	pdir = (char*)plen + sizeof(int);
-	pdata = (char*)plen + headsz;
+	h = r->pd[whead].m;
+	pdata = (char*)(h + 1);
 
-	*plen = len;
-	*pdir = (char) dir;
+	h->len = len;
+	h->dir = (char) dir;
 	memcpy( pdata, d, len );
 
 	/* Clear the writer owned bit from the buffer. */
