@@ -508,8 +508,11 @@ inline std::ostream &operator <<( std::ostream &out, const log_array &a )
 	msg << std::endl << log_unlock()
 
 #define log_debug( realm, msg ) \
-	do { if ( Thread::enabledRealms & realm ) \
+	do { if ( Thread::enabledRealms & ( realm ) ) \
 		*genf::lf << log_lock() << "debug: " << log_prefix() << \
 		msg << std::endl << log_unlock(); } while(0)
+
+#define log_enabled( realm ) \
+	( Thread::enabledRealms & ( realm ) )
 
 #endif
