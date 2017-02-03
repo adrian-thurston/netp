@@ -8,8 +8,8 @@ insmod ./shuttle.ko
 
 echo shuttle1 >/sys/shuttle/add
 
-echo eth1 inside  >/sys/shuttle/shuttle1/port_add
-echo eth2 outside  >/sys/shuttle/shuttle1/port_add
+echo eth1 outside  >/sys/shuttle/shuttle1/port_add
+echo eth2 inside  >/sys/shuttle/shuttle1/port_add
 
 ip link set eth1 up
 ip link set eth2 up
