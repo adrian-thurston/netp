@@ -40,6 +40,7 @@ struct shared_ctrl
 {
 	shr_off_t whead;
 	shr_off_t wresv;
+	shr_off_t rhead;
 };
 
 struct shared_desc
@@ -76,7 +77,6 @@ struct kring_user
 
 	struct kring_shared shared;
 	struct kring_page *g;
-	unsigned long rhead;
 	int _errno;
 	char *errstr;
 };
@@ -115,9 +115,14 @@ struct kring_decrypted_header
 	char host[63];
 };
 
+inline int kring_avail_impl( struct kring_shared *shared )
+{
+	return ( shared->control->rhead != shared->control->whead );
+}
+
 inline int kring_avail( struct kring_user *u )
 {
-	return ( u->rhead != u->shared.control->whead );
+	return kring_avail_impl( &u->shared );
 }
 
 inline shr_off_t kring_next( shr_off_t off )
@@ -134,8 +139,8 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	struct kring_packet_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->rhead;
-	shr_off_t prev = u->rhead;
+	shr_off_t rhead = u->shared.control->rhead;
+	shr_off_t prev = u->shared.control->rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
@@ -161,12 +166,12 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	}
 
 	/* Set the rheadset rhead. */
-	u->rhead = rhead;
+	u->shared.control->rhead = rhead;
 	
 	/* Unreserve prev. */
 	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
 
-	h = (struct kring_packet_header*)( u->g + u->rhead );
+	h = (struct kring_packet_header*)( u->g + u->shared.control->rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -180,8 +185,8 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->rhead;
-	shr_off_t prev = u->rhead;
+	shr_off_t rhead = u->shared.control->rhead;
+	shr_off_t prev = u->shared.control->rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
@@ -207,12 +212,12 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	}
 
 	/* Set the rheadset rhead. */
-	u->rhead = rhead;
+	u->shared.control->rhead = rhead;
 	
 	/* Unreserve prev. */
 	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
 
-	h = (struct kring_decrypted_header*)( u->g + u->rhead );
+	h = (struct kring_decrypted_header*)( u->g + u->shared.control->rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;

@@ -159,7 +159,6 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct ring *r = flags == 0 ? &r0 : &r1;
-	shr_off_t swhead = r->shared.control->whead;
 	sigset_t blocked, oldset;
 
 	/* Allow kill, stop and the user sigs. This assumes we are operating under
@@ -169,7 +168,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
-	wait_event_interruptible( r->reader_waitqueue, r->shared.control->whead != swhead );
+	wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->shared ) );
 
 	memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
 	set_restore_sigmask();

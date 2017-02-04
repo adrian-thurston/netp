@@ -80,15 +80,15 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type )
 
 	u->g = (struct kring_page*)r;
 
-	u->rhead = u->shared.control->whead;
+	u->shared.control->rhead = u->shared.control->whead;
 
-	int desc = u->shared.descriptors[u->rhead].desc;
+	int desc = u->shared.descriptors[u->shared.control->rhead].desc;
 	if ( desc & DSC_WRITER_OWNED ) {
 		/* Fatal error. Writer should not own from prev write head. */
 	}
 	else {
 		int newval = desc | DSC_READER_OWNED;
-		int before = __sync_val_compare_and_swap( &u->shared.descriptors[u->rhead].desc, desc, newval );
+		int before = __sync_val_compare_and_swap( &u->shared.descriptors[u->shared.control->rhead].desc, desc, newval );
 		if ( before != desc ) {
 			/* writer got in, retry. */
 		}
