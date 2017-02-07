@@ -160,6 +160,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 {
 	struct ring *r = flags == 0 ? &r0 : &r1;
 	sigset_t blocked, oldset;
+	int ret;
 
 	/* Allow kill, stop and the user sigs. This assumes we are operating under
 	 * the genf program framework where we want to atomically unmask the user
@@ -168,12 +169,17 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
-	wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->shared ) );
+	ret = wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->shared ) );
 
-	memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
-	set_restore_sigmask();
+	if (ret == -ERESTARTNOHAND) {
+		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
+		set_restore_sigmask();
+	}
+	else {
+		sigprocmask(SIG_SETMASK, &oldset, NULL);
+	}
 
-	return 0;
+	return ret;
 }
 
 static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
