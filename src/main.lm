@@ -165,11 +165,17 @@ void parseOption( P: program, OD: option_def, Src: str )
 	if $OD.id == "__debug" {
 		# Handle debug realms directly, rather than collecting into program
 		# state.
+		Else: str = ""
 		for D: debug_def in P {
 			send Output
-				"	if ( strcmp( [Src], \"[D.id]\" ) == 0 )
+				"	[Else]if ( strcmp( [Src], \"[D.id]\" ) == 0 )
 				"		enabledRealms |= DBG_[D.id];
+			Else = "else "
 		}
+		send Output
+			"	else {
+			"		log_FATAL( \"unrecognized debug realm: \" << [Src] );
+			"	}
 	}
 	else {
 		switch OD.option_type
