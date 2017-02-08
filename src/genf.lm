@@ -51,6 +51,9 @@ void addDefaultDefs( P: ref<program> )
 	P = cons program [
 		"option bool background: -b --background;
 		"option string __debug: -D;
+		"debug _PKTSEND;
+		"debug _PKTRECV;
+		"debug _THREAD;
 		"thread Main;
 		DefList
 	]

@@ -72,22 +72,32 @@ void packetReceives( Thread: thread )
 		"		const int sz = sizeof(fd->recv.head);
 		"		int len = ::read( fd->fd, &fd->recv.head + fd->recv.have, sz - fd->recv.have );
 		"		if ( len < 0 ) {
-		"			/* Error. */
-		"			if ( errno == EAGAIN || errno == EWOULDBLOCK )
+		"			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+		"				log_debug( DBG__PKTRECV, \"packet head read delayed: : \" << strerror(errno) );
 		"				return;
+		"			}
 		"			else {
 		"				/* fatal error. */
+		"				log_debug( DBG__PKTRECV, \"packet head read failed: : \" << strerror(errno) );
 		"			}
 		"		}
 		"		else if ( len == 0 ) {
+		"			log_debug( DBG__PKTRECV, \"packet head read returned zero\" );
+		"
 		"			/* EOF. */
 		"			close( fd );
 		"			return;
 		"		}
 		"		else if ( fd->recv.have + len < sz )  {
+		"			log_debug( DBG__PKTRECV, \"packet head read is short: \" << len << \" bytes\" );
+		"
 		"			/* Don't have it all. Need to wait for more. */
 		"			fd->recv.have += len;
 		"			return;
+		"		}
+		"
+		"		if ( len > 0 ) {
+		"			log_debug( DBG__PKTRECV, \"packet head read returned: \" << len << \" bytes\" );
 		"		}
 		"
 		"		/* Completed read of header. */
@@ -109,24 +119,29 @@ void packetReceives( Thread: thread )
 		"					/* Error. */
 		"					if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
 		"						/* continue. */
+		"						log_debug( DBG__PKTRECV, \"packet data read delayed: : \" << strerror(errno) );
 		"						return;
 		"					}
 		"					else {
+		"						log_debug( DBG__PKTRECV, \"packet data read failed: : \" << strerror(errno) );
 		"						/* fatal error. */
 		"					}
 		"				}
 		"				else if ( len == 0 ) {
+		"					log_debug( DBG__PKTRECV, \"packet data read returned zero\" );
 		"					/* EOF. */
 		"					close( fd );
 		"					return;
 		"				}
 		"				else if ( fd->recv.have + len < fd->recv.need )  {
+		"					log_debug( DBG__PKTRECV, \"packet data read is short: \" << len << \" bytes\" );
 		"					/* Don't have it all. Need to wait for more. */
 		"					fd->recv.have += len;
 		"					return;
 		"				}
 		"
 		"				if ( len > 0 ) {
+		"					log_debug( DBG__PKTRECV, \"packet data read returned: \" << len << \" bytes\" );
 		"					fd->recv.have += len;
 		"				}
 		"			}
@@ -137,11 +152,12 @@ void packetReceives( Thread: thread )
 		"
 		"			fd->recv.need = *fd->recv.nextLen;
 		"			fd->recv.have = 0;
-
 		"			fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
 		"		}
 		"
 		"		fd->recv.state = SelectFd::Recv::WantHead;
+		"		fd->recv.need = 0;
+		"		fd->recv.have = 0;
 		"		switch ( fd->recv.head.msgId ) {
 
 	for Packet: packet in Thread->RecvsPktList {
@@ -187,6 +203,7 @@ void generatePacketCode( P: program )
 		~ * packet_gen.cc
 		~ */
 		~
+		~#include "itq_gen.h"
 		~#include "packet_gen.h"
 		~#include <genf/thread.h>
 		~
@@ -263,7 +280,8 @@ void generatePacketCode( P: program )
 
 			"		*nextLen = rb->next != 0 ? writer->buf.length(rb->next) : 0;
 			"
-			"		::write( writer->fd, data, blockLen );
+			"		int res = ::write( writer->fd, data, blockLen );
+			"		log_debug( DBG__PKTSEND, \"packet send result: \" << res );
 			"
 			"		n += 1;
 			"	}
