@@ -6,7 +6,7 @@
 syntax clear
 
 syntax keyword Type
-	\ bool string long
+	\ bool string long list
 
 syntax keyword Type
 	\ message packet thread module attribute kobj

@@ -3,7 +3,7 @@ lex
 	literal `thread `message `packet `option `module
 	literal `bool `string `long `attribute
 	literal `starts `sends `to `receives `show `store `kobj
-	literal `debug `use `import `appid
+	literal `debug `use `import `appid `list
 	literal `: `; `{ `} `, `( `) `*
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -28,6 +28,7 @@ def option_type
 	[`bool]
 |	[`string]
 |	[`long]
+|	[`string `list]
 
 def option_spec
 	Ind: int

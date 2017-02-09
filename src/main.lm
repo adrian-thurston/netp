@@ -132,6 +132,10 @@ void optDefine( P: program )
 			send Output
 				"static long [OD.id];
 		}
+		case [`string `list] {
+			send Output
+				"static OptStringList [OD.id];
+		}
 	}
 
 	send Output "
@@ -154,6 +158,10 @@ void optDeclare( P: program )
 		case [`long] {
 			send Output
 				"long MainGen::[OD.id] = 0;
+		}
+		case [`string `list] {
+			send Output
+				"OptStringList MainGen::[OD.id];
 		}
 	}
 
@@ -203,6 +211,21 @@ void parseOption( P: program, OD: option_def, Src: str )
 				"if ( [OD.id] == 0 && errno != 0 )
 				"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
 		}	
+		case [`string `list] {
+			send Output
+				"{
+				"	OptStringEl *el = new OptStringEl;
+				"	el->data = [Src];
+				"	el->next = 0;
+				"	if ( [OD.id].tail == 0 )
+				"		[OD.id].head = [OD.id].tail = el;
+				"	else {
+				"		[OD.id].tail->next = el;
+				"		[OD.id].tail = el;
+				"	}
+				"}
+				"
+		}
 	}
 }
 

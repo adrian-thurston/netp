@@ -63,6 +63,19 @@ struct ItBlock
 	ItBlock *prev, *next;
 };
 
+struct OptStringEl
+{
+	const char *data;
+	OptStringEl *next;
+};
+
+struct OptStringList
+{
+	OptStringList() : head(0), tail(0) {}
+
+	OptStringEl *head, *tail;
+};
+
 struct ItWriter
 {
 	ItWriter();
