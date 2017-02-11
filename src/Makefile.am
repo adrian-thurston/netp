@@ -10,7 +10,7 @@ libkring_la_SOURCES = lib.c
 
 pkgdata_DATA = Module.symvers
 
-pkginclude_HEADERS = kring.h
+pkginclude_HEADERS = kring.h krkern.h
 
 client_SOURCES = client.c
 

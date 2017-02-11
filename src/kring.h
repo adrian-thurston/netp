@@ -63,7 +63,6 @@ struct kring_page
 
 #define KRING_DATA_SZ KRING_PAGE_SIZE * NPAGES
 
-void kring_write( int rid, int dir, void *d, int len );
 
 struct kring_shared
 {
@@ -81,7 +80,7 @@ struct kring_user
 	char *errstr;
 };
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type );
+int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );

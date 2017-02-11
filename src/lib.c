@@ -49,15 +49,19 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type )
+int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type )
 {
 	void *r;
+	struct sockaddr_in addr;
 
 	memset( u, 0, sizeof(struct kring_user) );
 
 	u->socket = socket( KRING, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( u->socket < 0 )
 		goto err_socket;
+
+	strcpy( (char*)&addr, ring );
+	bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 
 	long unsigned typeoff = ( type == KRING_DECRYPTED ? 0x10000 : 0 );
 

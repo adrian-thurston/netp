@@ -6,26 +6,14 @@
 #include <net/sock.h>
 #include <asm/cacheflush.h>
 
-#include "kring.h"
+#include "krkern.h"
 
 struct kring
 {
 	struct kobject kobj;
 };
 
-struct ring
-{
-	void *ctrl;
-
-	struct kring_shared shared;
-
-	struct page_desc *pd;
-
-	wait_queue_head_t reader_waitqueue;
-};
-
-static struct ring r0;
-static struct ring r1;
+static struct ring *head = 0;
 
 static int kring_sock_release( struct socket *sock );
 static int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -62,10 +50,10 @@ static struct proto_ops kring_ops = {
 	.sendpage = sock_no_sendpage,
 };
 
-
 struct kring_sock
 {
 	struct sock sk;
+	struct ring *ring;
 };
 
 static inline struct kring_sock *kring_sk( const struct sock *sk )
@@ -102,10 +90,12 @@ static int kring_sock_release( struct socket *sock )
 
 static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
-	struct ring *r = ( vma->vm_pgoff & 0xffff0000 ) ? &r1 : &r0;
+	struct kring_sock *krs = kring_sk( sock->sk );
+	struct ring *r = krs->ring;
+
 	switch ( vma->vm_pgoff & 0xffff ) {
 		case PGOFF_CTRL: {
-			printk( "mapping control region\n" );
+			printk( "mapping control region %p of ring %p\n", r->ctrl, r );
 			remap_vmalloc_range( vma, r->ctrl, 0 );
 			break;
 		}
@@ -113,7 +103,7 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 		case PGOFF_DATA: {
 			int i;
 			unsigned long uaddr = vma->vm_start;
-			printk( "mapping data region %lu\n", uaddr );
+			printk( "mapping data region %lu of ring %p\n", uaddr, r );
 			for ( i = 0; i < NPAGES; i++ ) {
 				vm_insert_page( vma, uaddr, r->pd[i].p );
 				uaddr += PAGE_SIZE;
@@ -128,7 +118,21 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 
 static int kring_bind(struct socket *sock, struct sockaddr *sa, int addr_len)
 {
-	printk( "kring_bind\n" );
+	struct ring *r;
+	printk( "kring_bind: %s\n", (const char*)sa );
+
+	r = head;
+	while ( r != 0 ) {
+		if ( strcmp( r->name, (const char*)sa ) == 0 ) {
+			struct kring_sock *krs = kring_sk( sock->sk );
+			krs->ring = r;
+			printk( "kring_bind: binding to %p\n", r );
+			return 0;
+		}
+
+		r = r->next;
+	}
+	printk( "kring_bind: failure\n" );
 	return 0;
 }
 
@@ -158,7 +162,8 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
-	struct ring *r = flags == 0 ? &r0 : &r1;
+	struct kring_sock *krs = kring_sk( sock->sk );
+	struct ring *r = krs->ring;
 	sigset_t blocked, oldset;
 	int ret;
 
@@ -184,7 +189,8 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 
 static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
-	struct ring *r = &r1;
+	struct kring_sock *krs = kring_sk( sock->sk );
+	struct ring *r = krs->ring;
 	wake_up_interruptible_all( &r->reader_waitqueue );
 	return 0;
 }
@@ -222,7 +228,65 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-void *alloc_shared_memory( int size )
+int kring_wopen( struct kring_kern *kring, const char *ring, int rid )
+{
+	struct ring *r = head;
+	while ( r != 0 ) {
+		if ( strcmp( r->name, ring ) == 0 ) {
+			strncpy( kring->name, ring, KRING_NLEN );
+			kring->name[KRING_NLEN-1] = 0;
+			kring->ring = r;
+			kring->rid = rid;
+
+			return 0;
+		}
+
+		r = r->next;
+	}
+
+	return -1;
+}
+
+void kring_write( struct kring_kern *kring, int dir, void *d, int len )
+{
+	struct kring_packet_header *h;
+	void *pdata;
+	shr_off_t whead;
+
+	/* Which ring? */
+	struct ring *r = kring->ring;
+
+	/* Limit the size. */
+	const int headsz = sizeof(struct kring_packet_header);
+	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
+		printk("KRING: large write: %d\n", len );
+		len = PAGE_SIZE - headsz;
+	}
+
+	/* Find the place to write to, skipping ahead as necessary. */
+	whead = find_write_loc( &r->shared );
+
+	/* Reserve the space. */
+	r->shared.control->wresv = whead;
+
+	h = r->pd[whead].m;
+	pdata = (char*)(h + 1);
+
+	h->len = len;
+	h->dir = (char) dir;
+	memcpy( pdata, d, len );
+
+	/* Clear the writer owned bit from the buffer. */
+	if ( writer_release( &r->shared, whead ) < 0 )
+		printk( "writer release unexected value\n" );
+
+	/* Write back the write head, thereby releasing the buffer to writer. */
+	r->shared.control->whead = whead;
+
+	wake_up_interruptible_all( &r->reader_waitqueue );
+}
+
+static void *alloc_shared_memory( int size )
 {
 	void *mem;
 	size = PAGE_ALIGN(size);
@@ -231,14 +295,17 @@ void *alloc_shared_memory( int size )
 	return mem;
 }
 
-void free_shared_memory( void *m )
+static void free_shared_memory( void *m )
 {
 	vfree(m);
 }
 
-static void ring_alloc( struct ring *r )
+static void ring_alloc( struct ring *r, const char *name )
 {
 	int i;
+
+	strncpy( r->name, name, KRING_NLEN );
+	r->name[KRING_NLEN-1] = 0;
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
@@ -272,12 +339,32 @@ static void ring_free( struct ring *r )
 
 }
 
+static ssize_t kring_add_store( struct kring *obj, const char *name  )
+{
+	struct ring *r = kmalloc( sizeof(struct ring), GFP_KERNEL );
+	ring_alloc( r, name );
+
+	if ( head == 0 )
+		head = r;
+	else {
+		struct ring *tail = head;
+		while ( tail->next != 0 )
+			tail = tail->next;
+		tail->next = r;
+	}
+	r->next = 0;
+
+	return 0;
+}
+
+static ssize_t kring_del_store( struct kring *obj, const char *name  )
+{
+	return 0;
+}
+
 static int kring_init(void)
 {
 	int rc;
-
-	ring_alloc( &r0 );
-	ring_alloc( &r1 );
 
 	sock_register(&kring_family_ops);
 
@@ -289,51 +376,19 @@ static int kring_init(void)
 
 static void kring_exit(void)
 {
+	struct ring *r;
+
 	sock_unregister( KRING );
 
 	proto_unregister( &kring_proto );
 
-	ring_free( &r1 );
-	ring_free( &r0 );
-}
-
-void kring_write( int rid, int dir, void *d, int len )
-{
-	struct kring_packet_header *h;
-	void *pdata;
-	shr_off_t whead;
-
-	/* Which ring? */
-	struct ring *r = rid == 0 ? &r0 : ( rid == 1 ? &r1 : 0 );
-
-	/* Limit the size. */
-	const int headsz = sizeof(struct kring_packet_header);
-	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
-		printk("KRING: large write: %d\n", len );
-		len = PAGE_SIZE - headsz;
+	r = head;
+	while ( r != 0 ) {
+		ring_free( r );
+		r = r->next;
 	}
-
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( &r->shared );
-
-	/* Reserve the space. */
-	r->shared.control->wresv = whead;
-
-	h = r->pd[whead].m;
-	pdata = (char*)(h + 1);
-
-	h->len = len;
-	h->dir = (char) dir;
-	memcpy( pdata, d, len );
-
-	/* Clear the writer owned bit from the buffer. */
-	if ( writer_release( &r->shared, whead ) < 0 )
-		printk( "writer release unexected value\n" );
-
-	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->shared.control->whead = whead;
-
-	wake_up_interruptible_all( &r->reader_waitqueue );
 }
 
+
+EXPORT_SYMBOL_GPL(kring_wopen);
 EXPORT_SYMBOL_GPL(kring_write);
