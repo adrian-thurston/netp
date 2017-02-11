@@ -8,6 +8,6 @@ kobj link
 	attribute store ip_add( string ip );
 };
 
-attribute store add( string name );
+attribute store add( string name, string ring );
 attribute store del( string name );
 

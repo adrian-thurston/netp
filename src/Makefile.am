@@ -10,7 +10,7 @@ SOURCES = module.c attribute.c attribute.h
 module.c: shuttle.gf $(GENF)
 	$(GENF) --kernf shuttle.gf
 
-shuttle.ko: Module.symvers .kbuild
+shuttle.ko: $(SOURCES) Module.symvers .kbuild
 
 Module.symvers: $(KRING_SYMVERS)
 	cp $(KRING_SYMVERS) ./
