@@ -3,8 +3,6 @@
 
 #include "kring.h"
 
-#define KRING_NLEN 32
-
 struct ring
 {
 	char name[KRING_NLEN];

@@ -19,6 +19,7 @@ extern "C" {
 
 #define KRING_ERR_SOCK -1
 #define KRING_ERR_MMAP -2
+#define KRING_ERR_BIND -3
 
 /* Direction: from client, or from server. */
 #define KRING_DIR_CLIENT 1
@@ -27,10 +28,19 @@ extern "C" {
 #define KRING_DIR_INSIDE  1
 #define KRING_DIR_OUTSIDE 2
 
+#define KRING_NLEN 32
+ 
+
 enum KRING_TYPE
 {
 	KRING_PACKETS = 1,
 	KRING_DECRYPTED
+};
+
+enum KRING_MODE
+{
+	KRING_READ = 1,
+	KRING_WRITE
 };
 
 typedef unsigned short shr_desc_t;
@@ -80,7 +90,13 @@ struct kring_user
 	char *errstr;
 };
 
-int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type );
+struct kring_addr
+{
+	char name[KRING_NLEN];
+	enum KRING_MODE mode;
+};
+
+int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, enum KRING_MODE mode );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );

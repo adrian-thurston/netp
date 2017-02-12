@@ -12,6 +12,12 @@
 #include <errno.h>
 #include <stdlib.h>
 
+static void copy_name( char *dest, const char *src )
+{
+	strncpy( dest, src, KRING_NLEN );
+	dest[KRING_NLEN-1] = 0;
+}
+
 char *kring_error( struct kring_user *u, int err )
 {
 	int len;
@@ -24,6 +30,9 @@ char *kring_error( struct kring_user *u, int err )
 			break;
 		case KRING_ERR_MMAP:
 			prefix = "mmap call failed";
+			break;
+		case KRING_ERR_BIND:
+			prefix = "bind call failed";
 			break;
 	}
 
@@ -49,10 +58,11 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
-int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type )
+int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, enum KRING_MODE mode )
 {
+	int res;
 	void *r;
-	struct sockaddr_in addr;
+	struct kring_addr addr;
 
 	memset( u, 0, sizeof(struct kring_user) );
 
@@ -60,8 +70,12 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type )
 	if ( u->socket < 0 )
 		goto err_socket;
 
-	strcpy( (char*)&addr, ring );
-	bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
+	copy_name( addr.name, ring );
+	addr.mode = mode;
+
+	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
+	if ( res < 0 ) 
+		goto err_bind;
 
 	long unsigned typeoff = ( type == KRING_DECRYPTED ? 0x10000 : 0 );
 
@@ -101,14 +115,16 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type )
 		}
 	}
 
-
 	return 0;
 
 err_mmap:
 	u->_errno = errno;
 	close( u->socket );
 	return KRING_ERR_MMAP;
-
+err_bind:
+	u->_errno = errno;
+	close( u->socket );
+	return KRING_ERR_BIND;
 err_socket:
 	u->_errno = errno;
 	return KRING_ERR_SOCK;

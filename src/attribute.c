@@ -93,6 +93,10 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 	struct kring_sock *krs = kring_sk( sock->sk );
 	struct ring *r = krs->ring;
 
+	/* Ensure bound. */
+	if ( r == 0 )
+		return -EINVAL;
+
 	switch ( vma->vm_pgoff & 0xffff ) {
 		case PGOFF_CTRL: {
 			printk( "mapping control region %p of ring %p\n", r->ctrl, r );
@@ -116,23 +120,69 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 	return 0;
 }
 
-static int kring_bind(struct socket *sock, struct sockaddr *sa, int addr_len)
+static int validate_ring_name( const char *name )
 {
-	struct ring *r;
-	printk( "kring_bind: %s\n", (const char*)sa );
+	const char *p = name;
+	const char *pe = name + KRING_NLEN;
+	while ( 1 ) {
+		/* Reached the end without validation. */
+		if ( p == pe )
+			return -1;
 
-	r = head;
-	while ( r != 0 ) {
-		if ( strcmp( r->name, (const char*)sa ) == 0 ) {
-			struct kring_sock *krs = kring_sk( sock->sk );
-			krs->ring = r;
-			printk( "kring_bind: binding to %p\n", r );
+		/* Got to a valid string end. Finish. */
+		if ( *p == 0 )
 			return 0;
+
+		if ( ! ( ( 'A' <= *p && *p <= 'Z' ) ||
+				( 'a' <= *p && *p <= 'z' ) ||
+				( '0' <= *p && *p <= '9' ) ||
+				*p == '_' || *p == '-' || 
+				*p == '.' ) )
+		{
+			/* Invalid char */
+			return -1;
 		}
+
+		/* Okay, next char. */
+		p += 1;
+	}
+}
+
+static struct ring *find_ring( const char *name )
+{
+	struct ring *r = head;
+	while ( r != 0 ) {
+		if ( strcmp( r->name, name ) == 0 )
+			return r;
 
 		r = r->next;
 	}
-	printk( "kring_bind: failure\n" );
+
+	return 0;
+}
+
+static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
+{
+	struct kring_addr *addr = (struct kring_addr*)sa;
+	struct kring_sock *krs;
+	struct ring *ring;
+
+	if ( addr_len != sizeof(struct kring_addr) )
+		return -EINVAL;
+
+	if ( validate_ring_name( addr->name ) < 0 )
+		return -EINVAL;
+	
+	if ( addr->mode != KRING_READ && addr->mode != KRING_WRITE )
+		return -EINVAL;
+	
+	ring = find_ring( addr->name );
+	if ( ring == 0 )
+		return -EINVAL;
+
+	krs = kring_sk( sock->sk );
+	krs->ring = ring;
+
 	return 0;
 }
 
@@ -339,7 +389,7 @@ static void ring_free( struct ring *r )
 
 }
 
-static ssize_t kring_add_store( struct kring *obj, const char *name  )
+static ssize_t kring_add_store( struct kring *obj, const char *name )
 {
 	struct ring *r = kmalloc( sizeof(struct ring), GFP_KERNEL );
 	ring_alloc( r, name );
