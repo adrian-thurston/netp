@@ -230,6 +230,7 @@ static ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
 		// dev_put( link->inside );
 		// dev_put( link->outside );
 
+		kring_wclose( &link->kring );
 		unregister_netdevice_queue( link->dev, NULL );
 		list_del( &link->link_list );
 		kobject_put( &link->kobj );
