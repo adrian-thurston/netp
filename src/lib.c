@@ -11,12 +11,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
-static void copy_name( char *dest, const char *src )
-{
-	strncpy( dest, src, KRING_NLEN );
-	dest[KRING_NLEN-1] = 0;
-}
+#include "common.c"
 
 char *kring_error( struct kring_user *u, int err )
 {
@@ -33,6 +30,9 @@ char *kring_error( struct kring_user *u, int err )
 			break;
 		case KRING_ERR_BIND:
 			prefix = "bind call failed";
+			break;
+		case KRING_ERR_GETID:
+			prefix = "getsockopt(id) call failed";
 			break;
 	}
 
@@ -58,9 +58,11 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
+
 int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, enum KRING_MODE mode )
 {
-	int res;
+	int res, id;
+	socklen_t idlen = sizeof(id);
 	void *r;
 	struct kring_addr addr;
 
@@ -77,6 +79,12 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 	if ( res < 0 ) 
 		goto err_bind;
 
+	res = getsockopt( u->socket, SOL_PACKET, 1, &id, &idlen );
+	if ( res < 0 )
+		goto err_opt;
+
+	u->id = id;
+
 	long unsigned typeoff = ( type == KRING_DECRYPTED ? 0x10000 : 0 );
 
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
@@ -87,7 +95,8 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 		goto err_mmap;
 
 	u->shared.control = (struct shared_ctrl*)r;
-	u->shared.descriptors = (struct shared_desc*)((char*)r + sizeof(struct shared_ctrl));
+	u->shared.reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_ctrl) );
+	u->shared.descriptor = (struct shared_desc*)( (char*)r + sizeof(struct shared_ctrl) + sizeof(struct shared_reader) * NRING_READERS );
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -98,15 +107,15 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 
 	u->g = (struct kring_page*)r;
 
-	u->shared.control->rhead = u->shared.control->whead;
+	u->shared.reader[u->id].rhead = u->shared.control->whead;
 
-	int desc = u->shared.descriptors[u->shared.control->rhead].desc;
+	int desc = u->shared.descriptor[u->shared.reader[u->id].rhead].desc;
 	if ( desc & DSC_WRITER_OWNED ) {
 		/* Fatal error. Writer should not own from prev write head. */
 	}
 	else {
 		int newval = desc | DSC_READER_OWNED;
-		int before = __sync_val_compare_and_swap( &u->shared.descriptors[u->shared.control->rhead].desc, desc, newval );
+		int before = __sync_val_compare_and_swap( &u->shared.descriptor[u->shared.reader[u->id].rhead].desc, desc, newval );
 		if ( before != desc ) {
 			/* writer got in, retry. */
 		}
@@ -121,6 +130,10 @@ err_mmap:
 	u->_errno = errno;
 	close( u->socket );
 	return KRING_ERR_MMAP;
+err_opt:
+	u->_errno = errno;
+	close( u->socket );
+	return KRING_ERR_GETID;
 err_bind:
 	u->_errno = errno;
 	close( u->socket );

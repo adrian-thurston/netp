@@ -20,6 +20,7 @@ extern "C" {
 #define KRING_ERR_SOCK -1
 #define KRING_ERR_MMAP -2
 #define KRING_ERR_BIND -3
+#define KRING_ERR_GETID -4
 
 /* Direction: from client, or from server. */
 #define KRING_DIR_CLIENT 1
@@ -29,6 +30,8 @@ extern "C" {
 #define KRING_DIR_OUTSIDE 2
 
 #define KRING_NLEN 32
+#define NRING_READERS 8
+
  
 
 enum KRING_TYPE
@@ -50,6 +53,10 @@ struct shared_ctrl
 {
 	shr_off_t whead;
 	shr_off_t wresv;
+};
+
+struct shared_reader
+{
 	shr_off_t rhead;
 };
 
@@ -69,21 +76,25 @@ struct kring_page
 	char d[KRING_PAGE_SIZE];
 };
 
-#define KRING_CTRL_SZ sizeof(struct shared_ctrl) + sizeof(struct shared_desc) * NPAGES
+#define KRING_CTRL_SZ ( \
+	sizeof(struct shared_ctrl) + \
+	sizeof(struct shared_reader) * NRING_READERS + \
+	sizeof(struct shared_desc) * NPAGES \
+)
 
 #define KRING_DATA_SZ KRING_PAGE_SIZE * NPAGES
 
-
 struct kring_shared
 {
-	struct shared_desc *descriptors;
 	struct shared_ctrl *control;
+	struct shared_reader *reader;
+	struct shared_desc *descriptor;
 };
 
 struct kring_user
 {
 	int socket;
-
+	int id;
 	struct kring_shared shared;
 	struct kring_page *g;
 	int _errno;
@@ -130,14 +141,14 @@ struct kring_decrypted_header
 	char host[63];
 };
 
-inline int kring_avail_impl( struct kring_shared *shared )
+inline int kring_avail_impl( struct kring_shared *shared, int id )
 {
-	return ( shared->control->rhead != shared->control->whead );
+	return ( shared->reader[id].rhead != shared->control->whead );
 }
 
 inline int kring_avail( struct kring_user *u )
 {
-	return kring_avail_impl( &u->shared );
+	return kring_avail_impl( &u->shared, u->id );
 }
 
 inline shr_off_t kring_next( shr_off_t off )
@@ -154,20 +165,20 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	struct kring_packet_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->shared.control->rhead;
-	shr_off_t prev = u->shared.control->rhead;
+	shr_off_t rhead = u->shared.reader[u->id].rhead;
+	shr_off_t prev = u->shared.reader[u->id].rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
 
 		/* reserve next. */
-		desc = u->shared.descriptors[rhead].desc;
+		desc = u->shared.descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
 			shr_desc_t newval = desc | DSC_READER_OWNED;
 		
 			/* Attemp write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptors[rhead].desc, desc, newval );
+			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[rhead].desc, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				break;
@@ -181,12 +192,12 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	}
 
 	/* Set the rheadset rhead. */
-	u->shared.control->rhead = rhead;
+	u->shared.reader[u->id].rhead = rhead;
 	
 	/* Unreserve prev. */
-	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
+	u->shared.descriptor[prev].desc &= ~DSC_READER_OWNED;
 
-	h = (struct kring_packet_header*)( u->g + u->shared.control->rhead );
+	h = (struct kring_packet_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -200,20 +211,20 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->shared.control->rhead;
-	shr_off_t prev = u->shared.control->rhead;
+	shr_off_t rhead = u->shared.reader[u->id].rhead;
+	shr_off_t prev = u->shared.reader[u->id].rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
 
 		/* reserve next. */
-		desc = u->shared.descriptors[rhead].desc;
+		desc = u->shared.descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
 			shr_desc_t newval = desc | DSC_READER_OWNED;
 		
 			/* Attemp write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptors[rhead].desc, desc, newval );
+			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[rhead].desc, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				break;
@@ -227,12 +238,12 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	}
 
 	/* Set the rheadset rhead. */
-	u->shared.control->rhead = rhead;
+	u->shared.reader[u->id].rhead = rhead;
 	
 	/* Unreserve prev. */
-	u->shared.descriptors[prev].desc &= ~DSC_READER_OWNED;
+	u->shared.descriptor[prev].desc &= ~DSC_READER_OWNED;
 
-	h = (struct kring_decrypted_header*)( u->g + u->shared.control->rhead );
+	h = (struct kring_decrypted_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
@@ -263,14 +274,14 @@ inline unsigned long find_write_loc( struct kring_shared *shared )
 		whead = kring_next( whead );
 
 		/* Read the descriptor. */
-		desc = shared->descriptors[whead].desc;
+		desc = shared->descriptor[whead].desc;
 
 		/* Check, if not okay, go on to next. */
 		if ( ! ( desc & DSC_EITHER_OWNED ) ) {
 			shr_desc_t newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptors[whead].desc, desc, newval );
+			shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptor[whead].desc, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				return whead;
@@ -285,14 +296,14 @@ inline unsigned long find_write_loc( struct kring_shared *shared )
 inline int writer_release( struct kring_shared *shared, shr_off_t whead )
 {
 	/* orig value. */
-	shr_desc_t desc = shared->descriptors[whead].desc;
+	shr_desc_t desc = shared->descriptor[whead].desc;
 
 	/* Unrelease writer. */
 	shr_desc_t newval = desc & ~DSC_WRITER_OWNED;
 
 	/* Write back with check. No other reader or writer should have altered the
 	 * descriptor. */
-	shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptors[whead].desc, desc, newval );
+	shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptor[whead].desc, desc, newval );
 	if ( before != desc )
 		return -1;
 

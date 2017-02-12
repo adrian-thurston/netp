@@ -7,6 +7,7 @@
 #include <asm/cacheflush.h>
 
 #include "krkern.h"
+#include "common.c"
 
 struct kring
 {
@@ -54,6 +55,8 @@ struct kring_sock
 {
 	struct sock sk;
 	struct ring *ring;
+	enum KRING_MODE mode;
+	int id;
 };
 
 static inline struct kring_sock *kring_sk( const struct sock *sk )
@@ -163,6 +166,7 @@ static struct ring *find_ring( const char *name )
 
 static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
+	int id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct ring *ring;
@@ -180,8 +184,27 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	if ( ring == 0 )
 		return -EINVAL;
 
+	if ( addr->mode == KRING_WRITE ) {
+		if ( ring->has_writer )
+			return -EINVAL;
+	}
+	else {
+		for ( id = 0 ; id < NRING_READERS; id++ ) {
+			if ( ring->reader[id].id < 0 )
+				break;
+		}
+
+		if ( id == NRING_READERS )
+			return -EINVAL;
+
+	}
+
 	krs = kring_sk( sock->sk );
 	krs->ring = ring;
+	krs->mode = addr->mode;
+	krs->id = id;
+
+	ring->reader[id].id = id;
 
 	return 0;
 }
@@ -198,9 +221,38 @@ static int kring_setsockopt(struct socket *sock, int level, int optname, char __
 	return 0;
 }
 
-static int kring_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen)
+static int kring_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen )
 {
+	int len;
+	int val, lv = sizeof(val);
+	void *data = &val;
+	struct kring_sock *krs = kring_sk( sock->sk );
+
+	if (level != SOL_PACKET)
+		return -ENOPROTOOPT;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	if (len < 0)
+		return -EINVAL;
+
 	printk( "kring_getsockopt\n" );
+
+	switch ( optname ) {
+		case 1:
+			val = krs->id;
+			break;
+	}
+
+	if ( len > lv )
+		len = lv;
+
+	if ( put_user( len, optlen ) )
+		return -EFAULT;
+
+	if ( copy_to_user( optval, data, len) )
+		return -EFAULT;
 	return 0;
 }
 
@@ -224,7 +276,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
-	ret = wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->shared ) );
+	ret = wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->shared, krs->id ) );
 
 	if (ret == -ERESTARTNOHAND) {
 		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
@@ -245,8 +297,11 @@ static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 	return 0;
 }
 
-static void kring_sock_destruct(struct sock *sk)
+static void kring_sock_destruct( struct sock *sk )
 {
+	struct kring_sock *krs = kring_sk( sk );
+	krs->ring->reader[krs->id].id = -1;
+
 	printk( "kring_sock_destruct\n" );
 }
 
@@ -280,22 +335,24 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 
 int kring_wopen( struct kring_kern *kring, const char *ring, int rid )
 {
-	struct ring *r = head;
-	while ( r != 0 ) {
-		if ( strcmp( r->name, ring ) == 0 ) {
-			strncpy( kring->name, ring, KRING_NLEN );
-			kring->name[KRING_NLEN-1] = 0;
-			kring->ring = r;
-			kring->rid = rid;
+	struct ring *r = find_ring( ring );
+	if ( r == 0 )
+		return -1;
 
-			return 0;
-		}
+	copy_name( kring->name, ring );
+	kring->ring = r;
+	kring->rid = rid;
+	r->has_writer = true;
 
-		r = r->next;
-	}
-
-	return -1;
+	return 0;
 }
+
+int kring_wclose( struct kring_kern *kring )
+{
+	kring->ring->has_writer = false;
+	return 0;
+}
+
 
 void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 {
@@ -360,7 +417,8 @@ static void ring_alloc( struct ring *r, const char *name )
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
 	r->shared.control = r->ctrl;
-	r->shared.descriptors = r->ctrl + sizeof(struct shared_ctrl);
+	r->shared.reader = r->ctrl + sizeof(struct shared_ctrl);
+	r->shared.descriptor = r->ctrl + sizeof(struct shared_ctrl) + sizeof(struct shared_reader) * NRING_READERS;
 
 	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
@@ -376,6 +434,10 @@ static void ring_alloc( struct ring *r, const char *name )
 	r->shared.control->whead = r->shared.control->wresv = kring_one_back( 0 );
 
 	init_waitqueue_head( &r->reader_waitqueue );
+
+	for ( i = 0; i < NRING_READERS; i++ ) {
+		r->reader[i].id = -1;
+	}
 }
 
 static void ring_free( struct ring *r )
@@ -386,7 +448,6 @@ static void ring_free( struct ring *r )
 
 	free_shared_memory( r->ctrl );
 	kfree( r->pd );
-
 }
 
 static ssize_t kring_add_store( struct kring *obj, const char *name )
@@ -441,4 +502,5 @@ static void kring_exit(void)
 
 
 EXPORT_SYMBOL_GPL(kring_wopen);
+EXPORT_SYMBOL_GPL(kring_wclose);
 EXPORT_SYMBOL_GPL(kring_write);
