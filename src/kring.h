@@ -13,6 +13,7 @@ extern "C" {
 
 #define DSC_READER_SHIFT    2
 #define DSC_WRITER_OWNED    0x01
+#define DSC_SKIPPED         0x02
 #define DSC_READER_OWNED    0xfc
 #define DSC_READER_BIT(id)  ( 0x1 << ( DSC_READER_SHIFT + (id) ) )
 
@@ -193,10 +194,26 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 	return rhead;
 }
 
-inline void kring_unreserv_prev( struct kring_user *u, shr_off_t prev )
+/* Unreserve prev. */
+inline void kring_reader_release( struct kring_user *u, shr_off_t prev )
 {
-	/* Unreserve prev. */
-	u->shared.descriptor[prev].desc &= ~( DSC_READER_BIT( u->id ) );
+	shr_desc_t before, desc, newval;
+again:
+	/* Take a copy, modify, then try to write back. */
+	desc = u->shared.descriptor[prev].desc;
+	
+	newval = desc & ~( DSC_READER_BIT( u->id ) );
+
+	/* Was it skipped? */
+	if ( desc & DSC_SKIPPED ) {
+		/* If we are the last to release it, then reset the skipped bit. */
+		if ( ! ( newval & DSC_READER_OWNED ) )
+			newval &= ~DSC_SKIPPED;
+	}
+
+	before = kring_write_back( &u->shared, prev, desc, newval );
+	if ( before != desc )
+		goto again;
 }
 
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
@@ -212,7 +229,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	/* Set the rheadset rhead. */
 	u->shared.reader[u->id].rhead = rhead;
 
-	kring_unreserv_prev( u, prev );
+	kring_reader_release( u, prev );
 
 	h = (struct kring_packet_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
@@ -237,7 +254,7 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	u->shared.reader[u->id].rhead = rhead;
 	
 	/* Unreserve prev. */
-	kring_unreserv_prev( u, prev );
+	kring_reader_release( u, prev );
 
 	h = (struct kring_decrypted_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
@@ -262,7 +279,7 @@ inline unsigned long kring_one_forward( unsigned long pos )
 
 inline unsigned long find_write_loc( struct kring_shared *shared )
 {
-	int skips = 0, id;
+	int id;
 	shr_desc_t desc = 0;
 	shr_off_t whead = shared->control->whead;
 	while ( 1 ) {
@@ -274,7 +291,9 @@ retry:
 		desc = shared->descriptor[whead].desc;
 
 		/* Check, if not okay, go on to next. */
-		if ( desc & DSC_READER_OWNED ) {
+		if ( desc & DSC_READER_OWNED || desc & DSC_SKIPPED ) {
+			shr_desc_t before;
+
 			/* register skips. */
 			for ( id = 0; id < NRING_READERS; id++ ) {
 				if ( desc & DSC_READER_BIT( id ) ) {
@@ -282,11 +301,17 @@ retry:
 					shared->reader[id].skips += 1;
 				}
 			}
+
+			/* Mark as skipped. If if a reader got in before us, retry. */
+			before = kring_write_back( shared, whead, desc, desc | DSC_SKIPPED );
+			if ( before != desc )
+				goto retry;
 		}
 		else if ( desc & DSC_WRITER_OWNED ) {
 			/* Unusual situation. */
 		}
 		else {
+			/* Available. */
 			shr_desc_t newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
@@ -298,8 +323,7 @@ retry:
 			return whead;
 		}
 
-		/* if skips == size, bail out. */
-		skips += 1;
+		/* FIXME: if we get back to where we started then bail */
 	}
 }
 
