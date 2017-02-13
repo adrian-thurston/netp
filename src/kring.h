@@ -320,6 +320,28 @@ inline int writer_release( struct kring_shared *shared, shr_off_t whead )
 	return 0;
 }
 
+inline void kring_enter( struct kring_user *u )
+{
+	/* Init the read head. */
+	shr_off_t rhead = u->shared.control->whead;
+	shr_desc_t desc = u->shared.descriptor[rhead].desc;
+	if ( desc & DSC_WRITER_OWNED ) {
+		/* Fatal error. Writer should not own from prev write head. */
+	}
+	else {
+		shr_desc_t newval = desc | DSC_READER_BIT( u->id );
+		shr_desc_t before = kring_write_back( &u->shared, rhead, desc, newval );
+		if ( before != desc ) {
+			/* writer got in, retry. */
+		}
+		else {
+			/* Okay good. */
+		}
+	}
+
+	u->shared.reader[u->id].rhead = rhead; 
+	u->shared.reader[u->id].skips = 0;
+}
 
 #if defined(__cplusplus)
 }
