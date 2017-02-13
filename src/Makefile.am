@@ -23,6 +23,10 @@ Module.symvers: kring.ko
 module.c: kring.gf $(GENF)
 	$(GENF) --kernf kring.gf
 
-kring.ko: $(SOURCES)
+kring.ko: $(SOURCES) .kbuild
+
+.PHONY: .kbuild
+
+.kbuild:
 	make -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
 
