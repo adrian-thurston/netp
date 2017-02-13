@@ -161,13 +161,8 @@ inline shr_off_t kring_next( shr_off_t off )
 	return off;
 }
 
-inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
+inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 {
-	struct kring_packet_header *h;
-	unsigned char *bytes;
-
-	shr_off_t rhead = u->shared.reader[u->id].rhead;
-	shr_off_t prev = u->shared.reader[u->id].rhead;
 	shr_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
@@ -192,11 +187,29 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 		 * advance unless a successful write was made. */
 	}
 
-	/* Set the rheadset rhead. */
-	u->shared.reader[u->id].rhead = rhead;
-	
+	return rhead;
+}
+
+inline void kring_unreserv_prev( struct kring_user *u, shr_off_t prev )
+{
 	/* Unreserve prev. */
 	u->shared.descriptor[prev].desc &= ~( DSC_READER_OWNED | ( 0x1 << ( DSC_READER_SHIFT + u->id ) ) );
+}
+
+inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
+{
+	struct kring_packet_header *h;
+	unsigned char *bytes;
+
+	shr_off_t rhead = u->shared.reader[u->id].rhead;
+	shr_off_t prev = u->shared.reader[u->id].rhead;
+
+	rhead = kring_advance_rhead( u, rhead );
+
+	/* Set the rheadset rhead. */
+	u->shared.reader[u->id].rhead = rhead;
+
+	kring_unreserv_prev( u, prev );
 
 	h = (struct kring_packet_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
@@ -214,35 +227,14 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 
 	shr_off_t rhead = u->shared.reader[u->id].rhead;
 	shr_off_t prev = u->shared.reader[u->id].rhead;
-	shr_desc_t desc;
-	while ( 1 ) {
-		rhead = kring_next( rhead );
 
-		/* reserve next. */
-		desc = u->shared.descriptor[rhead].desc;
-		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
-			/* Okay we can take it. */
-			shr_desc_t newval = desc | DSC_READER_OWNED;
-		
-			/* Attemp write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[rhead].desc, desc, newval );
-			if ( before == desc ) {
-				/* Write back okay. We can use. */
-				break;
-			}
-		}
-
-		/* Todo: limit the number of skips. If we get to whead then we skipped
-		 * over invalid buffers until we got to the write head. There is
-		 * nothing to read. Not a normal situation because whead should not
-		 * advance unless a successful write was made. */
-	}
+	rhead = kring_advance_rhead( u, rhead );
 
 	/* Set the rheadset rhead. */
 	u->shared.reader[u->id].rhead = rhead;
 	
 	/* Unreserve prev. */
-	u->shared.descriptor[prev].desc &= ~DSC_READER_OWNED;
+	kring_unreserv_prev( u, prev );
 
 	h = (struct kring_decrypted_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
