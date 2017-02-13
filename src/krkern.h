@@ -5,7 +5,7 @@
 
 struct ring_reader
 {
-	int id;
+	bool allocated;
 };
 
 struct ring

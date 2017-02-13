@@ -108,6 +108,7 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 	u->g = (struct kring_page*)r;
 
 	u->shared.reader[u->id].rhead = u->shared.control->whead;
+	u->shared.reader[u->id].skips = 0;
 
 	int desc = u->shared.descriptor[u->shared.reader[u->id].rhead].desc;
 	if ( desc & DSC_WRITER_OWNED ) {

@@ -15,6 +15,8 @@ extern "C" {
 #define DSC_READER_OWNED    0x2
 #define DSC_EITHER_OWNED    0x3
 
+#define DSC_RID_SHIFT 4
+
 #define DSC_READER_SHIFT    2
 
 #define KRING_ERR_SOCK -1
@@ -31,8 +33,6 @@ extern "C" {
 
 #define KRING_NLEN 32
 #define NRING_READERS 8
-
- 
 
 enum KRING_TYPE
 {
@@ -58,6 +58,7 @@ struct shared_ctrl
 struct shared_reader
 {
 	shr_off_t rhead;
+	unsigned long skips;
 };
 
 struct shared_desc
@@ -175,7 +176,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 		desc = u->shared.descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
-			shr_desc_t newval = desc | DSC_READER_OWNED;
+			shr_desc_t newval = desc | DSC_READER_OWNED | ( 0x1 << ( DSC_READER_SHIFT + u->id ) );
 		
 			/* Attemp write back. */
 			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[rhead].desc, desc, newval );
@@ -195,7 +196,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	u->shared.reader[u->id].rhead = rhead;
 	
 	/* Unreserve prev. */
-	u->shared.descriptor[prev].desc &= ~DSC_READER_OWNED;
+	u->shared.descriptor[prev].desc &= ~( DSC_READER_OWNED | ( 0x1 << ( DSC_READER_SHIFT + u->id ) ) );
 
 	h = (struct kring_packet_header*)( u->g + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
@@ -266,7 +267,7 @@ inline unsigned long kring_one_forward( unsigned long pos )
 
 inline unsigned long find_write_loc( struct kring_shared *shared )
 {
-	int skips = 0;
+	int skips = 0, id;
 	shr_desc_t desc = 0;
 	shr_off_t whead = shared->control->whead;
 	while ( 1 ) {
@@ -277,7 +278,16 @@ inline unsigned long find_write_loc( struct kring_shared *shared )
 		desc = shared->descriptor[whead].desc;
 
 		/* Check, if not okay, go on to next. */
-		if ( ! ( desc & DSC_EITHER_OWNED ) ) {
+		if ( ( desc & DSC_EITHER_OWNED ) ) {
+			/* register skips. */
+			for ( id = 0; id < NRING_READERS; id++ ) {
+				if ( desc & ( 0x1 << ( DSC_READER_SHIFT + id ) ) ) {
+					/* reader id present. */
+					shared->reader[id].skips += 1;
+				}
+			}
+		}
+		else {
 			shr_desc_t newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */

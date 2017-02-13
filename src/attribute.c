@@ -190,7 +190,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	}
 	else {
 		for ( id = 0 ; id < NRING_READERS; id++ ) {
-			if ( ring->reader[id].id < 0 )
+			if ( !ring->reader[id].allocated )
 				break;
 		}
 
@@ -204,7 +204,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	krs->mode = addr->mode;
 	krs->id = id;
 
-	ring->reader[id].id = id;
+	ring->reader[id].allocated = true;
 
 	return 0;
 }
@@ -300,7 +300,7 @@ static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static void kring_sock_destruct( struct sock *sk )
 {
 	struct kring_sock *krs = kring_sk( sk );
-	krs->ring->reader[krs->id].id = -1;
+	krs->ring->reader[krs->id].allocated = false;
 
 	printk( "kring_sock_destruct\n" );
 }
@@ -435,9 +435,8 @@ static void ring_alloc( struct ring *r, const char *name )
 
 	init_waitqueue_head( &r->reader_waitqueue );
 
-	for ( i = 0; i < NRING_READERS; i++ ) {
-		r->reader[i].id = -1;
-	}
+	for ( i = 0; i < NRING_READERS; i++ )
+		r->reader[i].allocated = false;
 }
 
 static void ring_free( struct ring *r )
