@@ -11,13 +11,10 @@ extern "C" {
 #define PGOFF_DATA 2
 #define KRING_PAGE_SIZE 4096
 
-#define DSC_WRITER_OWNED    0x1
-#define DSC_READER_OWNED    0x2
-#define DSC_EITHER_OWNED    0x3
-
-#define DSC_RID_SHIFT 4
-
 #define DSC_READER_SHIFT    2
+#define DSC_WRITER_OWNED    0x01
+#define DSC_READER_OWNED    0xfc
+#define DSC_READER_BIT(id)  ( 0x1 << ( DSC_READER_SHIFT + (id) ) )
 
 #define KRING_ERR_SOCK -1
 #define KRING_ERR_MMAP -2
@@ -32,7 +29,7 @@ extern "C" {
 #define KRING_DIR_OUTSIDE 2
 
 #define KRING_NLEN 32
-#define NRING_READERS 8
+#define NRING_READERS 6
 
 enum KRING_TYPE
 {
@@ -171,7 +168,7 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 		desc = u->shared.descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
-			shr_desc_t newval = desc | DSC_READER_OWNED | ( 0x1 << ( DSC_READER_SHIFT + u->id ) );
+			shr_desc_t newval = desc | DSC_READER_BIT( u->id );
 		
 			/* Attemp write back. */
 			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[rhead].desc, desc, newval );
@@ -193,7 +190,7 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 inline void kring_unreserv_prev( struct kring_user *u, shr_off_t prev )
 {
 	/* Unreserve prev. */
-	u->shared.descriptor[prev].desc &= ~( DSC_READER_OWNED | ( 0x1 << ( DSC_READER_SHIFT + u->id ) ) );
+	u->shared.descriptor[prev].desc &= ~( DSC_READER_BIT( u->id ) );
 }
 
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
@@ -274,7 +271,7 @@ retry:
 		if ( desc & DSC_READER_OWNED ) {
 			/* register skips. */
 			for ( id = 0; id < NRING_READERS; id++ ) {
-				if ( desc & ( 0x1 << ( DSC_READER_SHIFT + id ) ) ) {
+				if ( desc & DSC_READER_BIT( id ) ) {
 					/* reader id present. */
 					shared->reader[id].skips += 1;
 				}

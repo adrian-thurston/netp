@@ -110,13 +110,13 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 	u->shared.reader[u->id].rhead = u->shared.control->whead;
 	u->shared.reader[u->id].skips = 0;
 
-	int desc = u->shared.descriptor[u->shared.reader[u->id].rhead].desc;
+	shr_desc_t desc = u->shared.descriptor[u->shared.reader[u->id].rhead].desc;
 	if ( desc & DSC_WRITER_OWNED ) {
 		/* Fatal error. Writer should not own from prev write head. */
 	}
 	else {
-		int newval = desc | DSC_READER_OWNED;
-		int before = __sync_val_compare_and_swap( &u->shared.descriptor[u->shared.reader[u->id].rhead].desc, desc, newval );
+		shr_desc_t newval = desc | DSC_READER_BIT( u->id );
+		shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[u->shared.reader[u->id].rhead].desc, desc, newval );
 		if ( before != desc ) {
 			/* writer got in, retry. */
 		}
