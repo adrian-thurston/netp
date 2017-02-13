@@ -144,6 +144,12 @@ inline int kring_avail_impl( struct kring_shared *shared, int id )
 	return ( shared->reader[id].rhead != shared->control->whead );
 }
 
+static inline shr_desc_t kring_write_back( struct kring_shared *shared,
+		shr_off_t off, shr_desc_t oldval, shr_desc_t newval )
+{
+	return __sync_val_compare_and_swap( &shared->descriptor[off].desc, oldval, newval );
+}
+
 inline int kring_avail( struct kring_user *u )
 {
 	return kring_avail_impl( &u->shared, u->id );
@@ -171,7 +177,7 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 			shr_desc_t newval = desc | DSC_READER_BIT( u->id );
 		
 			/* Attemp write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &u->shared.descriptor[rhead].desc, desc, newval );
+			shr_desc_t before = kring_write_back( &u->shared, rhead, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				break;
@@ -284,7 +290,7 @@ retry:
 			shr_desc_t newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
-			shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptor[whead].desc, desc, newval );
+			shr_desc_t before = kring_write_back( shared, whead, desc, newval );
 			if ( before != desc )
 				goto retry;
 
@@ -307,7 +313,7 @@ inline int writer_release( struct kring_shared *shared, shr_off_t whead )
 
 	/* Write back with check. No other reader or writer should have altered the
 	 * descriptor. */
-	shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptor[whead].desc, desc, newval );
+	shr_desc_t before = kring_write_back( shared, whead, desc, newval );
 	if ( before != desc )
 		return -1;
 
