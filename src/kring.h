@@ -266,11 +266,12 @@ inline unsigned long find_write_loc( struct kring_shared *shared )
 		/* Move to the next slot. */
 		whead = kring_next( whead );
 
+retry:
 		/* Read the descriptor. */
 		desc = shared->descriptor[whead].desc;
 
 		/* Check, if not okay, go on to next. */
-		if ( ( desc & DSC_EITHER_OWNED ) ) {
+		if ( desc & DSC_READER_OWNED ) {
 			/* register skips. */
 			for ( id = 0; id < NRING_READERS; id++ ) {
 				if ( desc & ( 0x1 << ( DSC_READER_SHIFT + id ) ) ) {
@@ -279,15 +280,19 @@ inline unsigned long find_write_loc( struct kring_shared *shared )
 				}
 			}
 		}
+		else if ( desc & DSC_WRITER_OWNED ) {
+			/* Unusual situation. */
+		}
 		else {
 			shr_desc_t newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
 			shr_desc_t before = __sync_val_compare_and_swap( &shared->descriptor[whead].desc, desc, newval );
-			if ( before == desc ) {
-				/* Write back okay. We can use. */
-				return whead;
-			}
+			if ( before != desc )
+				goto retry;
+
+			/* Write back okay. No reader claimed. We can use. */
+			return whead;
 		}
 
 		/* if skips == size, bail out. */
