@@ -63,7 +63,6 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
-
 int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, enum KRING_MODE mode )
 {
 	int res, id;
@@ -74,19 +73,23 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 	memset( u, 0, sizeof(struct kring_user) );
 
 	u->socket = socket( KRING, SOCK_RAW, htons(ETH_P_ALL) );
-	if ( u->socket < 0 )
-		goto err_socket;
+	if ( u->socket < 0 ) {
+		kring_func_error( KRING_ERR_SOCK, errno );
+		goto err_return;
+	}
 
 	copy_name( addr.name, ring );
 	addr.mode = mode;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) 
-		goto err_bind;
+		goto err_close;
 
 	res = getsockopt( u->socket, SOL_PACKET, 1, &id, &idlen );
-	if ( res < 0 )
-		goto err_opt;
+	if ( res < 0 ) {
+		kring_func_error( KRING_ERR_GETID, errno );
+		goto err_close;
+	}
 
 	u->id = id;
 
@@ -96,8 +99,10 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 			MAP_SHARED, u->socket,
 			( typeoff | PGOFF_CTRL ) * KRING_PAGE_SIZE );
 
-	if ( r == MAP_FAILED )
-		goto err_mmap;
+	if ( r == MAP_FAILED ) {
+		kring_func_error( KRING_ERR_MMAP, errno );
+		goto err_close;
+	}
 
 	u->shared.control = (struct shared_ctrl*)r;
 	u->shared.reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_ctrl) );
@@ -107,38 +112,25 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 			MAP_SHARED, u->socket,
 			( typeoff | PGOFF_DATA ) * KRING_PAGE_SIZE );
 
-	if ( r == MAP_FAILED )
-		goto err_mmap;
+	if ( r == MAP_FAILED ) {
+		kring_func_error( KRING_ERR_MMAP, errno );
+		goto err_close;
+	}
 
-	u->g = (struct kring_page*)r;
+	u->data = (struct kring_page*)r;
 
 	res = kring_enter( u );
-
-	if ( res < 0 )
-		goto err_enter;
+	if ( res < 0 ) {
+		kring_func_error( KRING_ERR_ENTER, 0 );
+		goto err_close;
+	}
 
 	return 0;
 
-err_enter:
-	u->_errno = 0;
+err_close:
 	close( u->socket );
-	return KRING_ERR_ENTER;
-err_mmap:
-	u->_errno = errno;
-	close( u->socket );
-	return KRING_ERR_MMAP;
-err_opt:
-	u->_errno = errno;
-	close( u->socket );
-	return KRING_ERR_GETID;
-err_bind:
-	u->_errno = errno;
-	close( u->socket );
-	return KRING_ERR_BIND;
-err_socket:
-	u->_errno = errno;
-	return KRING_ERR_SOCK;
-	
+err_return:
+	return u->krerr;
 }
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len )
@@ -157,7 +149,7 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	/* Reserve the space. */
 	u->shared.control->wresv = whead;
 
-	h = (struct kring_decrypted_header*)( u->g + whead );
+	h = (struct kring_decrypted_header*)( u->data + whead );
 	bytes = (unsigned char*)( h + 1 );
 
 	h->len = len;

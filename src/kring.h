@@ -33,6 +33,10 @@ extern "C" {
 #define KRING_NLEN 32
 #define NRING_READERS 6
 
+/* Records an error in the user struct. Use before goto to function cleanup. */
+#define kring_func_error( _ke, _ee ) \
+	do { u->krerr = _ke; u->_errno = _ee; } while (0)
+
 enum KRING_TYPE
 {
 	KRING_PACKETS = 1,
@@ -96,7 +100,8 @@ struct kring_user
 	int socket;
 	int id;
 	struct kring_shared shared;
-	struct kring_page *g;
+	struct kring_page *data;
+	int krerr;
 	int _errno;
 	char *errstr;
 };
@@ -239,7 +244,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 
 	kring_reader_release( u, prev );
 
-	h = (struct kring_packet_header*)( u->g + u->shared.reader[u->id].rhead );
+	h = (struct kring_packet_header*)( u->data + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -264,7 +269,7 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	/* Unreserve prev. */
 	kring_reader_release( u, prev );
 
-	h = (struct kring_decrypted_header*)( u->g + u->shared.reader[u->id].rhead );
+	h = (struct kring_decrypted_header*)( u->data + u->shared.reader[u->id].rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
