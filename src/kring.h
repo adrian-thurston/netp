@@ -21,6 +21,7 @@ extern "C" {
 #define KRING_ERR_MMAP -2
 #define KRING_ERR_BIND -3
 #define KRING_ERR_GETID -4
+#define KRING_ERR_ENTER -5
 
 /* Direction: from client, or from server. */
 #define KRING_DIR_CLIENT 1
@@ -158,12 +159,19 @@ inline int kring_avail( struct kring_user *u )
 
 inline shr_off_t kring_next( shr_off_t off )
 {
-	/* Next. */
 	off += 1;
-	if ( off  >= NPAGES )
+	if ( off >= NPAGES )
 		off = 0;
 	return off;
 }
+
+inline shr_off_t kring_prev( shr_off_t off )
+{
+	if ( off == 0 )
+		return NPAGES - 1;
+	return off - 1;
+}
+
 
 inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 {
@@ -344,27 +352,37 @@ inline int writer_release( struct kring_shared *shared, shr_off_t whead )
 	return 0;
 }
 
-inline void kring_enter( struct kring_user *u )
+inline int kring_enter( struct kring_user *u )
 {
+	shr_desc_t desc, newval, before;
+
 	/* Init the read head. */
 	shr_off_t rhead = u->shared.control->whead;
-	shr_desc_t desc = u->shared.descriptor[rhead].desc;
-	if ( desc & DSC_WRITER_OWNED ) {
-		/* Fatal error. Writer should not own from prev write head. */
+
+again:
+	desc = u->shared.descriptor[rhead].desc;
+	if ( desc & DSC_SKIPPED ) {
+		/* Encountered a stale block, go back one. */
+		rhead = kring_prev( rhead );
+		goto again;
 	}
-	else {
-		shr_desc_t newval = desc | DSC_READER_BIT( u->id );
-		shr_desc_t before = kring_write_back( &u->shared, rhead, desc, newval );
-		if ( before != desc ) {
-			/* writer got in, retry. */
-		}
-		else {
-			/* Okay good. */
-		}
+	else if ( desc & DSC_WRITER_OWNED ) {
+		/* Fatal error. Writer should not own from prev write head. */
+		return -1;
 	}
 
+	newval = desc | DSC_READER_BIT( u->id );
+	before = kring_write_back( &u->shared, rhead, desc, newval );
+	if ( before != desc ) {
+		/* writer got in, retry. */
+		goto again;
+	}
+
+	/* Okay good. */
 	u->shared.reader[u->id].rhead = rhead; 
 	u->shared.reader[u->id].skips = 0;
+
+	return 0;
 }
 
 #if defined(__cplusplus)

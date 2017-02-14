@@ -34,15 +34,20 @@ char *kring_error( struct kring_user *u, int err )
 		case KRING_ERR_GETID:
 			prefix = "getsockopt(id) call failed";
 			break;
+		case KRING_ERR_ENTER:
+			prefix = "exception in ring entry";
+			break;
 	}
 
 	/* start with the prefix. Always there (see above). */
 	len = strlen(prefix);
 
 	/* Maybe add errnostring. */
-	errnostr = strerror(u->_errno);
-	if ( errnostr )
-		len += 2 + strlen(errnostr);
+	if ( u->_errno != 0 ) {
+		errnostr = strerror(u->_errno);
+		if ( errnostr )
+			len += 2 + strlen(errnostr);
+	}
 
 	/* Null. */
 	len += 1;
@@ -107,10 +112,17 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 
 	u->g = (struct kring_page*)r;
 
-	kring_enter( u );
+	res = kring_enter( u );
+
+	if ( res < 0 )
+		goto err_enter;
 
 	return 0;
 
+err_enter:
+	u->_errno = 0;
+	close( u->socket );
+	return KRING_ERR_ENTER;
 err_mmap:
 	u->_errno = errno;
 	close( u->socket );
