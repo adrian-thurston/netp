@@ -8,7 +8,7 @@ struct ring_reader
 	bool allocated;
 };
 
-struct ring
+struct ringset
 {
 	char name[KRING_NLEN];
 	void *ctrl;
@@ -21,17 +21,17 @@ struct ring
 
 	struct ring_reader reader[NRING_READERS];
 
-	struct ring *next;
+	struct ringset *next;
 };
 
 struct kring_kern
 {
 	char name[KRING_NLEN];
-	struct ring *ring;
+	struct ringset *ringset;
 	int rid;
 };
 
-int kring_wopen( struct kring_kern *kring, const char *ring, int rid );
+int kring_wopen( struct kring_kern *kring, const char *ringset, int rid );
 int kring_wclose( struct kring_kern *kring );
 void kring_write( struct kring_kern *kring, int dir, void *d, int len );
 

@@ -14,7 +14,7 @@ struct kring
 	struct kobject kobj;
 };
 
-static struct ring *head = 0;
+static struct ringset *head = 0;
 
 static int kring_sock_release( struct socket *sock );
 static int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -54,7 +54,7 @@ static struct proto_ops kring_ops = {
 struct kring_sock
 {
 	struct sock sk;
-	struct ring *ring;
+	struct ringset *ringset;
 	enum KRING_MODE mode;
 	int id;
 };
@@ -94,7 +94,7 @@ static int kring_sock_release( struct socket *sock )
 static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
-	struct ring *r = krs->ring;
+	struct ringset *r = krs->ringset;
 
 	/* Ensure bound. */
 	if ( r == 0 )
@@ -151,9 +151,9 @@ static int validate_ring_name( const char *name )
 	}
 }
 
-static struct ring *find_ring( const char *name )
+static struct ringset *find_ring( const char *name )
 {
-	struct ring *r = head;
+	struct ringset *r = head;
 	while ( r != 0 ) {
 		if ( strcmp( r->name, name ) == 0 )
 			return r;
@@ -169,7 +169,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	int id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
-	struct ring *ring;
+	struct ringset *ringset;
 
 	if ( addr_len != sizeof(struct kring_addr) )
 		return -EINVAL;
@@ -180,17 +180,17 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	if ( addr->mode != KRING_READ && addr->mode != KRING_WRITE )
 		return -EINVAL;
 	
-	ring = find_ring( addr->name );
-	if ( ring == 0 )
+	ringset = find_ring( addr->name );
+	if ( ringset == 0 )
 		return -EINVAL;
 
 	if ( addr->mode == KRING_WRITE ) {
-		if ( ring->has_writer )
+		if ( ringset->has_writer )
 			return -EINVAL;
 	}
 	else {
 		for ( id = 0 ; id < NRING_READERS; id++ ) {
-			if ( !ring->reader[id].allocated )
+			if ( !ringset->reader[id].allocated )
 				break;
 		}
 
@@ -200,11 +200,11 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	}
 
 	krs = kring_sk( sock->sk );
-	krs->ring = ring;
+	krs->ringset = ringset;
 	krs->mode = addr->mode;
 	krs->id = id;
 
-	ring->reader[id].allocated = true;
+	ringset->reader[id].allocated = true;
 
 	return 0;
 }
@@ -265,7 +265,7 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
-	struct ring *r = krs->ring;
+	struct ringset *r = krs->ringset;
 	sigset_t blocked, oldset;
 	int ret;
 
@@ -292,7 +292,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
-	struct ring *r = krs->ring;
+	struct ringset *r = krs->ringset;
 	wake_up_interruptible_all( &r->reader_waitqueue );
 	return 0;
 }
@@ -300,7 +300,7 @@ static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static void kring_sock_destruct( struct sock *sk )
 {
 	struct kring_sock *krs = kring_sk( sk );
-	krs->ring->reader[krs->id].allocated = false;
+	krs->ringset->reader[krs->id].allocated = false;
 
 	printk( "kring_sock_destruct\n" );
 }
@@ -333,14 +333,14 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-int kring_wopen( struct kring_kern *kring, const char *ring, int rid )
+int kring_wopen( struct kring_kern *kring, const char *ringset, int rid )
 {
-	struct ring *r = find_ring( ring );
+	struct ringset *r = find_ring( ringset );
 	if ( r == 0 )
 		return -1;
 
-	copy_name( kring->name, ring );
-	kring->ring = r;
+	copy_name( kring->name, ringset );
+	kring->ringset = r;
 	kring->rid = rid;
 	r->has_writer = true;
 
@@ -349,7 +349,7 @@ int kring_wopen( struct kring_kern *kring, const char *ring, int rid )
 
 int kring_wclose( struct kring_kern *kring )
 {
-	kring->ring->has_writer = false;
+	kring->ringset->has_writer = false;
 	return 0;
 }
 
@@ -359,8 +359,8 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	void *pdata;
 	shr_off_t whead;
 
-	/* Which ring? */
-	struct ring *r = kring->ring;
+	/* Which ringset? */
+	struct ringset *r = kring->ringset;
 
 	/* Limit the size. */
 	const int headsz = sizeof(struct kring_packet_header);
@@ -406,7 +406,7 @@ static void free_shared_memory( void *m )
 	vfree(m);
 }
 
-static void ring_alloc( struct ring *r, const char *name, long n )
+static void ring_alloc( struct ringset *r, const char *name, long n )
 {
 	int i;
 
@@ -438,7 +438,7 @@ static void ring_alloc( struct ring *r, const char *name, long n )
 		r->reader[i].allocated = false;
 }
 
-static void ring_free( struct ring *r )
+static void ring_free( struct ringset *r )
 {
 	int i;
 	for ( i = 0; i < NPAGES; i++ )
@@ -450,17 +450,17 @@ static void ring_free( struct ring *r )
 
 static ssize_t kring_add_store( struct kring *obj, const char *name, long n )
 {
-	struct ring *r;
+	struct ringset *r;
 	if ( n < 1 || n > 32 )
 		return -EINVAL;
 
-	r = kmalloc( sizeof(struct ring), GFP_KERNEL );
+	r = kmalloc( sizeof(struct ringset), GFP_KERNEL );
 	ring_alloc( r, name, n );
 
 	if ( head == 0 )
 		head = r;
 	else {
-		struct ring *tail = head;
+		struct ringset *tail = head;
 		while ( tail->next != 0 )
 			tail = tail->next;
 		tail->next = r;
@@ -489,7 +489,7 @@ static int kring_init(void)
 
 static void kring_exit(void)
 {
-	struct ring *r;
+	struct ringset *r;
 
 	sock_unregister( KRING );
 

@@ -112,7 +112,7 @@ struct kring_addr
 	enum KRING_MODE mode;
 };
 
-int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, enum KRING_MODE mode );
+int kring_open( struct kring_user *u, const char *ringset, enum KRING_TYPE type, enum KRING_MODE mode );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );
