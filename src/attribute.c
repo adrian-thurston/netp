@@ -353,7 +353,6 @@ int kring_wclose( struct kring_kern *kring )
 	return 0;
 }
 
-
 void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 {
 	struct kring_packet_header *h;
@@ -407,7 +406,7 @@ static void free_shared_memory( void *m )
 	vfree(m);
 }
 
-static void ring_alloc( struct ring *r, const char *name )
+static void ring_alloc( struct ring *r, const char *name, long n )
 {
 	int i;
 
@@ -449,10 +448,14 @@ static void ring_free( struct ring *r )
 	kfree( r->pd );
 }
 
-static ssize_t kring_add_store( struct kring *obj, const char *name )
+static ssize_t kring_add_store( struct kring *obj, const char *name, long n )
 {
-	struct ring *r = kmalloc( sizeof(struct ring), GFP_KERNEL );
-	ring_alloc( r, name );
+	struct ring *r;
+	if ( n < 1 || n > 32 )
+		return -EINVAL;
+
+	r = kmalloc( sizeof(struct ring), GFP_KERNEL );
+	ring_alloc( r, name, n );
 
 	if ( head == 0 )
 		head = r;

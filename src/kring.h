@@ -315,7 +315,7 @@ retry:
 				}
 			}
 
-			/* Mark as skipped. If if a reader got in before us, retry. */
+			/* Mark as skipped. If a reader got in before us, retry. */
 			before = kring_write_back( shared, whead, desc, desc | DSC_SKIPPED );
 			if ( before != desc )
 				goto retry;
