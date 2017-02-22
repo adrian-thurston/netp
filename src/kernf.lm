@@ -8,7 +8,6 @@ void attributeStruct( Kobj: kobj, Attr: attr )
 
 void attributeDecl( Kobj: kobj, Attr: attr )
 {
-
 	if ( Attr->Show ) {
 		send Output
 			"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
@@ -22,8 +21,15 @@ void attributeDecl( Kobj: kobj, Attr: attr )
 			"		struct [Kobj->TypeName] *obj"
 
 		for Arg: attr_arg in Attr->ArgList {
-			send Output
-				", const char *[Arg.id]"
+			switch Arg.attr_arg_type
+			case [`string] {
+				send Output
+					", const char *[Arg.id]"
+			}
+			case [`long] {
+				send Output
+					", long [Arg.id]
+			}
 		}
 
 		send Output
@@ -56,6 +62,19 @@ void attribute_h( P: program )
 
 	send Output [] eos
 	writeOutput( Output->tree, 'attribute.h' )
+}
+
+int len( OL: attr_arg_list? )
+{
+	L: int = 0
+	if match OL [List: attr_arg_list] {
+		while match List [attr_arg `, NL: attr_arg_list] {
+			List = NL
+			L = L + 1
+		}
+		L = L + 1
+	}
+	return L
 }
 
 void module_c( P: program )
@@ -160,6 +179,7 @@ void module_c( P: program )
 		"{
 		"	struct [ModuleName]_attribute *kattr;
 		"	ssize_t ret = -EIO;
+		"	int scanned;
 		" 
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
@@ -172,40 +192,60 @@ void module_c( P: program )
 					"	struct [Kobj->TypeName] *obj;
 
 				for Arg: attr_arg in Attr->ArgList {
-					send Output
-						"	char [Arg.id]\[32\];
+					switch Arg.attr_arg_type
+					case [`string] {
+						send Output
+							"	char [Arg.id]\[32\];
+					}
+					case [`long] {
+						send Output
+							"	long [Arg.id];
+					}
 				}
 
 				send Output
-					"	sscanf( buf, \""
+					"	scanned = sscanf( buf, \""
 
 				for Arg: attr_arg in Attr->ArgList {
-					send Output
-						"%s "
+					switch Arg.attr_arg_type
+					case [`string] {
+						send Output "%s "
+					}
+					case [`long] {
+						send Output "%ld "
+					}
 				}
 
 				send Output
 					"\""
 
 				for Arg: attr_arg in Attr->ArgList {
-					send Output
-						", [Arg.id]"
+					switch Arg.attr_arg_type
+					case [`string] {
+						send Output
+							", [Arg.id]"
+					}
+					case [`long] {
+						send Output
+							", &[Arg.id]"
+					}
 				}
 
 				send Output
 					" );
 
 				send Output
-					"	obj = container_of( kobj, struct [Kobj->TypeName], kobj );
-					"	[Kobj->TypeName]_[Attr->Name]_store( obj"
+					"	if ( scanned == [len( Attr->ArgList )] ) {
+					"		obj = container_of( kobj, struct [Kobj->TypeName], kobj );
+					"		[Kobj->TypeName]_[Attr->Name]_store( obj"
 
 				for Arg: attr_arg in Attr->ArgList {
 					send Output
 						", [Arg.id]"
 				}
 
-				send Output
-					" );
+				send Output ");
+					"	}
 					"	ret = count;
 					"	break;
 					"}
