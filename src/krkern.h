@@ -8,18 +8,27 @@ struct ring_reader
 	bool allocated;
 };
 
-struct ringset
+struct ring
 {
-	char name[KRING_NLEN];
 	void *ctrl;
 	struct kring_shared shared;
 	struct page_desc *pd;
-	wait_queue_head_t reader_waitqueue;
 	
 	bool has_writer;
 	long num_readers;
 
 	struct ring_reader reader[NRING_READERS];
+
+	wait_queue_head_t reader_waitqueue;
+};
+
+struct ringset
+{
+	char name[KRING_NLEN];
+	wait_queue_head_t reader_waitqueue;
+
+	struct ring *ring;
+	int N;
 
 	struct ringset *next;
 };

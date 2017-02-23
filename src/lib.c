@@ -63,7 +63,15 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
-int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, enum KRING_MODE mode )
+static unsigned long cons_pgoff( unsigned long rid, unsigned long region )
+{
+	return (
+		( ( rid    << PGOFF_ID_SHIFT )     & PGOFF_ID_MASK ) |
+		( ( region << PGOFF_REGION_SHIFT ) & PGOFF_REGION_MASK )
+	) * KRING_PAGE_SIZE;
+}
+
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode )
 {
 	int res, id;
 	socklen_t idlen = sizeof(id);
@@ -78,7 +86,7 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 		goto err_return;
 	}
 
-	copy_name( addr.name, ring );
+	copy_name( addr.name, ringset );
 	addr.mode = mode;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
@@ -93,11 +101,9 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 
 	u->id = id;
 
-	long unsigned typeoff = ( type == KRING_DECRYPTED ? 0x10000 : 0 );
-
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			( typeoff | PGOFF_CTRL ) * KRING_PAGE_SIZE );
+			cons_pgoff( rid, PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
 		kring_func_error( KRING_ERR_MMAP, errno );
@@ -110,7 +116,7 @@ int kring_open( struct kring_user *u, const char *ring, enum KRING_TYPE type, en
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			( typeoff | PGOFF_DATA ) * KRING_PAGE_SIZE );
+			cons_pgoff( rid, PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
 		kring_func_error( KRING_ERR_MMAP, errno );

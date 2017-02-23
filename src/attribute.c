@@ -91,19 +91,31 @@ static int kring_sock_release( struct socket *sock )
 	return 0;
 }
 
+static void decon_pgoff( unsigned long pgoff, unsigned long *rid, unsigned long *region )
+{
+	*rid = ( pgoff & PGOFF_ID_MASK ) >> PGOFF_ID_SHIFT;
+	*region = ( pgoff & PGOFF_REGION_MASK ) >> PGOFF_REGION_SHIFT;
+}
+
 static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
 	struct ringset *r = krs->ringset;
+	unsigned long rid, region;
 
 	/* Ensure bound. */
 	if ( r == 0 )
 		return -EINVAL;
+	
+	decon_pgoff( vma->vm_pgoff, &rid, &region );
 
-	switch ( vma->vm_pgoff & 0xffff ) {
+	if ( rid > r->N )
+		return -EINVAL;
+
+	switch ( region  ) {
 		case PGOFF_CTRL: {
-			printk( "mapping control region %p of ring %p\n", r->ctrl, r );
-			remap_vmalloc_range( vma, r->ctrl, 0 );
+			printk( "mapping control region %p of ring %p\n", r->ring->ctrl, r );
+			remap_vmalloc_range( vma, r->ring[rid].ctrl, 0 );
 			break;
 		}
 
@@ -112,7 +124,7 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 			unsigned long uaddr = vma->vm_start;
 			printk( "mapping data region %lu of ring %p\n", uaddr, r );
 			for ( i = 0; i < NPAGES; i++ ) {
-				vm_insert_page( vma, uaddr, r->pd[i].p );
+				vm_insert_page( vma, uaddr, r->ring[rid].pd[i].p );
 				uaddr += PAGE_SIZE;
 			}
 
@@ -185,18 +197,17 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 
 	if ( addr->mode == KRING_WRITE ) {
-		if ( ringset->has_writer )
+		if ( ringset->ring[0].has_writer )
 			return -EINVAL;
 	}
 	else {
 		for ( id = 0 ; id < NRING_READERS; id++ ) {
-			if ( !ringset->reader[id].allocated )
+			if ( !ringset->ring[0].reader[id].allocated )
 				break;
 		}
 
 		if ( id == NRING_READERS )
 			return -EINVAL;
-
 	}
 
 	krs = kring_sk( sock->sk );
@@ -204,7 +215,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	krs->mode = addr->mode;
 	krs->id = id;
 
-	ringset->reader[id].allocated = true;
+	ringset->ring[0].reader[id].allocated = true;
 
 	return 0;
 }
@@ -276,7 +287,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
-	ret = wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->shared, krs->id ) );
+	ret = wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->ring[0].shared, krs->id ) );
 
 	if (ret == -ERESTARTNOHAND) {
 		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
@@ -300,7 +311,7 @@ static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static void kring_sock_destruct( struct sock *sk )
 {
 	struct kring_sock *krs = kring_sk( sk );
-	krs->ringset->reader[krs->id].allocated = false;
+	krs->ringset->ring[0].reader[krs->id].allocated = false;
 
 	printk( "kring_sock_destruct\n" );
 }
@@ -342,14 +353,14 @@ int kring_wopen( struct kring_kern *kring, const char *ringset, int rid )
 	copy_name( kring->name, ringset );
 	kring->ringset = r;
 	kring->rid = rid;
-	r->has_writer = true;
+	r->ring[0].has_writer = true;
 
 	return 0;
 }
 
 int kring_wclose( struct kring_kern *kring )
 {
-	kring->ringset->has_writer = false;
+	kring->ringset->ring[0].has_writer = false;
 	return 0;
 }
 
@@ -370,12 +381,12 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	}
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( &r->shared );
+	whead = find_write_loc( &r->ring[0].shared );
 
 	/* Reserve the space. */
-	r->shared.control->wresv = whead;
+	r->ring[0].shared.control->wresv = whead;
 
-	h = r->pd[whead].m;
+	h = r->ring[0].pd[whead].m;
 	pdata = (char*)(h + 1);
 
 	h->len = len;
@@ -383,11 +394,11 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	memcpy( pdata, d, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	if ( writer_release( &r->shared, whead ) < 0 )
+	if ( writer_release( &r->ring[0].shared, whead ) < 0 )
 		printk( "writer release unexected value\n" );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->shared.control->whead = whead;
+	r->ring[0].shared.control->whead = whead;
 
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
@@ -406,12 +417,9 @@ static void free_shared_memory( void *m )
 	vfree(m);
 }
 
-static void ring_alloc( struct ringset *r, const char *name, long n )
+static void ring_alloc( struct ring *r )
 {
 	int i;
-
-	strncpy( r->name, name, KRING_NLEN );
-	r->name[KRING_NLEN-1] = 0;
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
@@ -432,13 +440,28 @@ static void ring_alloc( struct ringset *r, const char *name, long n )
 
 	r->shared.control->whead = r->shared.control->wresv = kring_one_back( 0 );
 
-	init_waitqueue_head( &r->reader_waitqueue );
-
 	for ( i = 0; i < NRING_READERS; i++ )
 		r->reader[i].allocated = false;
+
+	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ring_free( struct ringset *r )
+static void ringset_alloc( struct ringset *r, const char *name, long n )
+{
+	int i;
+
+	strncpy( r->name, name, KRING_NLEN );
+	r->name[KRING_NLEN-1] = 0;
+
+	r->N = n;
+	r->ring = kmalloc( sizeof(struct ring) * n, GFP_KERNEL );
+	for ( i = 0; i < n; i++ )
+		ring_alloc( &r->ring[i] );
+
+	init_waitqueue_head( &r->reader_waitqueue );
+}
+
+static void ring_free( struct ring *r )
 {
 	int i;
 	for ( i = 0; i < NPAGES; i++ )
@@ -448,14 +471,22 @@ static void ring_free( struct ringset *r )
 	kfree( r->pd );
 }
 
+static void ringset_free( struct ringset *r )
+{
+	int i;
+	for ( i = 0; i < r->N; i++ )
+		ring_free( &r->ring[i] );
+	kfree( r->ring );
+}
+
 static ssize_t kring_add_store( struct kring *obj, const char *name, long n )
 {
 	struct ringset *r;
-	if ( n < 1 || n > 32 )
+	if ( n < 1 || n > MAX_RINGS_PER_SET )
 		return -EINVAL;
 
 	r = kmalloc( sizeof(struct ringset), GFP_KERNEL );
-	ring_alloc( r, name, n );
+	ringset_alloc( r, name, n );
 
 	if ( head == 0 )
 		head = r;
@@ -497,7 +528,7 @@ static void kring_exit(void)
 
 	r = head;
 	while ( r != 0 ) {
-		ring_free( r );
+		ringset_free( r );
 		r = r->next;
 	}
 }

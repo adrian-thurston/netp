@@ -7,8 +7,26 @@ extern "C" {
 
 #define KRING 25
 #define NPAGES 2048
-#define PGOFF_CTRL 1
-#define PGOFF_DATA 2
+
+#define PGOFF_CTRL 0
+#define PGOFF_DATA 1
+
+/*
+ * Memap identity information. 
+ */
+
+/* Ring id (5), region to map (1) */
+
+/* Must match region shift below. */
+#define MAX_RINGS_PER_SET 32
+
+#define PGOFF_ID_SHIFT 0
+#define PGOFF_ID_MASK  0x1f
+
+#define PGOFF_REGION_SHIFT 5
+#define PGOFF_REGION_MASK  0x20
+
+/* MUST match system page size. */
 #define KRING_PAGE_SIZE 4096
 
 #define DSC_READER_SHIFT    2
@@ -112,7 +130,7 @@ struct kring_addr
 	enum KRING_MODE mode;
 };
 
-int kring_open( struct kring_user *u, const char *ringset, enum KRING_TYPE type, enum KRING_MODE mode );
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );
@@ -176,7 +194,6 @@ inline shr_off_t kring_prev( shr_off_t off )
 		return NPAGES - 1;
 	return off - 1;
 }
-
 
 inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 {
