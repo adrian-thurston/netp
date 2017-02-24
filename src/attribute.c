@@ -56,7 +56,8 @@ struct kring_sock
 	struct sock sk;
 	struct ringset *ringset;
 	enum KRING_MODE mode;
-	int id;
+	int ring_id;
+	int reader_id;
 };
 
 static inline struct kring_sock *kring_sk( const struct sock *sk )
@@ -178,7 +179,7 @@ static struct ringset *find_ring( const char *name )
 
 static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
-	int id = -1;
+	int i, id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct ringset *ringset;
@@ -196,26 +197,59 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	if ( ringset == 0 )
 		return -EINVAL;
 
-	if ( addr->mode == KRING_WRITE ) {
-		if ( ringset->ring[0].has_writer )
-			return -EINVAL;
-	}
-	else {
-		for ( id = 0 ; id < NRING_READERS; id++ ) {
-			if ( !ringset->ring[0].reader[id].allocated )
-				break;
-		}
-
-		if ( id == NRING_READERS )
-			return -EINVAL;
-	}
+	if ( addr->rid < -1 || addr->rid >= ringset->N )
+		return -EINVAL;
 
 	krs = kring_sk( sock->sk );
+
+	if ( addr->mode == KRING_WRITE ) {
+		/* Cannot write to all rings. */
+		if ( addr->rid == KR_RING_ID_ALL )
+			return -EINVAL;
+
+		if ( ringset->ring[addr->rid].has_writer )
+			return -EINVAL;
+
+		ringset->ring[addr->rid].has_writer = true;
+	}
+	else {
+		/* Compute rings to iterate over. Default to exactly ring id. */
+		int low = addr->rid, high = addr->rid + 1;
+
+		/* Maybe all rings? */
+		if ( addr->rid == KR_RING_ID_ALL ) {
+			low = 0;
+			high = ringset->N;
+		}
+
+		/* Search for a single reader id that is free across all the rings requested. */
+		for ( id = 0; id < NRING_READERS; id++ ) {
+			for ( i = low; i < high; i++ ) {
+				if ( ringset->ring[i].reader[id].allocated )
+					goto next_id;
+			}
+
+			/* Got through all the rings, break with a valid id. */
+			goto good;
+
+			next_id: {}
+		}
+
+		/* No valid id found (exited id loop). */
+		return -EINVAL;
+
+		/* All okay. */
+		good: {}
+		
+		/* Allocate reader ids. */
+		for ( i = low; i < high; i++ )
+			ringset->ring[i].reader[id].allocated = true;
+	}
+
 	krs->ringset = ringset;
 	krs->mode = addr->mode;
-	krs->id = id;
-
-	ringset->ring[0].reader[id].allocated = true;
+	krs->ring_id = addr->rid;
+	krs->reader_id = id;
 
 	return 0;
 }
@@ -239,20 +273,20 @@ static int kring_getsockopt( struct socket *sock, int level, int optname, char _
 	void *data = &val;
 	struct kring_sock *krs = kring_sk( sock->sk );
 
-	if (level != SOL_PACKET)
+	if ( level != SOL_PACKET )
 		return -ENOPROTOOPT;
 
-	if (get_user(len, optlen))
+	if ( get_user(len, optlen) )
 		return -EFAULT;
 
-	if (len < 0)
+	if ( len < 0 )
 		return -EINVAL;
 
 	printk( "kring_getsockopt\n" );
 
 	switch ( optname ) {
-		case 1:
-			val = krs->id;
+		case KR_OPT_RIDS:
+			val = krs->reader_id;
 			break;
 	}
 
@@ -279,6 +313,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 	struct ringset *r = krs->ringset;
 	sigset_t blocked, oldset;
 	int ret;
+	wait_queue_head_t *wq;
 
 	/* Allow kill, stop and the user sigs. This assumes we are operating under
 	 * the genf program framework where we want to atomically unmask the user
@@ -287,7 +322,10 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
 	sigprocmask(SIG_SETMASK, &blocked, &oldset);
 
-	ret = wait_event_interruptible( r->reader_waitqueue, kring_avail_impl( &r->ring[0].shared, krs->id ) );
+	// wq = krs->ring_id == KR_RING_ID_ALL ? &r->reader_waitqueue : &r->ring[krs->ring_id].reader_waitqueue;
+	wq = &r->reader_waitqueue;
+
+	ret = wait_event_interruptible( *wq, kring_avail_impl( &r->ring[krs->ring_id].shared, krs->reader_id ) );
 
 	if (ret == -ERESTARTNOHAND) {
 		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
@@ -311,9 +349,18 @@ static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static void kring_sock_destruct( struct sock *sk )
 {
 	struct kring_sock *krs = kring_sk( sk );
-	krs->ringset->ring[0].reader[krs->id].allocated = false;
+	int i, low = krs->ring_id, high = krs->ring_id + 1;
 
 	printk( "kring_sock_destruct\n" );
+
+	/* Maybe all rings? */
+	if ( krs->ring_id == KR_RING_ID_ALL ) {
+		low = 0;
+		high = krs->ringset->N;
+	}
+
+	for ( i = low; i < high; i++ )
+		krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
 }
 
 int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern )

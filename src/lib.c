@@ -88,12 +88,13 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 
 	copy_name( addr.name, ringset );
 	addr.mode = mode;
+	addr.rid = rid;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) 
 		goto err_close;
 
-	res = getsockopt( u->socket, SOL_PACKET, 1, &id, &idlen );
+	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RIDS, &id, &idlen );
 	if ( res < 0 ) {
 		kring_func_error( KRING_ERR_GETID, errno );
 		goto err_close;

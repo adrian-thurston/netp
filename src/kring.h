@@ -26,6 +26,8 @@ extern "C" {
 #define PGOFF_REGION_SHIFT 5
 #define PGOFF_REGION_MASK  0x20
 
+#define KR_RING_ID_ALL -1
+
 /* MUST match system page size. */
 #define KRING_PAGE_SIZE 4096
 
@@ -50,6 +52,8 @@ extern "C" {
 
 #define KRING_NLEN 32
 #define NRING_READERS 6
+
+#define KR_OPT_RIDS 1
 
 /* Records an error in the user struct. Use before goto to function cleanup. */
 #define kring_func_error( _ke, _ee ) \
@@ -128,6 +132,7 @@ struct kring_addr
 {
 	char name[KRING_NLEN];
 	enum KRING_MODE mode;
+	int rid;
 };
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
