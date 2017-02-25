@@ -391,23 +391,27 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-int kring_wopen( struct kring_kern *kring, const char *ringset, int rid )
+int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
 {
 	struct ringset *r = find_ring( ringset );
 	if ( r == 0 )
 		return -1;
+	
+	if ( ring_id < 0 || ring_id >= r->N )
+		return -1;
 
 	copy_name( kring->name, ringset );
 	kring->ringset = r;
-	kring->rid = rid;
-	r->ring[0].has_writer = true;
+	kring->ring_id = ring_id;
+
+	r->ring[ring_id].has_writer = true;
 
 	return 0;
 }
 
 int kring_wclose( struct kring_kern *kring )
 {
-	kring->ringset->ring[0].has_writer = false;
+	kring->ringset->ring[kring->ring_id].has_writer = false;
 	return 0;
 }
 
@@ -423,17 +427,17 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	/* Limit the size. */
 	const int headsz = sizeof(struct kring_packet_header);
 	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
-		printk("KRING: large write: %d\n", len );
+		/* printk("KRING: large write: %d\n", len ); */
 		len = PAGE_SIZE - headsz;
 	}
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( &r->ring[0].shared );
+	whead = find_write_loc( &r->ring[kring->ring_id].shared );
 
 	/* Reserve the space. */
-	r->ring[0].shared.control->wresv = whead;
+	r->ring[kring->ring_id].shared.control->wresv = whead;
 
-	h = r->ring[0].pd[whead].m;
+	h = r->ring[kring->ring_id].pd[whead].m;
 	pdata = (char*)(h + 1);
 
 	h->len = len;
@@ -441,11 +445,11 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	memcpy( pdata, d, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	if ( writer_release( &r->ring[0].shared, whead ) < 0 )
+	if ( writer_release( &r->ring[kring->ring_id].shared, whead ) < 0 )
 		printk( "writer release unexected value\n" );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->ring[0].shared.control->whead = whead;
+	r->ring[kring->ring_id].shared.control->whead = whead;
 
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }

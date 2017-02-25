@@ -37,7 +37,7 @@ struct kring_kern
 {
 	char name[KRING_NLEN];
 	struct ringset *ringset;
-	int rid;
+	int ring_id;
 };
 
 int kring_wopen( struct kring_kern *kring, const char *ringset, int rid );
