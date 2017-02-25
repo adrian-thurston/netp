@@ -37,11 +37,12 @@ extern "C" {
 #define DSC_READER_OWNED    0xfc
 #define DSC_READER_BIT(id)  ( 0x1 << ( DSC_READER_SHIFT + (id) ) )
 
-#define KRING_ERR_SOCK -1
-#define KRING_ERR_MMAP -2
-#define KRING_ERR_BIND -3
-#define KRING_ERR_GETID -4
-#define KRING_ERR_ENTER -5
+#define KRING_ERR_SOCK       -1
+#define KRING_ERR_MMAP       -2
+#define KRING_ERR_BIND       -3
+#define KRING_ERR_READER_ID  -4
+#define KRING_ERR_RING_N     -5
+#define KRING_ERR_ENTER      -6
 
 /* Direction: from client, or from server. */
 #define KRING_DIR_CLIENT 1
@@ -53,6 +54,7 @@ extern "C" {
 #define KRING_NLEN 32
 #define NRING_READERS 6
 
+#define KR_OPT_READER_ID 1
 #define KR_OPT_RIDS 1
 
 /* Records an error in the user struct. Use before goto to function cleanup. */
@@ -125,6 +127,7 @@ struct kring_data
 struct kring_user
 {
 	int socket;
+	int ring_id;
 	int reader_id;
 	struct kring_shared shared;
 	struct kring_data data;
@@ -144,6 +147,11 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );
+
+unsigned long kring_skips( struct kring_user *u )
+{
+	return u->shared.reader[u->reader_id].skips;
+}
 
 struct kring_packet
 {

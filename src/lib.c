@@ -31,8 +31,11 @@ char *kring_error( struct kring_user *u, int err )
 		case KRING_ERR_BIND:
 			prefix = "bind call failed";
 			break;
-		case KRING_ERR_GETID:
-			prefix = "getsockopt(id) call failed";
+		case KRING_ERR_READER_ID:
+			prefix = "getsockopt(reader_id) call failed";
+			break;
+		case KRING_ERR_RING_N:
+			prefix = "getsockopt(ring_n) call failed";
 			break;
 		case KRING_ERR_ENTER:
 			prefix = "exception in ring entry";
@@ -94,13 +97,14 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	if ( res < 0 ) 
 		goto err_close;
 
-	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RIDS, &reader_id, &idlen );
+	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );
 	if ( res < 0 ) {
-		kring_func_error( KRING_ERR_GETID, errno );
+		kring_func_error( KRING_ERR_READER_ID, errno );
 		goto err_close;
 	}
 
 	u->reader_id = reader_id;
+	u->ring_id = ring_id;
 
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
