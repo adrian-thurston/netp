@@ -117,12 +117,17 @@ struct kring_shared
 	struct shared_desc *descriptor;
 };
 
+struct kring_data
+{
+	struct kring_page *page;
+};
+
 struct kring_user
 {
 	int socket;
-	int id;
+	int reader_id;
 	struct kring_shared shared;
-	struct kring_page *data;
+	struct kring_data data;
 	int krerr;
 	int _errno;
 	char *errstr;
@@ -132,7 +137,7 @@ struct kring_addr
 {
 	char name[KRING_NLEN];
 	enum KRING_MODE mode;
-	int rid;
+	int ring_id;
 };
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
@@ -169,9 +174,9 @@ struct kring_decrypted_header
 	char host[63];
 };
 
-inline int kring_avail_impl( struct kring_shared *shared, int id )
+inline int kring_avail_impl( struct kring_shared *shared, int reader_id )
 {
-	return ( shared->reader[id].rhead != shared->control->whead );
+	return ( shared->reader[reader_id].rhead != shared->control->whead );
 }
 
 static inline shr_desc_t kring_write_back( struct kring_shared *shared,
@@ -182,7 +187,7 @@ static inline shr_desc_t kring_write_back( struct kring_shared *shared,
 
 inline int kring_avail( struct kring_user *u )
 {
-	return kring_avail_impl( &u->shared, u->id );
+	return kring_avail_impl( &u->shared, u->reader_id );
 }
 
 inline shr_off_t kring_next( shr_off_t off )
@@ -210,7 +215,7 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
 		desc = u->shared.descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
-			shr_desc_t newval = desc | DSC_READER_BIT( u->id );
+			shr_desc_t newval = desc | DSC_READER_BIT( u->reader_id );
 		
 			/* Attemp write back. */
 			shr_desc_t before = kring_write_back( &u->shared, rhead, desc, newval );
@@ -237,7 +242,7 @@ again:
 	/* Take a copy, modify, then try to write back. */
 	desc = u->shared.descriptor[prev].desc;
 	
-	newval = desc & ~( DSC_READER_BIT( u->id ) );
+	newval = desc & ~( DSC_READER_BIT( u->reader_id ) );
 
 	/* Was it skipped? */
 	if ( desc & DSC_SKIPPED ) {
@@ -256,17 +261,17 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	struct kring_packet_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->shared.reader[u->id].rhead;
-	shr_off_t prev = u->shared.reader[u->id].rhead;
+	shr_off_t rhead = u->shared.reader[u->reader_id].rhead;
+	shr_off_t prev = u->shared.reader[u->reader_id].rhead;
 
 	rhead = kring_advance_rhead( u, rhead );
 
 	/* Set the rheadset rhead. */
-	u->shared.reader[u->id].rhead = rhead;
+	u->shared.reader[u->reader_id].rhead = rhead;
 
 	kring_reader_release( u, prev );
 
-	h = (struct kring_packet_header*)( u->data + u->shared.reader[u->id].rhead );
+	h = (struct kring_packet_header*)( u->data.page + u->shared.reader[u->reader_id].rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -280,18 +285,18 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->shared.reader[u->id].rhead;
-	shr_off_t prev = u->shared.reader[u->id].rhead;
+	shr_off_t rhead = u->shared.reader[u->reader_id].rhead;
+	shr_off_t prev = u->shared.reader[u->reader_id].rhead;
 
 	rhead = kring_advance_rhead( u, rhead );
 
 	/* Set the rheadset rhead. */
-	u->shared.reader[u->id].rhead = rhead;
+	u->shared.reader[u->reader_id].rhead = rhead;
 	
 	/* Unreserve prev. */
 	kring_reader_release( u, prev );
 
-	h = (struct kring_decrypted_header*)( u->data + u->shared.reader[u->id].rhead );
+	h = (struct kring_decrypted_header*)( u->data.page + u->shared.reader[u->reader_id].rhead );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
@@ -398,7 +403,7 @@ again:
 		return -1;
 	}
 
-	newval = desc | DSC_READER_BIT( u->id );
+	newval = desc | DSC_READER_BIT( u->reader_id );
 	before = kring_write_back( &u->shared, rhead, desc, newval );
 	if ( before != desc ) {
 		/* writer got in, retry. */
@@ -406,8 +411,8 @@ again:
 	}
 
 	/* Okay good. */
-	u->shared.reader[u->id].rhead = rhead; 
-	u->shared.reader[u->id].skips = 0;
+	u->shared.reader[u->reader_id].rhead = rhead; 
+	u->shared.reader[u->reader_id].skips = 0;
 
 	return 0;
 }

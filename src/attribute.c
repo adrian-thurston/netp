@@ -197,27 +197,27 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	if ( ringset == 0 )
 		return -EINVAL;
 
-	if ( addr->rid < -1 || addr->rid >= ringset->N )
+	if ( addr->ring_id < -1 || addr->ring_id >= ringset->N )
 		return -EINVAL;
 
 	krs = kring_sk( sock->sk );
 
 	if ( addr->mode == KRING_WRITE ) {
 		/* Cannot write to all rings. */
-		if ( addr->rid == KR_RING_ID_ALL )
+		if ( addr->ring_id == KR_RING_ID_ALL )
 			return -EINVAL;
 
-		if ( ringset->ring[addr->rid].has_writer )
+		if ( ringset->ring[addr->ring_id].has_writer )
 			return -EINVAL;
 
-		ringset->ring[addr->rid].has_writer = true;
+		ringset->ring[addr->ring_id].has_writer = true;
 	}
 	else {
 		/* Compute rings to iterate over. Default to exactly ring id. */
-		int low = addr->rid, high = addr->rid + 1;
+		int low = addr->ring_id, high = addr->ring_id + 1;
 
 		/* Maybe all rings? */
-		if ( addr->rid == KR_RING_ID_ALL ) {
+		if ( addr->ring_id == KR_RING_ID_ALL ) {
 			low = 0;
 			high = ringset->N;
 		}
@@ -248,7 +248,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 
 	krs->ringset = ringset;
 	krs->mode = addr->mode;
-	krs->ring_id = addr->rid;
+	krs->ring_id = addr->ring_id;
 	krs->reader_id = id;
 
 	return 0;

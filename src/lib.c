@@ -63,18 +63,18 @@ char *kring_error( struct kring_user *u, int err )
 	return u->errstr;
 }
 
-static unsigned long cons_pgoff( unsigned long rid, unsigned long region )
+static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 {
 	return (
-		( ( rid    << PGOFF_ID_SHIFT )     & PGOFF_ID_MASK ) |
+		( ( ring_id << PGOFF_ID_SHIFT )    & PGOFF_ID_MASK ) |
 		( ( region << PGOFF_REGION_SHIFT ) & PGOFF_REGION_MASK )
 	) * KRING_PAGE_SIZE;
 }
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode )
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
-	int res, id;
-	socklen_t idlen = sizeof(id);
+	int res, reader_id;
+	socklen_t idlen = sizeof(reader_id);
 	void *r;
 	struct kring_addr addr;
 
@@ -88,23 +88,23 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 
 	copy_name( addr.name, ringset );
 	addr.mode = mode;
-	addr.rid = rid;
+	addr.ring_id = ring_id;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) 
 		goto err_close;
 
-	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RIDS, &id, &idlen );
+	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RIDS, &reader_id, &idlen );
 	if ( res < 0 ) {
 		kring_func_error( KRING_ERR_GETID, errno );
 		goto err_close;
 	}
 
-	u->id = id;
+	u->reader_id = reader_id;
 
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( rid, PGOFF_CTRL ) );
+			cons_pgoff( ring_id, PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
 		kring_func_error( KRING_ERR_MMAP, errno );
@@ -117,14 +117,14 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( rid, PGOFF_DATA ) );
+			cons_pgoff( ring_id, PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
 		kring_func_error( KRING_ERR_MMAP, errno );
 		goto err_close;
 	}
 
-	u->data = (struct kring_page*)r;
+	u->data.page = (struct kring_page*)r;
 
 	res = kring_enter( u );
 	if ( res < 0 ) {
@@ -156,7 +156,7 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	/* Reserve the space. */
 	u->shared.control->wresv = whead;
 
-	h = (struct kring_decrypted_header*)( u->data + whead );
+	h = (struct kring_decrypted_header*)( u->data.page + whead );
 	bytes = (unsigned char*)( h + 1 );
 
 	h->len = len;
