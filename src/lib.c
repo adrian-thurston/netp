@@ -155,7 +155,8 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	/* FIXME */
 	u->data->page = (struct kring_page*)r;
 
-	res = kring_enter( u );
+	/* FIXME: */
+	res = kring_enter( u, 0 );
 	if ( res < 0 ) {
 		kring_func_error( KRING_ERR_ENTER, 0 );
 		goto err_close;

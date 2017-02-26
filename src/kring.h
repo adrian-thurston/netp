@@ -159,7 +159,15 @@ char *kring_error( struct kring_user *u, int err );
 
 unsigned long kring_skips( struct kring_user *u )
 {
-	return u->ring_id == KR_RING_ID_ALL ? 0 /* FIXME */ : u->control->reader[u->reader_id].skips;
+	unsigned long skips = 0;
+	if ( u->ring_id != KR_RING_ID_ALL )
+		skips = u->control->reader[u->reader_id].skips;
+	else {
+		int ring;
+		for ( ring = 0; ring < u->N; ring++ )
+			skips += u->control[ring].reader[u->reader_id].skips;
+	}
+	return skips;
 }
 
 struct kring_packet
@@ -204,7 +212,16 @@ static inline shr_desc_t kring_write_back( struct kring_control *control,
 
 inline int kring_avail( struct kring_user *u )
 {
-	return u->ring_id == KR_RING_ID_ALL ? /* FIXME */ 0 : kring_avail_impl( u->control, u->reader_id );
+	if ( u->ring_id != KR_RING_ID_ALL )
+		return kring_avail_impl( u->control, u->reader_id );
+	else {
+		int ring;
+		for ( ring = 0; ring < u->N; ring++ ) {
+			if ( kring_avail_impl( &u->control[ring], u->reader_id ) )
+				return 1;
+		}
+		return 0;
+	}
 }
 
 inline shr_off_t kring_next( shr_off_t off )
@@ -222,20 +239,20 @@ inline shr_off_t kring_prev( shr_off_t off )
 	return off - 1;
 }
 
-inline shr_off_t kring_advance_rhead( struct kring_user *u, shr_off_t rhead )
+inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t rhead )
 {
 	shr_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
 
 		/* reserve next. */
-		desc = u->control /* FIXME */ ->descriptor[rhead].desc;
+		desc = u->control[ctrl].descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
 			shr_desc_t newval = desc | DSC_READER_BIT( u->reader_id );
 		
 			/* Attemp write back. */
-			shr_desc_t before = /* FIXME */ kring_write_back( u->control, rhead, desc, newval );
+			shr_desc_t before = kring_write_back( &u->control[ctrl], rhead, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				break;
@@ -273,6 +290,11 @@ again:
 		goto again;
 }
 
+inline void *kring_data( struct kring_user *u, int ctrl )
+{
+	return ( u->data[ctrl].page + u->control[ctrl].reader[u->reader_id].rhead );
+}
+
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
 	struct kring_packet_header *h;
@@ -281,14 +303,16 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	shr_off_t rhead = u->control->/*FIXME*/reader[u->reader_id].rhead;
 	shr_off_t prev = u->control->/*FIXME*/reader[u->reader_id].rhead;
 
-	rhead = kring_advance_rhead( u, rhead );
+	/* FIXME */
+	rhead = kring_advance_rhead( u, 0, rhead );
 
 	/* Set the rheadset rhead. */
 	u->control->/*FIXME*/reader[u->reader_id].rhead = rhead;
 
 	kring_reader_release( u, prev );
 
-	h = (struct kring_packet_header*)( u->data->/*FIXME*/page + u->control->/*FIXME*/reader[u->reader_id].rhead );
+	/* FIXME */
+	h = (struct kring_packet_header*)kring_data( u, 0 );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -305,7 +329,8 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	shr_off_t rhead = u->control->/*FIXME*/reader[u->reader_id].rhead;
 	shr_off_t prev = u->control->/*FIXME*/reader[u->reader_id].rhead;
 
-	rhead = kring_advance_rhead( u, rhead );
+	/* FIXME */
+	rhead = kring_advance_rhead( u, 0, rhead );
 
 	/* Set the rheadset rhead. */
 	u->control->/*FIXME*/reader[u->reader_id].rhead = rhead;
@@ -313,7 +338,8 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	/* Unreserve prev. */
 	kring_reader_release( u, prev );
 
-	h = (struct kring_decrypted_header*)( u->data->/*FIXME*/page + u->control->/*FIXME*/reader[u->reader_id].rhead );
+	/* FIXME */
+	h = (struct kring_decrypted_header*)kring_data( u, 0 );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
@@ -401,15 +427,15 @@ inline int writer_release( struct kring_control *control, shr_off_t whead )
 	return 0;
 }
 
-inline int kring_enter( struct kring_user *u )
+inline int kring_enter( struct kring_user *u, int ctrl )
 {
 	shr_desc_t desc, newval, before;
 
 	/* Init the read head. */
-	shr_off_t rhead = u->control->/*FIXME*/writer->whead;
+	shr_off_t rhead = u->control[ctrl].writer->whead;
 
 again:
-	desc = u->control->/*FIXME*/descriptor[rhead].desc;
+	desc = u->control[ctrl].descriptor[rhead].desc;
 	if ( desc & DSC_SKIPPED ) {
 		/* Encountered a stale block, go back one. */
 		rhead = kring_prev( rhead );
@@ -421,15 +447,15 @@ again:
 	}
 
 	newval = desc | DSC_READER_BIT( u->reader_id );
-	before = /*FIXME*/kring_write_back( u->control, rhead, desc, newval );
+	before = kring_write_back( &u->control[ctrl], rhead, desc, newval );
 	if ( before != desc ) {
 		/* writer got in, retry. */
 		goto again;
 	}
 
 	/* Okay good. */
-	u->control->/*FIXME*/reader[u->reader_id].rhead = rhead; 
-	u->control->/*FIXME*/reader[u->reader_id].skips = 0;
+	u->control[ctrl].reader[u->reader_id].rhead = rhead; 
+	u->control[ctrl].reader[u->reader_id].skips = 0;
 
 	return 0;
 }
