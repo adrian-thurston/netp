@@ -325,7 +325,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 	// wq = krs->ring_id == KR_RING_ID_ALL ? &r->reader_waitqueue : &r->ring[krs->ring_id].reader_waitqueue;
 	wq = &r->reader_waitqueue;
 
-	ret = wait_event_interruptible( *wq, kring_avail_impl( &r->ring[krs->ring_id].shared, krs->reader_id ) );
+	ret = wait_event_interruptible( *wq, kring_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id ) );
 
 	if (ret == -ERESTARTNOHAND) {
 		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
@@ -432,10 +432,10 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	}
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( &r->ring[kring->ring_id].shared );
+	whead = find_write_loc( &r->ring[kring->ring_id].control );
 
 	/* Reserve the space. */
-	r->ring[kring->ring_id].shared.control->wresv = whead;
+	r->ring[kring->ring_id].control.writer->wresv = whead;
 
 	h = r->ring[kring->ring_id].pd[whead].m;
 	pdata = (char*)(h + 1);
@@ -445,11 +445,11 @@ void kring_write( struct kring_kern *kring, int dir, void *d, int len )
 	memcpy( pdata, d, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	if ( writer_release( &r->ring[kring->ring_id].shared, whead ) < 0 )
+	if ( writer_release( &r->ring[kring->ring_id].control, whead ) < 0 )
 		printk( "writer release unexected value\n" );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->ring[kring->ring_id].shared.control->whead = whead;
+	r->ring[kring->ring_id].control.writer->whead = whead;
 
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
@@ -474,9 +474,9 @@ static void ring_alloc( struct ring *r )
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
-	r->shared.control = r->ctrl;
-	r->shared.reader = r->ctrl + sizeof(struct shared_ctrl);
-	r->shared.descriptor = r->ctrl + sizeof(struct shared_ctrl) + sizeof(struct shared_reader) * NRING_READERS;
+	r->control.writer = r->ctrl;
+	r->control.reader = r->ctrl + sizeof(struct shared_writer);
+	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS;
 
 	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
@@ -489,7 +489,7 @@ static void ring_alloc( struct ring *r )
 		}
 	}
 
-	r->shared.control->whead = r->shared.control->wresv = kring_one_back( 0 );
+	r->control.writer->whead = r->control.writer->wresv = kring_one_back( 0 );
 
 	for ( i = 0; i < NRING_READERS; i++ )
 		r->reader[i].allocated = false;

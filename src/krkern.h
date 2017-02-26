@@ -11,7 +11,7 @@ struct ring_reader
 struct ring
 {
 	void *ctrl;
-	struct kring_shared shared;
+	struct kring_control control;
 	struct page_desc *pd;
 	
 	bool has_writer;

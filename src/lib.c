@@ -123,8 +123,8 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	if ( ring_id == KR_RING_ID_ALL )
 		to_alloc = ring_N;
 
-	u->shared = (struct kring_shared*)malloc( sizeof( struct kring_shared ) * to_alloc );
-	memset( u->shared, 0, sizeof( struct kring_shared ) * to_alloc );
+	u->control = (struct kring_control*)malloc( sizeof( struct kring_control ) * to_alloc );
+	memset( u->control, 0, sizeof( struct kring_control ) * to_alloc );
 
 	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
 	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
@@ -139,9 +139,9 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	}
 
 	/* FIXME */
-	u->shared->control = (struct shared_ctrl*)r;
-	u->shared->reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_ctrl) );
-	u->shared->descriptor = (struct shared_desc*)( (char*)r + sizeof(struct shared_ctrl) + sizeof(struct shared_reader) * NRING_READERS );
+	u->control->writer = (struct shared_writer*)r;
+	u->control->reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_writer) );
+	u->control->descriptor = (struct shared_desc*)( (char*)r + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS );
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -180,10 +180,10 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 		len = KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = /* FIXME */find_write_loc( u->shared );
+	whead = /* FIXME */find_write_loc( u->control );
 
 	/* Reserve the space. */
-	u->shared->/*FIXME*/control->wresv = whead;
+	u->control->/*FIXME*/writer->wresv = whead;
 
 	h = (struct kring_decrypted_header*)( u->data->/*FIXME*/page + whead );
 	bytes = (unsigned char*)( h + 1 );
@@ -200,10 +200,10 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	memcpy( bytes, data, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	/* FIXME */writer_release( u->shared, whead );
+	/* FIXME */writer_release( u->control, whead );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->shared->/*FIXME*/control->whead = whead;
+	u->control->/*FIXME*/writer->whead = whead;
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
