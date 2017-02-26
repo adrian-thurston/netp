@@ -279,19 +279,19 @@ static int kring_getsockopt( struct socket *sock, int level, int optname, char _
 	if ( get_user(len, optlen) )
 		return -EFAULT;
 
-	if ( len < 0 )
+	if ( len != lv )
 		return -EINVAL;
 
 	printk( "kring_getsockopt\n" );
 
 	switch ( optname ) {
-		case KR_OPT_RIDS:
+		case KR_OPT_RING_N:
+			val = krs->ringset->N;
+			break;
+		case KR_OPT_READER_ID:
 			val = krs->reader_id;
 			break;
 	}
-
-	if ( len > lv )
-		len = lv;
 
 	if ( put_user( len, optlen ) )
 		return -EFAULT;

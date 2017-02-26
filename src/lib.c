@@ -76,7 +76,8 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
-	int res, reader_id;
+	int to_alloc, res, ring_N, reader_id;
+	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
 	void *r;
 	struct kring_addr addr;
@@ -89,6 +90,8 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 		goto err_return;
 	}
 
+	u->ring_id = ring_id;
+
 	copy_name( addr.name, ringset );
 	addr.mode = mode;
 	addr.ring_id = ring_id;
@@ -97,14 +100,34 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	if ( res < 0 ) 
 		goto err_close;
 
+	/* Get the number of rings in the ringset. */
+	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RING_N, &ring_N, &nlen );
+	if ( res < 0 ) {
+		kring_func_error( KRING_ERR_RING_N, errno );
+		goto err_close;
+	}
+	u->N = ring_N;
+
+	/* Get the reader id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );
 	if ( res < 0 ) {
 		kring_func_error( KRING_ERR_READER_ID, errno );
 		goto err_close;
 	}
-
 	u->reader_id = reader_id;
-	u->ring_id = ring_id;
+
+	/*
+	 * Allocate ring-specific structs. May not use them all.
+	 */
+	to_alloc = 1;
+	if ( ring_id == KR_RING_ID_ALL )
+		to_alloc = ring_N;
+
+	u->shared = (struct kring_shared*)malloc( sizeof( struct kring_shared ) * to_alloc );
+	memset( u->shared, 0, sizeof( struct kring_shared ) * to_alloc );
+
+	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
+	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
 
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -115,9 +138,10 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 		goto err_close;
 	}
 
-	u->shared.control = (struct shared_ctrl*)r;
-	u->shared.reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_ctrl) );
-	u->shared.descriptor = (struct shared_desc*)( (char*)r + sizeof(struct shared_ctrl) + sizeof(struct shared_reader) * NRING_READERS );
+	/* FIXME */
+	u->shared->control = (struct shared_ctrl*)r;
+	u->shared->reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_ctrl) );
+	u->shared->descriptor = (struct shared_desc*)( (char*)r + sizeof(struct shared_ctrl) + sizeof(struct shared_reader) * NRING_READERS );
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -128,7 +152,8 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 		goto err_close;
 	}
 
-	u->data.page = (struct kring_page*)r;
+	/* FIXME */
+	u->data->page = (struct kring_page*)r;
 
 	res = kring_enter( u );
 	if ( res < 0 ) {
@@ -155,12 +180,12 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 		len = KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( &u->shared );
+	whead = /* FIXME */find_write_loc( u->shared );
 
 	/* Reserve the space. */
-	u->shared.control->wresv = whead;
+	u->shared->/*FIXME*/control->wresv = whead;
 
-	h = (struct kring_decrypted_header*)( u->data.page + whead );
+	h = (struct kring_decrypted_header*)( u->data->/*FIXME*/page + whead );
 	bytes = (unsigned char*)( h + 1 );
 
 	h->len = len;
@@ -175,10 +200,10 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	memcpy( bytes, data, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	writer_release( &u->shared, whead );
+	/* FIXME */writer_release( u->shared, whead );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->shared.control->whead = whead;
+	u->shared->/*FIXME*/control->whead = whead;
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
