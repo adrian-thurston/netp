@@ -188,35 +188,49 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	struct kring_sock *krs;
 	struct ringset *ringset;
 
-	if ( addr_len != sizeof(struct kring_addr) )
+	if ( addr_len != sizeof(struct kring_addr) ) {
+		printk("kring_bind: addr_len wrong size\n");
 		return -EINVAL;
+	}
 
-	if ( validate_ring_name( addr->name ) < 0 )
+	if ( validate_ring_name( addr->name ) < 0 ) {
+		printk( "kring_bind: bad ring name\n" );
 		return -EINVAL;
+	}
 	
-	if ( addr->mode != KRING_READ && addr->mode != KRING_WRITE )
+	if ( addr->mode != KRING_READ && addr->mode != KRING_WRITE ) {
+		printk( "kring_bind: bad mode, not read or write\n" );
 		return -EINVAL;
+	}
 	
 	ringset = find_ring( addr->name );
-	if ( ringset == 0 )
+	if ( ringset == 0 ) {
+		printk( "kring_bind: bad mode, not read or write\n" );
 		return -EINVAL;
+	}
 
-	if ( addr->ring_id < -1 || addr->ring_id >= ringset->N )
+	if ( addr->ring_id < -1 || addr->ring_id >= ringset->N ) {
+		printk( "kring_bind: bad ring id\n" );
 		return -EINVAL;
+	}
 
 	krs = kring_sk( sock->sk );
 
 	if ( addr->mode == KRING_WRITE ) {
 		/* Cannot write to all rings. */
-		if ( addr->ring_id == KR_RING_ID_ALL )
+		if ( addr->ring_id == KR_RING_ID_ALL ) {
+			printk( "kring_bind: cannot write to ring id ALL\n" );
 			return -EINVAL;
+		}
 
-		if ( ringset->ring[addr->ring_id].has_writer )
+		if ( ringset->ring[addr->ring_id].has_writer ) {
+			printk( "kring_bind: ring %d already has writer\n", addr->ring_id );
 			return -EINVAL;
+		}
 
 		ringset->ring[addr->ring_id].has_writer = true;
 	}
-	else {
+	else if ( addr->mode == KRING_READ ) {
 		/* Compute rings to iterate over. Default to exactly ring id. */
 		int low = addr->ring_id, high = addr->ring_id + 1;
 
