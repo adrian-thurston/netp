@@ -511,6 +511,9 @@ static void ring_alloc( struct ring *r )
 	r->control.reader = r->ctrl + sizeof(struct shared_writer);
 	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS;
 
+	r->has_writer = false;
+	r->num_readers = 0;
+
 	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
 	for ( i = 0; i < NPAGES; i++ ) {
 		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
@@ -537,8 +540,13 @@ static void ringset_alloc( struct ringset *r, const char *name, long n )
 	strncpy( r->name, name, KRING_NLEN );
 	r->name[KRING_NLEN-1] = 0;
 
+	printk( "allocating %ld rings\n", n );
+
 	r->N = n;
+
 	r->ring = kmalloc( sizeof(struct ring) * n, GFP_KERNEL );
+	memset( r->ring, 0, sizeof(struct ring) * n  );
+
 	for ( i = 0; i < n; i++ )
 		ring_alloc( &r->ring[i] );
 
