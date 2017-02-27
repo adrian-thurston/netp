@@ -131,11 +131,9 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
 
 	/* Which rings to map. */
-	low = ring_id, high = ring_id + 1;
-	if ( ring_id == KR_RING_ID_ALL ) {
-		low = 0;
+	low = 0, high = 1;
+	if ( ring_id == KR_RING_ID_ALL )
 		high = ring_N;
-	}
 
 	for ( ctrl = low; ctrl < high; ctrl++ ) {
 		int local_ring_id = ring_id == KR_RING_ID_ALL ? ctrl : ring_id;
