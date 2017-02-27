@@ -157,7 +157,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 char *kring_error( struct kring_user *u, int err );
 
-unsigned long kring_skips( struct kring_user *u )
+inline unsigned long kring_skips( struct kring_user *u )
 {
 	unsigned long skips = 0;
 	if ( u->ring_id != KR_RING_ID_ALL )
@@ -269,12 +269,12 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t 
 }
 
 /* Unreserve prev. */
-inline void kring_reader_release( struct kring_user *u, shr_off_t prev )
+inline void kring_reader_release( struct kring_user *u, int ctrl, shr_off_t prev )
 {
 	shr_desc_t before, desc, newval;
 again:
 	/* Take a copy, modify, then try to write back. */
-	desc = u->control->/*FIXME*/descriptor[prev].desc;
+	desc = u->control[ctrl].descriptor[prev].desc;
 	
 	newval = desc & ~( DSC_READER_BIT( u->reader_id ) );
 
@@ -285,7 +285,7 @@ again:
 			newval &= ~DSC_SKIPPED;
 	}
 
-	before = /*FIXME*/kring_write_back( u->control, prev, desc, newval );
+	before = kring_write_back( &u->control[ctrl], prev, desc, newval );
 	if ( before != desc )
 		goto again;
 }
@@ -295,24 +295,38 @@ inline void *kring_data( struct kring_user *u, int ctrl )
 	return ( u->data[ctrl].page + u->control[ctrl].reader[u->reader_id].rhead );
 }
 
+static int kring_select_ctrl( struct kring_user *u )
+{
+	if ( u->ring_id != KR_RING_ID_ALL )
+		return 0;
+	else {
+		int ctrl;
+		for ( ctrl = 0; ctrl < u->N; ctrl++ ) {
+			if ( kring_avail_impl( &u->control[ctrl], u->reader_id ) )
+				return ctrl;
+		}
+		return -1;
+	}
+}
+
 inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
 	struct kring_packet_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->control->/*FIXME*/reader[u->reader_id].rhead;
-	shr_off_t prev = u->control->/*FIXME*/reader[u->reader_id].rhead;
+	int ctrl = kring_select_ctrl( u );
 
-	/* FIXME */
-	rhead = kring_advance_rhead( u, 0, rhead );
+	shr_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	shr_off_t rhead = prev;
+
+	rhead = kring_advance_rhead( u, ctrl, rhead );
 
 	/* Set the rheadset rhead. */
-	u->control->/*FIXME*/reader[u->reader_id].rhead = rhead;
+	u->control[ctrl].reader[u->reader_id].rhead = rhead;
 
-	kring_reader_release( u, prev );
+	kring_reader_release( u, ctrl, prev );
 
-	/* FIXME */
-	h = (struct kring_packet_header*)kring_data( u, 0 );
+	h = (struct kring_packet_header*)kring_data( u, ctrl );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -326,20 +340,20 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 
-	shr_off_t rhead = u->control->/*FIXME*/reader[u->reader_id].rhead;
-	shr_off_t prev = u->control->/*FIXME*/reader[u->reader_id].rhead;
+	int ctrl = kring_select_ctrl( u );
 
-	/* FIXME */
-	rhead = kring_advance_rhead( u, 0, rhead );
+	shr_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	shr_off_t rhead = prev;
+
+	rhead = kring_advance_rhead( u, ctrl, rhead );
 
 	/* Set the rheadset rhead. */
-	u->control->/*FIXME*/reader[u->reader_id].rhead = rhead;
+	u->control[ctrl].reader[u->reader_id].rhead = rhead;
 	
 	/* Unreserve prev. */
-	kring_reader_release( u, prev );
+	kring_reader_release( u, ctrl, prev );
 
-	/* FIXME */
-	h = (struct kring_decrypted_header*)kring_data( u, 0 );
+	h = (struct kring_decrypted_header*)kring_data( u, ctrl );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
