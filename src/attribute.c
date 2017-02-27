@@ -325,6 +325,20 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
+static int kring_kern_avail( struct ringset *r, struct kring_sock *krs )
+{
+	if ( krs->ring_id != KR_RING_ID_ALL )
+		return kring_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
+	else {
+		int ring;
+		for ( ring = 0; ring < r->N; ring++ ) {
+			if ( kring_avail_impl( &r->ring[ring].control, krs->reader_id ) )
+				return 1;
+		}
+		return 0;
+	}
+}
+
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
@@ -343,7 +357,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 	// wq = krs->ring_id == KR_RING_ID_ALL ? &r->reader_waitqueue : &r->ring[krs->ring_id].reader_waitqueue;
 	wq = &r->reader_waitqueue;
 
-	ret = wait_event_interruptible( *wq, kring_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id ) );
+	ret = wait_event_interruptible( *wq, kring_kern_avail( r, krs ) );
 
 	if (ret == -ERESTARTNOHAND) {
 		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
