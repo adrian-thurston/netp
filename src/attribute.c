@@ -102,30 +102,34 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
 	struct ringset *r = krs->ringset;
-	unsigned long rid, region;
+	unsigned long ring_id, region;
 
 	/* Ensure bound. */
-	if ( r == 0 )
+	if ( r == 0 ) {
+		printk( "kring mmap: socket not bound to ring\n" );
 		return -EINVAL;
+	}
 	
-	decon_pgoff( vma->vm_pgoff, &rid, &region );
+	decon_pgoff( vma->vm_pgoff, &ring_id, &region );
 
-	if ( rid > r->N )
+	if ( ring_id > r->N ) {
+		printk( "kring mmap: error: rid > r->N\n" );
 		return -EINVAL;
+	}
 
 	switch ( region  ) {
 		case PGOFF_CTRL: {
-			printk( "mapping control region %p of ring %p\n", r->ring->ctrl, r );
-			remap_vmalloc_range( vma, r->ring[rid].ctrl, 0 );
+			printk( "mapping control region %p of ring %p-%lu\n", r->ring[ring_id].ctrl, r, ring_id );
+			remap_vmalloc_range( vma, r->ring[ring_id].ctrl, 0 );
 			break;
 		}
 
 		case PGOFF_DATA: {
 			int i;
 			unsigned long uaddr = vma->vm_start;
-			printk( "mapping data region %lu of ring %p\n", uaddr, r );
+			printk( "mapping data region %lu of ring %p-%lu\n", uaddr, r, ring_id );
 			for ( i = 0; i < NPAGES; i++ ) {
-				vm_insert_page( vma, uaddr, r->ring[rid].pd[i].p );
+				vm_insert_page( vma, uaddr, r->ring[ring_id].pd[i].p );
 				uaddr += PAGE_SIZE;
 			}
 
