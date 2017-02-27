@@ -369,16 +369,31 @@ static void kring_sock_destruct( struct sock *sk )
 	struct kring_sock *krs = kring_sk( sk );
 	int i, low = krs->ring_id, high = krs->ring_id + 1;
 
-	printk( "kring_sock_destruct\n" );
-
-	/* Maybe all rings? */
-	if ( krs->ring_id == KR_RING_ID_ALL ) {
-		low = 0;
-		high = krs->ringset->N;
+	if ( krs == 0 ) {
+		printk("kring_sock_destruct: don't have krs\n" );
+		return;
 	}
 
-	for ( i = low; i < high; i++ )
-		krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
+	printk( "kring_sock_destruct mode: %d ring_id: %d reader_id: %d\n",
+			krs->mode, krs->ring_id, krs->reader_id );
+
+	switch ( krs->mode ) {
+		case KRING_WRITE: {
+			krs->ringset->ring[krs->ring_id].has_writer = false;
+			break;
+		}
+		case KRING_READ: {
+			/* Maybe all rings? */
+			if ( krs->ring_id == KR_RING_ID_ALL ) {
+				low = 0;
+				high = krs->ringset->N;
+			}
+
+			for ( i = low; i < high; i++ )
+				krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
+
+		}
+	}
 }
 
 int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern )
