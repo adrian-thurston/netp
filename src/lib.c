@@ -98,8 +98,10 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	addr.ring_id = ring_id;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
-	if ( res < 0 ) 
+	if ( res < 0 ) {
+		kring_func_error( KRING_ERR_BIND, errno );
 		goto err_close;
+	}
 
 	/* Get the number of rings in the ringset. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RING_N, &ring_N, &nlen );
