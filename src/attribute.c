@@ -389,7 +389,7 @@ static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static void kring_sock_destruct( struct sock *sk )
 {
 	struct kring_sock *krs = kring_sk( sk );
-	int i, low = krs->ring_id, high = krs->ring_id + 1;
+	int i;
 
 	if ( krs == 0 ) {
 		printk("kring_sock_destruct: don't have krs\n" );
@@ -405,14 +405,14 @@ static void kring_sock_destruct( struct sock *sk )
 			break;
 		}
 		case KRING_READ: {
-			/* Maybe all rings? */
-			if ( krs->ring_id == KR_RING_ID_ALL ) {
-				low = 0;
-				high = krs->ringset->N;
+			/* One ring or all? */
+			if ( krs->ring_id != KR_RING_ID_ALL ) {
+				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
 			}
-
-			for ( i = low; i < high; i++ )
-				krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
+			else {
+				for ( i = 0; i < krs->ringset->N; i++ )
+					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
+			}
 
 		}
 	}
