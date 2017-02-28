@@ -86,6 +86,7 @@ struct shared_reader
 {
 	shr_off_t rhead;
 	unsigned long skips;
+	unsigned char entered;
 };
 
 struct shared_desc
@@ -136,6 +137,7 @@ struct kring_user
 	int ring_id;
 	int N;
 	int reader_id;
+	enum KRING_MODE mode;
 
 	struct kring_control *control;
 	struct kring_data *data;
@@ -215,9 +217,9 @@ inline int kring_avail( struct kring_user *u )
 	if ( u->ring_id != KR_RING_ID_ALL )
 		return kring_avail_impl( u->control, u->reader_id );
 	else {
-		int ring;
-		for ( ring = 0; ring < u->N; ring++ ) {
-			if ( kring_avail_impl( &u->control[ring], u->reader_id ) )
+		int ctrl;
+		for ( ctrl = 0; ctrl < u->N; ctrl++ ) {
+			if ( kring_avail_impl( &u->control[ctrl], u->reader_id ) )
 				return 1;
 		}
 		return 0;
@@ -324,7 +326,12 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	/* Set the rheadset rhead. */
 	u->control[ctrl].reader[u->reader_id].rhead = rhead;
 
-	kring_reader_release( u, ctrl, prev );
+	/* Release the previous only if we have entered with a successful read. */
+	if ( u->control[ctrl].reader[u->reader_id].entered )
+		kring_reader_release( u, ctrl, prev );
+
+	/* Indicate we have entered. */
+	u->control[ctrl].reader[u->reader_id].entered = 1;
 
 	h = (struct kring_packet_header*)kring_data( u, ctrl );
 	bytes = (unsigned char*)( h + 1 );
@@ -350,8 +357,12 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	/* Set the rheadset rhead. */
 	u->control[ctrl].reader[u->reader_id].rhead = rhead;
 	
-	/* Unreserve prev. */
-	kring_reader_release( u, ctrl, prev );
+	/* Release the previous only if we have entered with a successful read. */
+	if ( u->control[ctrl].reader[u->reader_id].entered )
+		kring_reader_release( u, ctrl, prev );
+
+	/* Indicate we have entered. */
+	u->control[ctrl].reader[u->reader_id].entered = 1;
 
 	h = (struct kring_decrypted_header*)kring_data( u, ctrl );
 	bytes = (unsigned char*)( h + 1 );
@@ -441,35 +452,15 @@ inline int writer_release( struct kring_control *control, shr_off_t whead )
 	return 0;
 }
 
-inline int kring_enter( struct kring_user *u, int ctrl )
+inline int kring_prep_enter( struct kring_user *u, int ctrl )
 {
-	shr_desc_t desc, newval, before;
-
 	/* Init the read head. */
 	shr_off_t rhead = u->control[ctrl].writer->whead;
-
-again:
-	desc = u->control[ctrl].descriptor[rhead].desc;
-	if ( desc & DSC_SKIPPED ) {
-		/* Encountered a stale block, go back one. */
-		rhead = kring_prev( rhead );
-		goto again;
-	}
-	else if ( desc & DSC_WRITER_OWNED ) {
-		/* Fatal error. Writer should not own from prev write head. */
-		return -1;
-	}
-
-	newval = desc | DSC_READER_BIT( u->reader_id );
-	before = kring_write_back( &u->control[ctrl], rhead, desc, newval );
-	if ( before != desc ) {
-		/* writer got in, retry. */
-		goto again;
-	}
 
 	/* Okay good. */
 	u->control[ctrl].reader[u->reader_id].rhead = rhead; 
 	u->control[ctrl].reader[u->reader_id].skips = 0;
+	u->control[ctrl].reader[u->reader_id].entered = 0;
 
 	return 0;
 }
