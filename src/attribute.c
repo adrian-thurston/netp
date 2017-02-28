@@ -231,37 +231,45 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		ringset->ring[addr->ring_id].has_writer = true;
 	}
 	else if ( addr->mode == KRING_READ ) {
-		/* Compute rings to iterate over. Default to exactly ring id. */
-		int low = addr->ring_id, high = addr->ring_id + 1;
-
-		/* Maybe all rings? */
-		if ( addr->ring_id == KR_RING_ID_ALL ) {
-			low = 0;
-			high = ringset->N;
-		}
-
-		/* Search for a single reader id that is free across all the rings requested. */
-		for ( id = 0; id < NRING_READERS; id++ ) {
-			for ( i = low; i < high; i++ ) {
-				if ( ringset->ring[i].reader[id].allocated )
-					goto next_id;
+		if ( addr->ring_id != KR_RING_ID_ALL ) {
+			/* Search for a single reader id that is free across all the rings requested. */
+			for ( id = 0; id < NRING_READERS; id++ ) {
+				if ( !ringset->ring[addr->ring_id].reader[id].allocated )
+					break;
 			}
 
-			/* Got through all the rings, break with a valid id. */
-			goto good;
+			if ( id == NRING_READERS ) {
+				/* No valid id found */
+				return -EINVAL;
+			}
 
-			next_id: {}
+			/* All okay. */
+			ringset->ring[addr->ring_id].reader[id].allocated = true;
 		}
+		else {
+			/* Search for a single reader id that is free across all the rings requested. */
+			for ( id = 0; id < NRING_READERS; id++ ) {
+				for ( i = 0; i < ringset->N; i++ ) {
+					if ( ringset->ring[i].reader[id].allocated )
+						goto next_id;
+				}
 
-		/* No valid id found (exited id loop). */
-		return -EINVAL;
+				/* Got through all the rings, break with a valid id. */
+				goto good;
 
-		/* All okay. */
-		good: {}
-		
-		/* Allocate reader ids. */
-		for ( i = low; i < high; i++ )
-			ringset->ring[i].reader[id].allocated = true;
+				next_id: {}
+			}
+
+			/* No valid id found (exited id loop). */
+			return -EINVAL;
+
+			/* All okay. */
+			good: {}
+			
+			/* Allocate reader ids. */
+			for ( i = 0; i < ringset->N; i++ )
+				ringset->ring[i].reader[id].allocated = true;
+		}
 	}
 
 	krs->ringset = ringset;
