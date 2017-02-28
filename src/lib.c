@@ -74,14 +74,51 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 	) * KRING_PAGE_SIZE;
 }
 
+static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
+{
+	int res;
+	void *r;
+
+	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
+			MAP_SHARED, u->socket,
+			cons_pgoff( ring_id, PGOFF_CTRL ) );
+
+	if ( r == MAP_FAILED ) {
+		kring_func_error( KRING_ERR_MMAP, errno );
+		return -1;
+	}
+
+	u->control[ctrl].writer = (struct shared_writer*)r;
+	u->control[ctrl].reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_writer) );
+	u->control[ctrl].descriptor = (struct shared_desc*)(
+			(char*)r + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS );
+
+	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
+			MAP_SHARED, u->socket,
+			cons_pgoff( ring_id, PGOFF_DATA ) );
+
+	if ( r == MAP_FAILED ) {
+		kring_func_error( KRING_ERR_MMAP, errno );
+		return -1;
+	}
+
+	u->data[ctrl].page = (struct kring_page*)r;
+
+	res = kring_enter( u, ctrl );
+	if ( res < 0 ) {
+		kring_func_error( KRING_ERR_ENTER, 0 );
+		return -1;
+	}
+
+	return 0;
+}
+
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
-	int to_alloc, res, ring_N, reader_id;
+	int ctrl, to_alloc, res, ring_N, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
-	void *r;
 	struct kring_addr addr;
-	int low, high, ctrl;
 
 	memset( u, 0, sizeof(struct kring_user) );
 
@@ -133,42 +170,16 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
 
 	/* Which rings to map. */
-	low = 0, high = 1;
-	if ( ring_id == KR_RING_ID_ALL )
-		high = ring_N;
-
-	for ( ctrl = low; ctrl < high; ctrl++ ) {
-		int local_ring_id = ring_id == KR_RING_ID_ALL ? ctrl : ring_id;
-
-		r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
-				MAP_SHARED, u->socket,
-				cons_pgoff( local_ring_id, PGOFF_CTRL ) );
-
-		if ( r == MAP_FAILED ) {
-			kring_func_error( KRING_ERR_MMAP, errno );
+	if ( ring_id != KR_RING_ID_ALL ) {
+		res = kring_map_enter( u, ring_id, 0 );
+		if ( res < 0 )
 			goto err_close;
-		}
-
-		u->control[ctrl].writer = (struct shared_writer*)r;
-		u->control[ctrl].reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_writer) );
-		u->control[ctrl].descriptor = (struct shared_desc*)(
-				(char*)r + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS );
-
-		r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
-				MAP_SHARED, u->socket,
-				cons_pgoff( local_ring_id, PGOFF_DATA ) );
-
-		if ( r == MAP_FAILED ) {
-			kring_func_error( KRING_ERR_MMAP, errno );
-			goto err_close;
-		}
-
-		u->data[ctrl].page = (struct kring_page*)r;
-
-		res = kring_enter( u, ctrl );
-		if ( res < 0 ) {
-			kring_func_error( KRING_ERR_ENTER, 0 );
-			goto err_close;
+	}
+	else {
+		for ( ctrl = 0; ctrl < ring_N; ctrl++ ) {
+			res = kring_map_enter( u, ctrl, ctrl );
+			if ( res < 0 )
+				goto err_close;
 		}
 	}
 
