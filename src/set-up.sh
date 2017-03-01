@@ -18,10 +18,14 @@ echo eth2 inside  >/sys/shuttle/shuttle1/port_add
 ip link set eth1 up
 ip link set eth2 up
 
+#
 # Doesn't seem to matter if we assign an IP address or bring up device, so long
 # as we don't go changing interface configuration. Altering the config seems to
-# clear the ip route rules below.
+# clear the ip route rules below, which is the real reason fiddling with these
+# configs caused the system to be so fragile in the beginning.
+#
 # ifconfig shuttle1 0.0.0.0 up
+#
 
 for fn in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > $fn; done
 
