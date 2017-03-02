@@ -5,8 +5,8 @@ set -x
 
 insmod $HOME/devel/kring/src/kring.ko
 
-echo r0 4 > /sys/kring/add
-echo r1 4 > /sys/kring/add
+echo r0 4 4 > /sys/kring/add
+echo r1 4 4 > /sys/kring/add
 
 insmod ./shuttle.ko
 
