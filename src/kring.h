@@ -20,6 +20,8 @@ extern "C" {
 /* Must match region shift below. */
 #define MAX_RINGS_PER_SET 32
 
+#define MAX_WRITERS_PER_RING 32
+
 #define PGOFF_ID_SHIFT 0
 #define PGOFF_ID_MASK  0x1f
 

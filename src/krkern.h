@@ -3,6 +3,8 @@
 
 #include "kring.h"
 
+#define KRING_WRITER_ID_ANY -1
+
 struct ring_reader
 {
 	bool allocated;
@@ -20,6 +22,8 @@ struct ring
 	struct ring_reader reader[NRING_READERS];
 
 	wait_queue_head_t reader_waitqueue;
+
+	long writers;
 };
 
 struct ringset
@@ -29,6 +33,7 @@ struct ringset
 
 	struct ring *ring;
 	int N;
+	int writers_per_ring;
 
 	struct ringset *next;
 };
@@ -40,9 +45,10 @@ struct kring_kern
 	int ring_id;
 };
 
+
 int kring_wopen( struct kring_kern *kring, const char *ringset, int rid );
 int kring_wclose( struct kring_kern *kring );
-void kring_write( struct kring_kern *kring, int dir, void *d, int len );
+void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int len );
 
 #endif
 

@@ -470,7 +470,7 @@ int kring_wclose( struct kring_kern *kring )
 	return 0;
 }
 
-void kring_write( struct kring_kern *kring, int dir, void *d, int len )
+void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int len )
 {
 	struct kring_packet_header *h;
 	void *pdata;
@@ -553,14 +553,17 @@ static void ring_alloc( struct ring *r )
 		r->reader[i].allocated = false;
 
 	init_waitqueue_head( &r->reader_waitqueue );
+
+	r->writers = 0;
 }
 
-static void ringset_alloc( struct ringset *r, const char *name, long n )
+static void ringset_alloc( struct ringset *r, const char *name, long n, long writers_per_ring )
 {
 	int i;
 
 	strncpy( r->name, name, KRING_NLEN );
 	r->name[KRING_NLEN-1] = 0;
+	r->writers_per_ring = writers_per_ring;
 
 	printk( "allocating %ld rings\n", n );
 
@@ -593,14 +596,17 @@ static void ringset_free( struct ringset *r )
 	kfree( r->ring );
 }
 
-static ssize_t kring_add_store( struct kring *obj, const char *name, long n )
+static ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set, long writers_per_ring )
 {
 	struct ringset *r;
-	if ( n < 1 || n > MAX_RINGS_PER_SET )
+	if ( rings_per_set < 1 || rings_per_set > MAX_RINGS_PER_SET )
+		return -EINVAL;
+
+	if ( writers_per_ring < 1 || writers_per_ring > MAX_WRITERS_PER_RING )
 		return -EINVAL;
 
 	r = kmalloc( sizeof(struct ringset), GFP_KERNEL );
-	ringset_alloc( r, name, n );
+	ringset_alloc( r, name, rings_per_set, writers_per_ring );
 
 	if ( head == 0 )
 		head = r;
