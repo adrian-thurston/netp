@@ -21,7 +21,7 @@ void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 int MainThread::main()
 {
 	if ( fetch ) {
-		int fd = inetConnect( "10.88.99.2", 44726 );
+		int fd = inetConnect( "127.0.0.1", 44726 );
 
 		SelectFd *selectFd = new SelectFd( this, fd, 0 );
 		selectFd->state = SelectFd::PktData;
