@@ -480,10 +480,9 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int
 	struct ringset *r = kring->ringset;
 
 	/* Limit the size. */
-	const int headsz = sizeof(struct kring_packet_header);
-	if ( len > ( KRING_PAGE_SIZE - headsz ) ) {
+	if ( len > kring_packet_max_data() ) {
 		/* printk("KRING: large write: %d\n", len ); */
-		len = PAGE_SIZE - headsz;
+		len = kring_packet_max_data();
 	}
 
 	/* Find the place to write to, skipping ahead as necessary. */

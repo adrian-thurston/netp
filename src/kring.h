@@ -467,6 +467,16 @@ inline int kring_prep_enter( struct kring_user *u, int ctrl )
 	return 0;
 }
 
+inline int kring_packet_max_data(void)
+{
+	return KRING_PAGE_SIZE - sizeof(struct kring_packet_header);
+}
+
+inline int kring_decrypted_max_data(void)
+{
+	return KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
+}
+
 #if defined(__cplusplus)
 }
 #endif

@@ -205,8 +205,8 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	shr_off_t whead;
 	char buf[1];
 
-	if ( (unsigned)len > (KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header) ) )
-		len = KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
+	if ( len > kring_decrypted_max_data()  )
+		len = kring_decrypted_max_data();
 
 	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( u->control );
