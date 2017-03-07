@@ -109,7 +109,7 @@ SSL_CTX *Thread::sslServerCtx( EVP_PKEY *pkey, X509 *x509 )
 }
 
 
-void Thread::startSslClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost )
+void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost )
 {
 	makeNonBlocking( selectFd->fd );
 
@@ -134,7 +134,7 @@ void Thread::startSslClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char 
 	SSL_set_ex_data( ssl, 0, selectFd );
 }
 
-void Thread::startSslServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
+void Thread::startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
 {
 	BIO *bio = BIO_new_fd( selectFd->fd, BIO_NOCLOSE );
 

@@ -376,8 +376,8 @@ public:
 
 	static bool makeNonBlocking( int fd );
 
-	void startSslServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
-	void startSslClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
+	void startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
+	void startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
 
 	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
 
