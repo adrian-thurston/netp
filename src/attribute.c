@@ -405,15 +405,30 @@ static void kring_sock_destruct( struct sock *sk )
 			break;
 		}
 		case KRING_READ: {
+
 			/* One ring or all? */
 			if ( krs->ring_id != KR_RING_ID_ALL ) {
+				struct kring_control *control = &krs->ringset->ring[krs->ring_id].control;
+
 				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
+
+				if ( control->reader[krs->reader_id].entered ) {
+					shr_off_t prev = control->reader[krs->reader_id].rhead;
+					kring_reader_release( krs->reader_id, control, 0, prev );
+				}
 			}
 			else {
-				for ( i = 0; i < krs->ringset->N; i++ )
-					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
-			}
+				for ( i = 0; i < krs->ringset->N; i++ ) {
+					struct kring_control *control = &krs->ringset->ring[i].control;
 
+					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
+
+					if ( control->reader[krs->reader_id].entered ) {
+						shr_off_t prev = control->reader[krs->reader_id].rhead;
+						kring_reader_release( krs->reader_id, control, 0, prev );
+					}
+				}
+			}
 		}
 	}
 }

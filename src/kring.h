@@ -273,14 +273,14 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t 
 }
 
 /* Unreserve prev. */
-inline void kring_reader_release( struct kring_user *u, int ctrl, shr_off_t prev )
+inline void kring_reader_release( int reader_id, struct kring_control *control, int ctrl, shr_off_t prev )
 {
 	shr_desc_t before, desc, newval;
 again:
 	/* Take a copy, modify, then try to write back. */
-	desc = u->control[ctrl].descriptor[prev].desc;
+	desc = control[ctrl].descriptor[prev].desc;
 	
-	newval = desc & ~( DSC_READER_BIT( u->reader_id ) );
+	newval = desc & ~( DSC_READER_BIT( reader_id ) );
 
 	/* Was it skipped? */
 	if ( desc & DSC_SKIPPED ) {
@@ -289,7 +289,7 @@ again:
 			newval &= ~DSC_SKIPPED;
 	}
 
-	before = kring_write_back( &u->control[ctrl], prev, desc, newval );
+	before = kring_write_back( &control[ctrl], prev, desc, newval );
 	if ( before != desc )
 		goto again;
 }
@@ -330,7 +330,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 
 	/* Release the previous only if we have entered with a successful read. */
 	if ( u->control[ctrl].reader[u->reader_id].entered )
-		kring_reader_release( u, ctrl, prev );
+		kring_reader_release( u->reader_id, u->control, ctrl, prev );
 
 	/* Indicate we have entered. */
 	u->control[ctrl].reader[u->reader_id].entered = 1;
@@ -361,7 +361,7 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	
 	/* Release the previous only if we have entered with a successful read. */
 	if ( u->control[ctrl].reader[u->reader_id].entered )
-		kring_reader_release( u, ctrl, prev );
+		kring_reader_release( u->reader_id, u->control, ctrl, prev );
 
 	/* Indicate we have entered. */
 	u->control[ctrl].reader[u->reader_id].entered = 1;
