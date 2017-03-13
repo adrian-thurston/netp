@@ -520,6 +520,23 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int
 	/* Write back the write head, thereby releasing the buffer to writer. */
 	r->ring[kring->ring_id].control.writer->whead = whead;
 
+	/* track the number of packets produced. Note we don't account for overflow. */
+	__sync_add_and_fetch( &r->ring[kring->ring_id].control.writer->produced, 1 );
+
+	#if 0
+	for ( id = 0; id < NRING_READERS; id++ ) {
+		if ( r->ring[kring->ring_id].reader[id].allocated ) {
+			unsigned long long diff =
+					r->ring[kring->ring_id].control.writer->produced -
+					r->ring[kring->ring_id].control.reader[id].units;
+			// printk( "diff: %llu\n", diff );
+			if ( diff > ( NPAGES / 2 ) ) {
+				printk( "half full: ring_id: %d reader_id: %d\n", kring->ring_id, id );
+			}
+		}
+	}
+	#endif
+
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
 

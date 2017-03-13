@@ -82,6 +82,7 @@ struct shared_writer
 {
 	shr_off_t whead;
 	shr_off_t wresv;
+	unsigned long long produced;
 };
 
 struct shared_reader
@@ -89,6 +90,7 @@ struct shared_reader
 	shr_off_t rhead;
 	unsigned long skips;
 	unsigned char entered;
+	unsigned long long consumed;
 };
 
 struct shared_desc
@@ -292,6 +294,8 @@ again:
 	before = kring_write_back( &control[ctrl], prev, desc, newval );
 	if ( before != desc )
 		goto again;
+	
+	__sync_add_and_fetch( &control[ctrl].reader->consumed, 1 );
 }
 
 inline void *kring_data( struct kring_user *u, int ctrl )
@@ -463,6 +467,8 @@ inline int kring_prep_enter( struct kring_user *u, int ctrl )
 	u->control[ctrl].reader[u->reader_id].rhead = rhead; 
 	u->control[ctrl].reader[u->reader_id].skips = 0;
 	u->control[ctrl].reader[u->reader_id].entered = 0;
+	u->control[ctrl].reader[u->reader_id].consumed =
+			u->control[ctrl].writer->produced;
 
 	return 0;
 }
