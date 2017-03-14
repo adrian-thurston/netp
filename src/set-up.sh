@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 
-set -x 
+set -xe
 
 insmod $HOME/devel/kring/src/kring.ko
 
