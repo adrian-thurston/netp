@@ -142,6 +142,9 @@ void attrDecl( Kobj: kobj, AD: attr_decl )
 
 	Attr->Num = AttrNum
 	Attr->ArgList = AD.ArgSpec.List
+	if ( ! Attr->ArgList )
+		Attr->ArgList = cons attr_arg_list? ""
+
 	Kobj->Attrs->push_tail( Attr )
 
 	AttrNum = AttrNum + 1
