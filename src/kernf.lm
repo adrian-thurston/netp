@@ -179,7 +179,7 @@ void module_c( P: program )
 		"{
 		"	struct [ModuleName]_attribute *kattr;
 		"	ssize_t ret = -EIO;
-		"	int scanned;
+		"	int scanned = 0;
 		" 
 		"	kattr = container_of( attr, struct [ModuleName]_attribute, attr );
 		"	switch ( kattr->num ) {
@@ -203,36 +203,38 @@ void module_c( P: program )
 					}
 				}
 
-				send Output
-					"	scanned = sscanf( buf, \""
+				if ( len( Attr->ArgList ) > 0 ) {
+					send Output
+						"	scanned = sscanf( buf, \""
 
-				for Arg: attr_arg in Attr->ArgList {
-					switch Arg.attr_arg_type
-					case [`string] {
-						send Output "%s "
+					for Arg: attr_arg in Attr->ArgList {
+						switch Arg.attr_arg_type
+						case [`string] {
+							send Output "%s "
+						}
+						case [`long] {
+							send Output "%ld "
+						}
 					}
-					case [`long] {
-						send Output "%ld "
+
+					send Output
+						"\""
+
+					for Arg: attr_arg in Attr->ArgList {
+						switch Arg.attr_arg_type
+						case [`string] {
+							send Output
+								", [Arg.id]"
+						}
+						case [`long] {
+							send Output
+								", &[Arg.id]"
+						}
 					}
+
+					send Output
+						" );
 				}
-
-				send Output
-					"\""
-
-				for Arg: attr_arg in Attr->ArgList {
-					switch Arg.attr_arg_type
-					case [`string] {
-						send Output
-							", [Arg.id]"
-					}
-					case [`long] {
-						send Output
-							", &[Arg.id]"
-					}
-				}
-
-				send Output
-					" );
 
 				send Output
 					"	if ( scanned == [len( Attr->ArgList )] ) {
