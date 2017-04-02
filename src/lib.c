@@ -239,3 +239,41 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 
 	return 0;
 }   
+
+/*
+ * NOTE: when open for writing we always are writing to a specific ring id. No
+ * need to iterate over control and data or dereference control/data pointers.
+ */
+int kring_write_plain( struct kring_user *u, char *data, int len )
+{
+	struct kring_plain_header *h;
+	unsigned char *bytes;
+	shr_off_t whead;
+	char buf[1];
+
+	if ( len > kring_plain_max_data()  )
+		len = kring_plain_max_data();
+
+	/* Find the place to write to, skipping ahead as necessary. */
+	whead = find_write_loc( u->control );
+
+	/* Reserve the space. */
+	u->control->writer->wresv = whead;
+
+	h = (struct kring_plain_header*)( u->data->page + whead );
+	bytes = (unsigned char*)( h + 1 );
+
+	h->len = len;
+	memcpy( bytes, data, len );
+
+	/* Clear the writer owned bit from the buffer. */
+	writer_release( u->control, whead );
+
+	/* Write back the write head, thereby releasing the buffer to writer. */
+	u->control->writer->whead = whead;
+
+	/* Wake up here. */
+	send( u->socket, buf, 1, 0 );
+
+	return 0;
+}   

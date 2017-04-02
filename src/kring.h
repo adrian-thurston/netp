@@ -66,7 +66,8 @@ extern "C" {
 enum KRING_TYPE
 {
 	KRING_PACKETS = 1,
-	KRING_DECRYPTED
+	KRING_DECRYPTED,
+	KRING_PLAIN
 };
 
 enum KRING_MODE
@@ -161,6 +162,8 @@ struct kring_addr
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
+int kring_write_plain( struct kring_user *u, char *data, int len );
+
 char *kring_error( struct kring_user *u, int err );
 
 inline unsigned long kring_skips( struct kring_user *u )
@@ -192,6 +195,12 @@ struct kring_decrypted
 	 unsigned char *bytes;
 };
 
+struct kring_plain
+{
+	 int len;
+	 unsigned char *bytes;
+};
+
 struct kring_packet_header
 {
 	int len;
@@ -203,6 +212,11 @@ struct kring_decrypted_header
 	int len;
 	char type;
 	char host[63];
+};
+
+struct kring_plain_header
+{
+	int len;
 };
 
 inline int kring_avail_impl( struct kring_control *control, int reader_id )
@@ -379,6 +393,34 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	decrypted->bytes = bytes;
 }
 
+inline void kring_next_plain( struct kring_user *u, struct kring_plain *plain )
+{
+	struct kring_plain_header *h;
+	unsigned char *bytes;
+
+	int ctrl = kring_select_ctrl( u );
+
+	shr_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	shr_off_t rhead = prev;
+
+	rhead = kring_advance_rhead( u, ctrl, rhead );
+
+	/* Set the rheadset rhead. */
+	u->control[ctrl].reader[u->reader_id].rhead = rhead;
+	
+	/* Release the previous only if we have entered with a successful read. */
+	if ( u->control[ctrl].reader[u->reader_id].entered )
+		kring_reader_release( u->reader_id, u->control, ctrl, prev );
+
+	/* Indicate we have entered. */
+	u->control[ctrl].reader[u->reader_id].entered = 1;
+
+	h = (struct kring_plain_header*)kring_data( u, ctrl );
+	bytes = (unsigned char*)( h + 1 );
+
+	plain->len = h->len;
+	plain->bytes = bytes;
+}
 
 inline unsigned long kring_one_back( unsigned long pos )
 {
@@ -481,6 +523,11 @@ inline int kring_packet_max_data(void)
 inline int kring_decrypted_max_data(void)
 {
 	return KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
+}
+
+inline int kring_plain_max_data(void)
+{
+	return KRING_PAGE_SIZE - sizeof(struct kring_plain_header);
 }
 
 #if defined(__cplusplus)
