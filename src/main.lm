@@ -38,7 +38,11 @@ void generateMainHeader( P: program )
 		~	int start();
 		~	void join();
 		~	virtual int main() { return 0; }
-		~	virtual bool poll() { return false; }
+		~
+		~	void recvSingle();
+		~	int recvLoop();
+		~	bool poll();
+		~	void recvHeader( ItQueue *queue, ItHeader *header );
 		~
 		~	virtual void data( SelectFd *fd );
 		~	void close( SelectFd *fd );
@@ -436,6 +440,8 @@ void generateMainCode( P: ref<program> )
 	joinDef( Thread )
 	sendsToCode( Thread )
 	packetReceives( Thread )
+
+	threadRecveives( Thread )
 
 	send Output
 		~Thread *getThis();

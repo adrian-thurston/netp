@@ -170,38 +170,8 @@ void threadForwards( Thread: thread )
 	send Output "
 }
 
-
-void generateThreadCode( Thread: thread )
+void threadRecveives( Thread: thread )
 {
-	Output = new parser<out_c::out_c>()
-
-	send Output
-		"/*
-		" * [Thread->Lower]_gen.cc
-		" */
-		"
-
-	send Output
-		"#include \"[Thread->Lower].h\"
-
-	threadIncludes( Thread )
-	threadForwards( Thread )
-
-	send Output ~
-
-	createChildDefs( Thread )
-	joinDef( Thread )
-	sendsToCode( Thread )
-
-	packetReceives( Thread )
-
-	send Output
-		"int [Thread->Id]Gen::start()
-		"{
-		"	return main();
-		"};
-		"
-
 	send Output
 		"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
 		"{
@@ -220,7 +190,7 @@ void generateThreadCode( Thread: thread )
 		"	}
 		"}
 		"
-	
+
 	send Output
 		"int [Thread->Id]Gen::recvLoop()
 		"{
@@ -255,6 +225,40 @@ void generateThreadCode( Thread: thread )
 		"	return false;
 		"}
 		"
+}
+
+void generateThreadCode( Thread: thread )
+{
+	Output = new parser<out_c::out_c>()
+
+	send Output
+		"/*
+		" * [Thread->Lower]_gen.cc
+		" */
+		"
+
+	send Output
+		"#include \"[Thread->Lower].h\"
+
+	threadIncludes( Thread )
+	threadForwards( Thread )
+
+	send Output ~
+
+	createChildDefs( Thread )
+	joinDef( Thread )
+	sendsToCode( Thread )
+
+	packetReceives( Thread )
+
+	send Output
+		"int [Thread->Id]Gen::start()
+		"{
+		"	return main();
+		"};
+		"
+
+	threadRecveives( Thread )
 
 	send Output [] eos
 	writeOutput( Output->tree, "[Thread->Lower]_gen.cc" )
