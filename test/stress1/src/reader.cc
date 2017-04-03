@@ -1,4 +1,5 @@
 #include "reader.h"
+#include "writer.h"
 #include <kring/kring.h>
 
 void ReaderThread::recvShutdown( Shutdown * )
@@ -9,6 +10,7 @@ void ReaderThread::recvShutdown( Shutdown * )
 int ReaderThread::main()
 {
 	char buf[1];
+	int received = 0;
 
 	log_message("reader");
 
@@ -19,6 +21,10 @@ int ReaderThread::main()
 		log_ERROR( "decrypted data kring open failed: " << kring_error( &kring, r ) );
 		return -1;
 	}
+
+	/* Notify the main thread that we have entered. */
+	sendsToMain->openEntered();
+	sendsToMain->send();
 
 	loopBegin();
 
@@ -35,11 +41,17 @@ int ReaderThread::main()
 			kring_next_plain( &kring, &plain );
 
 			log_message( "plain: " << log_array( plain.bytes, plain.len ) );
+
+			received += 1;
 		}
+
+		if ( received == MESSAGES )
+			break;
 
 		int r = recv( kring.socket, buf, 1, 1 );
 		if ( r < 0 )
 			log_ERROR( "kring recv failed: " << strerror( r ) );
+
 	}
 
 	return 0;

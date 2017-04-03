@@ -10,7 +10,7 @@ int WriterThread::main()
 
 	char buf[kring_plain_max_data()];
 
-	for ( int i = 0; i < 10; i++ ) {
+	for ( int i = 0; i < MESSAGES; i++ ) {
 		sprintf( buf, "w: %d", i );
 		kring_write_plain( &kring, buf, strlen(buf) );
 		log_message( "message sent: " << buf );

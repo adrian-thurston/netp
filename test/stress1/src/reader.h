@@ -6,6 +6,7 @@
 struct ReaderThread
 	: public ReaderGen
 {
+	SendsToMain *sendsToMain;
 	void recvShutdown( Shutdown * );
 	int main();
 };

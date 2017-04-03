@@ -4,6 +4,8 @@
 #include "writer_gen.h"
 #include <kring/kring.h>
 
+#define MESSAGES 10
+
 struct WriterThread
 	: public WriterGen
 {

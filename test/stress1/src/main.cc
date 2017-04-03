@@ -5,11 +5,23 @@
 #define READERS 1
 #define WRITERS 1
 
+MainThread::MainThread()
+:
+	entered(0)
+{
+
+}
+
+void MainThread::recvEntered( Entered * )
+{
+	entered += 1;
+}
+
 int MainThread::main()
 {
 	ReaderThread *readers[READERS];
 	WriterThread *writers[WRITERS];
-	SendsToReader *sendsTos[READERS];
+	// SendsToReader *sendsTos[READERS];
 
 	system( "rmmod kring" );
 	system( "insmod $HOME/devel/kring/src/kring.ko" );
@@ -18,26 +30,23 @@ int MainThread::main()
 	for ( int i = 0; i < READERS; i++ )
 		readers[i] = new ReaderThread();
 
-	for ( int i = 0; i < WRITERS; i++ )
-		writers[i] = new WriterThread();
-
-	for ( int i = 0; i < READERS; i++ )
-		sendsTos[i] = registerSendsToReader( readers[i] );
+	for ( int i = 0; i < READERS; i++ ) {
+		readers[i]->sendsToMain = readers[i]->registerSendsToMain( this );
+		/* sendsTos[i] = */ registerSendsToReader( readers[i] );
+	}
 
 	for ( int i = 0; i < READERS; i++ )
 		create( readers[i] );
 
-	sleep( 1 );
+	/* Wait for all the reader threads to indicate they have entered. */
+	while ( entered < READERS )
+		recvSingle();
+
+	for ( int i = 0; i < WRITERS; i++ )
+		writers[i] = new WriterThread();
 
 	for ( int i = 0; i < WRITERS; i++ )
 		create( writers[i] );
-
-	sleep( 1 );
-
-	for ( int i = 0; i < READERS; i++ ) {
-		sendsTos[i]->openShutdown();
-		sendsTos[i]->send( true );
-	}
 
 	join();
 

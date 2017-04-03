@@ -6,6 +6,9 @@
 struct MainThread
 	: public MainGen
 {
+	MainThread();
+	int entered;
+	void recvEntered( Entered * );
 	int main();
 };
 
