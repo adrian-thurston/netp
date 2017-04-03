@@ -91,7 +91,7 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	u->control[ctrl].writer = (struct shared_writer*)r;
 	u->control[ctrl].reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_writer) );
 	u->control[ctrl].descriptor = (struct shared_desc*)(
-			(char*)r + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS );
+			(char*)r + sizeof(struct shared_writer) + sizeof(struct shared_reader) * KRING_READERS );
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -115,7 +115,7 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode, int writer_id )
 {
 	int ctrl, to_alloc, res, ring_N, reader_id;
 	socklen_t nlen = sizeof(ring_N);
@@ -134,8 +134,9 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	u->mode = mode;
 
 	copy_name( addr.name, ringset );
-	addr.mode = mode;
 	addr.ring_id = ring_id;
+	addr.mode = mode;
+	addr.writer_id = writer_id;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) {

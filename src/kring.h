@@ -20,7 +20,6 @@ extern "C" {
 /* Must match region shift below. */
 #define MAX_RINGS_PER_SET 32
 
-#define MAX_WRITERS_PER_RING 32
 
 #define PGOFF_ID_SHIFT 0
 #define PGOFF_ID_MASK  0x1f
@@ -54,10 +53,15 @@ extern "C" {
 #define KRING_DIR_OUTSIDE 2
 
 #define KRING_NLEN 32
-#define NRING_READERS 6
+#define KRING_READERS 6
+
+/* Configurable at allocation time. This specifies the maximum. */
+#define KRING_MAX_WRITERS_PER_RING 32
 
 #define KR_OPT_READER_ID 1
 #define KR_OPT_RING_N    2
+
+#define KR_WRITER_ID_ANY -1
 
 /* Records an error in the user struct. Use before goto to function cleanup. */
 #define kring_func_error( _ke, _ee ) \
@@ -112,7 +116,7 @@ struct kring_page
 
 #define KRING_CTRL_SZ ( \
 	sizeof(struct shared_writer) + \
-	sizeof(struct shared_reader) * NRING_READERS + \
+	sizeof(struct shared_reader) * KRING_READERS + \
 	sizeof(struct shared_desc) * NPAGES \
 )
 
@@ -155,11 +159,12 @@ struct kring_user
 struct kring_addr
 {
 	char name[KRING_NLEN];
-	enum KRING_MODE mode;
 	int ring_id;
+	enum KRING_MODE mode;
+	int writer_id;
 };
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode, int writer_id );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 int kring_write_plain( struct kring_user *u, char *data, int len );
@@ -451,7 +456,7 @@ retry:
 			shr_desc_t before;
 
 			/* register skips. */
-			for ( id = 0; id < NRING_READERS; id++ ) {
+			for ( id = 0; id < KRING_READERS; id++ ) {
 				if ( desc & DSC_READER_BIT( id ) ) {
 					/* reader id present. */
 					control->reader[id].skips += 1;

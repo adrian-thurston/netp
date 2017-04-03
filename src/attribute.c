@@ -55,8 +55,9 @@ struct kring_sock
 {
 	struct sock sk;
 	struct ringset *ringset;
-	enum KRING_MODE mode;
 	int ring_id;
+	enum KRING_MODE mode;
+	int writer_id;
 	int reader_id;
 };
 
@@ -183,7 +184,7 @@ static struct ringset *find_ring( const char *name )
 
 static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
-	int i, id = -1;
+	int i, reader_id = -1; /*, writer_id = KR_WRITER_ID_ANY; */
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct ringset *ringset;
@@ -210,8 +211,17 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 
-	if ( addr->ring_id < -1 || addr->ring_id >= ringset->N ) {
-		printk( "kring_bind: bad ring id\n" );
+	if ( addr->ring_id != KR_RING_ID_ALL &&
+			( addr->ring_id < 0 || addr->ring_id >= ringset->N ) )
+	{
+		printk( "kring_bind: bad ring id %d\n", addr->ring_id );
+		return -EINVAL;
+	}
+
+	if ( addr->writer_id != KR_WRITER_ID_ANY &&
+			( addr->writer_id < 0 || addr->writer_id >= ringset->writers_per_ring ) )
+	{
+		printk( "kring_bind: bad writer_id %d\n", addr->writer_id );
 		return -EINVAL;
 	}
 
@@ -232,29 +242,42 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 			return -EINVAL;
 		}
 
-		ringset->ring[addr->ring_id].num_writers = true;
+		/* If a specific writer id is requested then make sure nobody else has it. */
+		if ( addr->writer_id != KR_WRITER_ID_ANY ) {
+			if ( ring->writer[addr->writer_id].allocated ) {
+				printk( "kring_bind: ring %d already has writer id %d\n",
+						addr->ring_id, addr->writer_id );
+				return -EINVAL;
+			}
+
+			ring->writer[addr->writer_id].allocated = true;
+		}
+
+		ring->num_writers += 1;
 	}
 	else if ( addr->mode == KRING_READ ) {
 		if ( addr->ring_id != KR_RING_ID_ALL ) {
-			/* Search for a single reader id that is free across all the rings requested. */
-			for ( id = 0; id < NRING_READERS; id++ ) {
-				if ( !ringset->ring[addr->ring_id].reader[id].allocated )
+			ring = &ringset->ring[addr->ring_id];
+
+			/* Search for a reader id that is free on the ring requested. */
+			for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
+				if ( !ring->reader[reader_id].allocated )
 					break;
 			}
 
-			if ( id == NRING_READERS ) {
+			if ( reader_id == KRING_READERS ) {
 				/* No valid id found */
 				return -EINVAL;
 			}
 
 			/* All okay. */
-			ringset->ring[addr->ring_id].reader[id].allocated = true;
+			ring->reader[reader_id].allocated = true;
 		}
 		else {
 			/* Search for a single reader id that is free across all the rings requested. */
-			for ( id = 0; id < NRING_READERS; id++ ) {
+			for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
 				for ( i = 0; i < ringset->N; i++ ) {
-					if ( ringset->ring[i].reader[id].allocated )
+					if ( ringset->ring[i].reader[reader_id].allocated )
 						goto next_id;
 				}
 
@@ -272,14 +295,15 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 			
 			/* Allocate reader ids. */
 			for ( i = 0; i < ringset->N; i++ )
-				ringset->ring[i].reader[id].allocated = true;
+				ringset->ring[i].reader[reader_id].allocated = true;
 		}
 	}
 
 	krs->ringset = ringset;
-	krs->mode = addr->mode;
 	krs->ring_id = addr->ring_id;
-	krs->reader_id = id;
+	krs->mode = addr->mode;
+	krs->writer_id = addr->writer_id;
+	krs->reader_id = reader_id;
 
 	return 0;
 }
@@ -528,7 +552,7 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int
 	__sync_add_and_fetch( &r->ring[kring->ring_id].control.writer->produced, 1 );
 
 	#if 0
-	for ( id = 0; id < NRING_READERS; id++ ) {
+	for ( id = 0; id < KRING_READERS; id++ ) {
 		if ( r->ring[kring->ring_id].reader[id].allocated ) {
 			unsigned long long diff =
 					r->ring[kring->ring_id].control.writer->produced -
@@ -566,7 +590,7 @@ static void ring_alloc( struct ring *r )
 
 	r->control.writer = r->ctrl;
 	r->control.reader = r->ctrl + sizeof(struct shared_writer);
-	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS;
+	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * KRING_READERS;
 
 	r->num_writers = 0;
 	r->num_readers = 0;
@@ -584,7 +608,7 @@ static void ring_alloc( struct ring *r )
 
 	r->control.writer->whead = r->control.writer->wresv = kring_one_back( 0 );
 
-	for ( i = 0; i < NRING_READERS; i++ )
+	for ( i = 0; i < KRING_READERS; i++ )
 		r->reader[i].allocated = false;
 
 	init_waitqueue_head( &r->reader_waitqueue );
@@ -635,7 +659,7 @@ static ssize_t kring_add_store( struct kring *obj, const char *name, long rings_
 	if ( rings_per_set < 1 || rings_per_set > MAX_RINGS_PER_SET )
 		return -EINVAL;
 
-	if ( writers_per_ring < 1 || writers_per_ring > MAX_WRITERS_PER_RING )
+	if ( writers_per_ring < 1 || writers_per_ring > KRING_MAX_WRITERS_PER_RING )
 		return -EINVAL;
 
 	r = kmalloc( sizeof(struct ringset), GFP_KERNEL );

@@ -10,6 +10,11 @@ struct ring_reader
 	bool allocated;
 };
 
+struct ring_writer
+{
+	bool allocated;
+};
+
 struct ring
 {
 	void *ctrl;
@@ -19,7 +24,8 @@ struct ring
 	bool num_writers;
 	long num_readers;
 
-	struct ring_reader reader[NRING_READERS];
+	struct ring_reader reader[KRING_READERS];
+	struct ring_writer writer[KRING_MAX_WRITERS_PER_RING];
 
 	wait_queue_head_t reader_waitqueue;
 };
