@@ -317,6 +317,8 @@ public:
 
 	void breakLoop()
 		{ loop = false; }
+	void loopBreak()
+		{ loop = false; }
 	bool loopContinue()
 		{ return loop; }
 	void loopBegin()
