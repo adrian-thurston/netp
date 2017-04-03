@@ -187,6 +187,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct ringset *ringset;
+	struct ring *ring;
 
 	if ( addr_len != sizeof(struct kring_addr) ) {
 		printk("kring_bind: addr_len wrong size\n");
@@ -223,12 +224,15 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 			return -EINVAL;
 		}
 
-		if ( ringset->ring[addr->ring_id].has_writer ) {
-			printk( "kring_bind: ring %d already has writer\n", addr->ring_id );
+		ring = &ringset->ring[addr->ring_id];
+
+		if ( ring->num_writers == ringset->writers_per_ring ) {
+			printk( "kring_bind: ring %d already has max writers (%d)\n",
+					addr->ring_id, ringset->writers_per_ring );
 			return -EINVAL;
 		}
 
-		ringset->ring[addr->ring_id].has_writer = true;
+		ringset->ring[addr->ring_id].num_writers = true;
 	}
 	else if ( addr->mode == KRING_READ ) {
 		if ( addr->ring_id != KR_RING_ID_ALL ) {
@@ -401,7 +405,7 @@ static void kring_sock_destruct( struct sock *sk )
 
 	switch ( krs->mode ) {
 		case KRING_WRITE: {
-			krs->ringset->ring[krs->ring_id].has_writer = false;
+			krs->ringset->ring[krs->ring_id].num_writers -= 1;
 			break;
 		}
 		case KRING_READ: {
@@ -474,14 +478,14 @@ int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
 	kring->ringset = r;
 	kring->ring_id = ring_id;
 
-	r->ring[ring_id].has_writer = true;
+	r->ring[ring_id].num_writers += 1;
 
 	return 0;
 }
 
 int kring_wclose( struct kring_kern *kring )
 {
-	kring->ringset->ring[kring->ring_id].has_writer = false;
+	kring->ringset->ring[kring->ring_id].num_writers -= 1;
 	return 0;
 }
 
@@ -564,7 +568,7 @@ static void ring_alloc( struct ring *r )
 	r->control.reader = r->ctrl + sizeof(struct shared_writer);
 	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * NRING_READERS;
 
-	r->has_writer = false;
+	r->num_writers = 0;
 	r->num_readers = 0;
 
 	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
@@ -584,8 +588,6 @@ static void ring_alloc( struct ring *r )
 		r->reader[i].allocated = false;
 
 	init_waitqueue_head( &r->reader_waitqueue );
-
-	r->writers = 0;
 }
 
 static void ringset_alloc( struct ringset *r, const char *name, long n, long writers_per_ring )

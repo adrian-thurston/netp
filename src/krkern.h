@@ -16,14 +16,12 @@ struct ring
 	struct kring_control control;
 	struct page_desc *pd;
 	
-	bool has_writer;
+	bool num_writers;
 	long num_readers;
 
 	struct ring_reader reader[NRING_READERS];
 
 	wait_queue_head_t reader_waitqueue;
-
-	long writers;
 };
 
 struct ringset
