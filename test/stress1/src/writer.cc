@@ -2,7 +2,7 @@
 
 int WriterThread::main()
 {
-	int res = kring_open( &kring, KRING_PLAIN, "stress1", 0, KRING_WRITE );
+	int res = kring_open( &kring, KRING_PLAIN, "stress1", 0, KRING_WRITE, writerId );
 	if ( res < 0 ) {
 		log_ERROR( "decrypted data kring open for write failed: " << kring_error( &kring, res ) );
 		return -1;

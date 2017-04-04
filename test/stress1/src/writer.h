@@ -5,10 +5,17 @@
 #include <kring/kring.h>
 
 #define MESSAGES 10
+#define WRITERS 4
 
 struct WriterThread
 	: public WriterGen
 {
+	WriterThread( int id )
+	:
+		writerId(id)
+	{}
+
+	int writerId;
 	struct kring_user kring;
 
 	int main();

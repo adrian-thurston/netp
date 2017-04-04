@@ -16,7 +16,7 @@ int ReaderThread::main()
 
 	struct kring_user kring;
 
-	int r = kring_open( &kring, KRING_PLAIN, "stress1", KR_RING_ID_ALL, KRING_READ );
+	int r = kring_open( &kring, KRING_PLAIN, "stress1", KR_RING_ID_ALL, KRING_READ, 0 );
 	if ( r < 0 ) {
 		log_ERROR( "decrypted data kring open failed: " << kring_error( &kring, r ) );
 		return -1;
@@ -45,7 +45,7 @@ int ReaderThread::main()
 			received += 1;
 		}
 
-		if ( received == MESSAGES )
+		if ( received == ( WRITERS * MESSAGES ) )
 			break;
 
 		int r = recv( kring.socket, buf, 1, 1 );

@@ -3,7 +3,6 @@
 #include "writer.h"
 
 #define READERS 1
-#define WRITERS 1
 
 MainThread::MainThread()
 :
@@ -43,7 +42,7 @@ int MainThread::main()
 		recvSingle();
 
 	for ( int i = 0; i < WRITERS; i++ )
-		writers[i] = new WriterThread();
+		writers[i] = new WriterThread( i );
 
 	for ( int i = 0; i < WRITERS; i++ )
 		create( writers[i] );
