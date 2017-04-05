@@ -24,7 +24,7 @@ int MainThread::main()
 
 	system( "rmmod kring" );
 	system( "insmod $HOME/devel/kring/src/kring.ko" );
-	system( "echo stress1 4 4 > /sys/kring/add" );
+	system( "echo stress1 4 8 > /sys/kring/add" );
 
 	for ( int i = 0; i < READERS; i++ )
 		readers[i] = new ReaderThread();

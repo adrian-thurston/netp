@@ -13,10 +13,10 @@ int WriterThread::main()
 	for ( int i = 0; i < MESSAGES; i++ ) {
 		sprintf( buf, "w: %d", i );
 		kring_write_plain( &kring, buf, strlen(buf) );
-		log_message( "message sent: " << buf );
+		// log_message( "message sent: " << buf );
 	}
 
-	log_message("writer finished");
+	log_message( "writer finished, spins: " << kring_spins( &kring ) );
 
 	return 0;
 }

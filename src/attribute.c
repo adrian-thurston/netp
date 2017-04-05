@@ -608,6 +608,8 @@ static void ring_alloc( struct ring *r )
 
 	r->control.writer->whead = r->control.writer->wresv = kring_one_back( 0 );
 
+	r->control.writer->write_mutex = 0;
+
 	for ( i = 0; i < KRING_READERS; i++ )
 		r->reader[i].allocated = false;
 

@@ -40,7 +40,7 @@ int ReaderThread::main()
 			struct kring_plain plain;
 			kring_next_plain( &kring, &plain );
 
-			log_message( "plain: " << log_array( plain.bytes, plain.len ) );
+			// log_message( "plain: " << log_array( plain.bytes, plain.len ) );
 
 			received += 1;
 		}

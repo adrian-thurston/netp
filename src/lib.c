@@ -241,6 +241,19 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	return 0;
 }   
 
+void kring_lock( int *mutex, unsigned long long *spins )
+{
+	while ( __sync_lock_test_and_set( mutex, 1 ) ) {
+		/* If builtin returns 1 we did not flip it and therefore did not acquire the lock. */
+		__sync_add_and_fetch( spins, 1 );
+	}
+}
+
+void kring_unlock( int *mutex )
+{
+	__sync_lock_release( mutex, 0 );
+}
+
 /*
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
@@ -251,6 +264,8 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 	unsigned char *bytes;
 	shr_off_t whead;
 	char buf[1];
+
+	kring_lock( &u->control->writer->write_mutex, &u->control->writer->spins );
 
 	if ( len > kring_plain_max_data()  )
 		len = kring_plain_max_data();
@@ -272,6 +287,8 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
 	u->control->writer->whead = whead;
+
+	kring_unlock( &u->control->writer->write_mutex );
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );

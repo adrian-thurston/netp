@@ -88,6 +88,8 @@ struct shared_writer
 	shr_off_t whead;
 	shr_off_t wresv;
 	unsigned long long produced;
+	int write_mutex;
+	unsigned long long spins;
 };
 
 struct shared_reader
@@ -168,6 +170,11 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 int kring_write_plain( struct kring_user *u, char *data, int len );
+
+inline unsigned long long kring_spins( struct kring_user *u )
+{
+	return u->control->writer->spins;
+}
 
 char *kring_error( struct kring_user *u, int err );
 
@@ -467,9 +474,12 @@ retry:
 			before = kring_write_back( control, whead, desc, desc | DSC_SKIPPED );
 			if ( before != desc )
 				goto retry;
+
+			/* After registering the skip, go on to look for another block. */
 		}
 		else if ( desc & DSC_WRITER_OWNED ) {
-			/* Unusual situation. */
+			/* A different writer has the block. Go forward to find another
+			 * block. */
 		}
 		else {
 			/* Available. */
