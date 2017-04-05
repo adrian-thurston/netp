@@ -265,10 +265,10 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 	shr_off_t whead;
 	char buf[1];
 
-	kring_lock( &u->control->writer->write_mutex, &u->control->writer->spins );
-
 	if ( len > kring_plain_max_data()  )
 		len = kring_plain_max_data();
+
+	kring_lock( &u->control->writer->write_mutex, &u->control->writer->spins );
 
 	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( u->control );
