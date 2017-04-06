@@ -12,38 +12,6 @@ extern "C" {
 #define PGOFF_DATA 1
 
 /*
- * Assumptions:
- *
- * 1. The ration of ( readers + writers ) to number of blocks is very small.
- *
- * Rules:
- *
- * 1. If there are multiple writers contributing to a single ring they should
- *   not be interrputable, nor can they reserve blocks and wait. If they start
- *   to write they must finish so that the writers do not get far apart from
- *   each other. 
- */
-
-
-/* To allow multiple writers into a ring?
- *
- * Can only work when there is no reserve required (not hardware rings).
- *
- * Can only work when writers cannot be interrputed.
- *
- * Non-direct-access kernel only (least desirable setup) .. so optimizing the
- * thing we don't want to use.
- * 
- * SIMD instructions can be used to optimze 
- *
- * Using a ring per writer wastes memory, but we need to do this anyways for hardware rings.
- *
- * Maybe look to other ways to reduce memory consuption ... such as
- * adaptable-size rings. Or disconnect descriptors from pages in some mapping.
- */
-
-
-/*
  * Memap identity information. 
  */
 
