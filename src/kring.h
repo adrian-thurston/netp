@@ -166,7 +166,7 @@ struct kring_addr
 	int writer_id;
 };
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode, int writer_id );
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
 
 int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
 int kring_write_plain( struct kring_user *u, char *data, int len );

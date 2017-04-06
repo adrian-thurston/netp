@@ -115,7 +115,7 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode, int writer_id )
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
 	int ctrl, to_alloc, res, ring_N, reader_id;
 	socklen_t nlen = sizeof(ring_N);
@@ -136,7 +136,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	copy_name( addr.name, ringset );
 	addr.ring_id = ring_id;
 	addr.mode = mode;
-	addr.writer_id = writer_id;
+	addr.writer_id = 0;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) {
