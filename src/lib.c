@@ -299,5 +299,8 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 int kring_read_wait( struct kring_user *u )
 {
 	char buf[1];
-	return recv( u->socket, buf, 1, 1 ); 
+	int ret = recv( u->socket, buf, 1, 1 ); 
+	if ( ret == -1 && errno == EINTR )
+		ret = 0;
+	return ret;
 }

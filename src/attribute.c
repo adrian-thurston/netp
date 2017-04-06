@@ -375,6 +375,7 @@ static int kring_kern_avail( struct ringset *r, struct kring_sock *krs )
 	}
 }
 
+/* Waiting writers go to sleep with the recvmsg system call. */
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
@@ -388,24 +389,27 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 	 * signals so we can receive genf inter-thread messages. */
 	siginitsetinv( &blocked, sigmask(SIGKILL) | sigmask(SIGSTOP) |
 			sigmask(SIGUSR1) | sigmask(SIGUSR2) );
-	sigprocmask(SIG_SETMASK, &blocked, &oldset);
+	sigprocmask( SIG_SETMASK, &blocked, &oldset );
 
-	// wq = krs->ring_id == KR_RING_ID_ALL ? &r->reader_waitqueue : &r->ring[krs->ring_id].reader_waitqueue;
+	// wq = krs->ring_id == KR_RING_ID_ALL ? &r->reader_waitqueue 
+	// : &r->ring[krs->ring_id].reader_waitqueue;
+
 	wq = &r->reader_waitqueue;
 
 	ret = wait_event_interruptible( *wq, kring_kern_avail( r, krs ) );
 
-	if (ret == -ERESTARTNOHAND) {
+	if ( ret == -ERESTARTSYS ) {
+		/* Interrupted by a signal. */
 		memcpy(&current->saved_sigmask, &oldset, sizeof(oldset));
 		set_restore_sigmask();
-	}
-	else {
-		sigprocmask(SIG_SETMASK, &oldset, NULL);
+		return -EINTR;
 	}
 
-	return ret;
+	sigprocmask(SIG_SETMASK, &oldset, NULL);
+	return 0;
 }
 
+/* The sendmsg system call is used for waking up waiting readers. */
 static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
