@@ -166,32 +166,6 @@ struct kring_addr
 	int writer_id;
 };
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
-int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
-int kring_write_plain( struct kring_user *u, char *data, int len );
-int kring_read_wait( struct kring_user *u );
-
-
-inline unsigned long long kring_spins( struct kring_user *u )
-{
-	return u->control->writer->spins;
-}
-
-char *kring_error( struct kring_user *u, int err );
-
-inline unsigned long kring_skips( struct kring_user *u )
-{
-	unsigned long skips = 0;
-	if ( u->ring_id != KR_RING_ID_ALL )
-		skips = u->control->reader[u->reader_id].skips;
-	else {
-		int ring;
-		for ( ring = 0; ring < u->N; ring++ )
-			skips += u->control[ring].reader[u->reader_id].skips;
-	}
-	return skips;
-}
-
 struct kring_packet
 {
 	char dir;
@@ -231,6 +205,48 @@ struct kring_plain_header
 {
 	int len;
 };
+
+
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
+int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
+int kring_write_plain( struct kring_user *u, char *data, int len );
+int kring_read_wait( struct kring_user *u );
+
+inline int kring_packet_max_data(void)
+{
+	return KRING_PAGE_SIZE - sizeof(struct kring_packet_header);
+}
+
+inline int kring_decrypted_max_data(void)
+{
+	return KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
+}
+
+inline int kring_plain_max_data(void)
+{
+	return KRING_PAGE_SIZE - sizeof(struct kring_plain_header);
+}
+
+
+inline unsigned long long kring_spins( struct kring_user *u )
+{
+	return u->control->writer->spins;
+}
+
+char *kring_error( struct kring_user *u, int err );
+
+inline unsigned long kring_skips( struct kring_user *u )
+{
+	unsigned long skips = 0;
+	if ( u->ring_id != KR_RING_ID_ALL )
+		skips = u->control->reader[u->reader_id].skips;
+	else {
+		int ring;
+		for ( ring = 0; ring < u->N; ring++ )
+			skips += u->control[ring].reader[u->reader_id].skips;
+	}
+	return skips;
+}
 
 inline int kring_avail_impl( struct kring_control *control, int reader_id )
 {
@@ -370,7 +386,10 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
-	packet->caplen = h->len;
+	packet->caplen = 
+			( h->len <= kring_packet_max_data() ) ?
+			h->len :
+			kring_packet_max_data();
 	packet->dir = h->dir;
 	packet->bytes = bytes;
 }
@@ -529,21 +548,6 @@ inline int kring_prep_enter( struct kring_user *u, int ctrl )
 			u->control[ctrl].writer->produced;
 
 	return 0;
-}
-
-inline int kring_packet_max_data(void)
-{
-	return KRING_PAGE_SIZE - sizeof(struct kring_packet_header);
-}
-
-inline int kring_decrypted_max_data(void)
-{
-	return KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
-}
-
-inline int kring_plain_max_data(void)
-{
-	return KRING_PAGE_SIZE - sizeof(struct kring_plain_header);
 }
 
 #if defined(__cplusplus)

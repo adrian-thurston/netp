@@ -52,7 +52,7 @@ struct kring_kern
 
 int kring_wopen( struct kring_kern *kring, const char *ringset, int rid );
 int kring_wclose( struct kring_kern *kring );
-void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int len );
+void kring_write( struct kring_kern *kring, int writer_id, int dir, const struct sk_buff *skb );
 
 #endif
 

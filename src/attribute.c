@@ -517,7 +517,8 @@ int kring_wclose( struct kring_kern *kring )
 	return 0;
 }
 
-void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int len )
+static void kring_write_single( struct kring_kern *kring,
+		int writer_id, int dir, const struct sk_buff *skb, int offset, int write, int len )
 {
 	struct kring_packet_header *h;
 	void *pdata;
@@ -525,12 +526,6 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int
 
 	/* Which ringset? */
 	struct ringset *r = kring->ringset;
-
-	/* Limit the size. */
-	if ( len > kring_packet_max_data() ) {
-		/* printk("KRING: large write: %d\n", len ); */
-		len = kring_packet_max_data();
-	}
 
 	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( &r->ring[kring->ring_id].control );
@@ -543,7 +538,8 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int
 
 	h->len = len;
 	h->dir = (char) dir;
-	memcpy( pdata, d, len );
+
+	skb_copy_bits( skb, offset, pdata, write );
 
 	/* Clear the writer owned bit from the buffer. */
 	if ( writer_release( &r->ring[kring->ring_id].control, whead ) < 0 )
@@ -570,6 +566,27 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, void *d, int
 	#endif
 
 	wake_up_interruptible_all( &r->reader_waitqueue );
+}
+
+void kring_write( struct kring_kern *kring, int writer_id, int dir, const struct sk_buff *skb )
+{
+	int offset = 0, write, len;
+
+	while ( true ) {
+		/* Number of bytes left in the packet (maybe overflows) */
+		len = skb->len - offset;
+		if ( len <= 0 )
+			break;
+
+		/* What can we write this time? */
+		write = len;
+		if ( write > kring_packet_max_data() )
+			write = kring_packet_max_data();
+
+		kring_write_single( kring, writer_id, dir, skb, offset, write, len );
+
+		offset += write;
+	}
 }
 
 static void *alloc_shared_memory( int size )
