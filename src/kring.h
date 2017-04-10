@@ -176,10 +176,11 @@ struct kring_packet
 
 struct kring_decrypted
 {
+	 long id;
 	 unsigned char type;
 	 char *host;
-	 int len;
 	 unsigned char *bytes;
+	 int len;
 };
 
 struct kring_plain
@@ -197,6 +198,7 @@ struct kring_packet_header
 struct kring_decrypted_header
 {
 	int len;
+	long id;
 	char type;
 	char host[63];
 };
@@ -208,7 +210,7 @@ struct kring_plain_header
 
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
-int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len );
+int kring_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len );
 int kring_write_plain( struct kring_user *u, char *data, int len );
 int kring_read_wait( struct kring_user *u );
 
@@ -420,6 +422,7 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
+	decrypted->id = h->id;
 	decrypted->type = h->type;
 	decrypted->host = h->host;
 	decrypted->bytes = bytes;

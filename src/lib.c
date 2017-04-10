@@ -199,7 +199,7 @@ err_return:
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
  */
-int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHost, char *data, int len )
+int kring_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len )
 {
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
@@ -219,6 +219,7 @@ int kring_write_decrypted( struct kring_user *u, int type, const char *remoteHos
 	bytes = (unsigned char*)( h + 1 );
 
 	h->len = len;
+	h->id = id;
 	h->type = type;
 	if ( remoteHost == 0 )
 		h->host[0] = 0;
