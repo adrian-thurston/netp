@@ -708,3 +708,28 @@ std::ostream &operator <<( std::ostream &out, const Thread &thread )
 	out << log_time() << ": " << thread.type << "(" << thread.tid << "): ";
 	return out;
 }
+
+std::ostream &operator <<( std::ostream &out, const log_binary &b )
+{
+	const int run = 80;
+	int off = 0;
+	char buf[run+1];
+	int lines = 0;
+
+	while ( off < b.len ) {
+		int use = ( b.len - off <= run ) ? b.len - off : run;
+		memcpy( buf, b.data + off, use );
+		for ( int c = 0; c < use; c++ ) {
+			if ( !isprint( buf[c] ) )
+				buf[c] = '.';
+		}
+		buf[use] = 0;
+
+		out << std::endl << "    " << buf;
+
+		off += use;
+		lines += 1;
+	}
+
+	return out;
+}

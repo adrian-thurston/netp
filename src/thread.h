@@ -493,13 +493,34 @@ struct log_array
 	int len;
 };
 
-inline std::ostream &operator <<( std::ostream &out, const log_array &a )
+#define log_text log_array
+
+struct log_binary
+{
+	log_binary( const char *data, int len )
+	:
+		data(data), len(len)
+	{}
+
+	log_binary( const unsigned char *data, int len )
+	:
+		data((const char*)data),
+		len(len)
+	{}
+
+	const char *data;
+	int len;
+};
+
+inline std::ostream &operator <<( std::ostream &out, const log_text &a )
 {
 	out.write( a.data, a.len );
 	return out;
 }
 
-/* FIXME: There is a gotchas here. The class-specific of log_prefix does not
+std::ostream &operator <<( std::ostream &out, const log_binary &b );
+
+/* FIXME: There is a gotcha here. The class-specific of log_prefix does not
  * work with static functions. */
 
 /* The log_prefix() expression can reference a struct or a function that
