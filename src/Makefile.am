@@ -7,7 +7,7 @@ EXTRA_DIST = shuttle.gf attribute.c attribute.h
 
 SOURCES = attribute.h attribute.c module.c avl.h avl.c
 
-MOBJS = avl.o
+MOBJS = attribute.o avl.o
 
 module.c: shuttle.gf $(GENF)
 	$(GENF) --kernf shuttle.gf

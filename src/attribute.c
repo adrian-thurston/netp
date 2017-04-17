@@ -12,6 +12,7 @@
 
 #include <kring/krkern.h>
 
+#include "module.h"
 #include "attribute.h"
 #include "avl.h"
 
@@ -48,31 +49,6 @@ static inline int conn_compare( struct connection *el1, struct connection *el2 )
 avl_declare( conn, connection )
 
 struct avl_tree block = { 0, 0, 0, 0 };
-
-/* Root object. */
-struct shuttle
-{
-	struct kobject kobj;
-};
-
-#define LINK_IPS 32
-
-/* Passtrhough link. */
-struct link
-{
-	struct kobject kobj;
-	char name[32];
-	struct net_device *inside, *outside;
-	struct net_device *dev;
-
-	__be32 ips[LINK_IPS];
-	int nips;
-
-	struct kring_kern kring;
-
-	struct list_head link_list;
-
-};
 
 struct shuttle_dev_priv
 {
@@ -191,7 +167,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 	return RX_HANDLER_CONSUMED;
 }
 
-static ssize_t link_port_add_store(
+ssize_t link_port_add_store(
 		struct link *obj, const char *iface, const char *dir )
 {
 	struct net_device *dev;
@@ -225,7 +201,7 @@ static ssize_t link_port_add_store(
 	return 0;
 }
 
-static ssize_t link_port_del_store(
+ssize_t link_port_del_store(
 		struct link *obj, const char *iface )
 {
 	struct net_device *dev;
@@ -255,7 +231,7 @@ static ssize_t link_port_del_store(
 	return 0;
 }
 
-static ssize_t link_ip_add_store( struct link *obj, const char *ip )
+ssize_t link_ip_add_store( struct link *obj, const char *ip )
 {
 	if ( obj->nips < LINK_IPS ) {
 		obj->ips[obj->nips++] = in_aton( ip );
@@ -264,7 +240,7 @@ static ssize_t link_ip_add_store( struct link *obj, const char *ip )
 	return 0;
 }
 
-static ssize_t link_block_store( struct link *obj, const char *ip1, long port1, const char *ip2, long port2 )
+ssize_t link_block_store( struct link *obj, const char *ip1, long port1, const char *ip2, long port2 )
 {
 	uint32_t bip1 = in_aton( ip1 );
 	uint32_t bip2 = in_aton( ip2 );
@@ -299,7 +275,7 @@ static ssize_t link_block_store( struct link *obj, const char *ip1, long port1, 
 	return 0;
 };
 
-static ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ring )
+ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ring )
 {
 	int err;
 
@@ -315,7 +291,7 @@ static ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const c
 	return 0;
 }
 
-static ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
+ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
 {
 	/* Find the link by name. */
 	struct link *link = 0;
@@ -525,7 +501,7 @@ static int create_netdev( struct link *link, const char *name )
 	return res;
 }
 
-static int shuttle_init(void)
+int shuttle_init(void)
 {
 	int retval = register_netdevice_notifier( &shuttle_device_notifier );
 	if ( retval )
@@ -536,7 +512,7 @@ static int shuttle_init(void)
 	return 0;
 }
 
-static void shuttle_exit(void)
+void shuttle_exit(void)
 {
 	unregister_netdevice_notifier( &shuttle_device_notifier );
 }
