@@ -1,5 +1,3 @@
-#include "attribute.h"
-
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/list.h>
@@ -14,8 +12,9 @@
 
 #include <kring/krkern.h>
 
+#include "attribute.h"
 #include "avl.h"
-#include "avl.c"
+
 
 struct connection
 {
