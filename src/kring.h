@@ -214,30 +214,30 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 int kring_write_plain( struct kring_user *u, char *data, int len );
 int kring_read_wait( struct kring_user *u );
 
-inline int kring_packet_max_data(void)
+static inline int kring_packet_max_data(void)
 {
 	return KRING_PAGE_SIZE - sizeof(struct kring_packet_header);
 }
 
-inline int kring_decrypted_max_data(void)
+static inline int kring_decrypted_max_data(void)
 {
 	return KRING_PAGE_SIZE - sizeof(struct kring_decrypted_header);
 }
 
-inline int kring_plain_max_data(void)
+static inline int kring_plain_max_data(void)
 {
 	return KRING_PAGE_SIZE - sizeof(struct kring_plain_header);
 }
 
 
-inline unsigned long long kring_spins( struct kring_user *u )
+static inline unsigned long long kring_spins( struct kring_user *u )
 {
 	return u->control->writer->spins;
 }
 
 char *kring_error( struct kring_user *u, int err );
 
-inline unsigned long kring_skips( struct kring_user *u )
+static inline unsigned long kring_skips( struct kring_user *u )
 {
 	unsigned long skips = 0;
 	if ( u->ring_id != KR_RING_ID_ALL )
@@ -250,7 +250,7 @@ inline unsigned long kring_skips( struct kring_user *u )
 	return skips;
 }
 
-inline int kring_avail_impl( struct kring_control *control, int reader_id )
+static inline int kring_avail_impl( struct kring_control *control, int reader_id )
 {
 	return ( control->reader[reader_id].rhead != control->writer->whead );
 }
@@ -261,7 +261,7 @@ static inline shr_desc_t kring_write_back( struct kring_control *control,
 	return __sync_val_compare_and_swap( &control->descriptor[off].desc, oldval, newval );
 }
 
-inline int kring_avail( struct kring_user *u )
+static inline int kring_avail( struct kring_user *u )
 {
 	if ( u->ring_id != KR_RING_ID_ALL )
 		return kring_avail_impl( u->control, u->reader_id );
@@ -275,7 +275,7 @@ inline int kring_avail( struct kring_user *u )
 	}
 }
 
-inline shr_off_t kring_next( shr_off_t off )
+static inline shr_off_t kring_next( shr_off_t off )
 {
 	off += 1;
 	if ( off >= NPAGES )
@@ -283,14 +283,14 @@ inline shr_off_t kring_next( shr_off_t off )
 	return off;
 }
 
-inline shr_off_t kring_prev( shr_off_t off )
+static inline shr_off_t kring_prev( shr_off_t off )
 {
 	if ( off == 0 )
 		return NPAGES - 1;
 	return off - 1;
 }
 
-inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t rhead )
+static inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t rhead )
 {
 	shr_desc_t desc;
 	while ( 1 ) {
@@ -320,7 +320,7 @@ inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t 
 }
 
 /* Unreserve prev. */
-inline void kring_reader_release( int reader_id, struct kring_control *control, int ctrl, shr_off_t prev )
+static inline void kring_reader_release( int reader_id, struct kring_control *control, int ctrl, shr_off_t prev )
 {
 	shr_desc_t before, desc, newval;
 again:
@@ -343,12 +343,12 @@ again:
 	__sync_add_and_fetch( &control[ctrl].reader->consumed, 1 );
 }
 
-inline void *kring_data( struct kring_user *u, int ctrl )
+static inline void *kring_data( struct kring_user *u, int ctrl )
 {
 	return ( u->data[ctrl].page + u->control[ctrl].reader[u->reader_id].rhead );
 }
 
-static int kring_select_ctrl( struct kring_user *u )
+static inline int kring_select_ctrl( struct kring_user *u )
 {
 	if ( u->ring_id != KR_RING_ID_ALL )
 		return 0;
@@ -362,7 +362,7 @@ static int kring_select_ctrl( struct kring_user *u )
 	}
 }
 
-inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
+static inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
 	struct kring_packet_header *h;
 	unsigned char *bytes;
@@ -396,7 +396,7 @@ inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet
 	packet->bytes = bytes;
 }
 
-inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *decrypted )
+static inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *decrypted )
 {
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
@@ -428,7 +428,7 @@ inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *
 	decrypted->bytes = bytes;
 }
 
-inline void kring_next_plain( struct kring_user *u, struct kring_plain *plain )
+static inline void kring_next_plain( struct kring_user *u, struct kring_plain *plain )
 {
 	struct kring_plain_header *h;
 	unsigned char *bytes;
@@ -457,18 +457,18 @@ inline void kring_next_plain( struct kring_user *u, struct kring_plain *plain )
 	plain->bytes = bytes;
 }
 
-inline unsigned long kring_one_back( unsigned long pos )
+static inline unsigned long kring_one_back( unsigned long pos )
 {
 	return pos == 0 ? NPAGES - 1 : pos - 1;
 }
 
-inline unsigned long kring_one_forward( unsigned long pos )
+static inline unsigned long kring_one_forward( unsigned long pos )
 {
 	pos += 1;
 	return pos == NPAGES ? 0 : pos;
 }
 
-inline unsigned long find_write_loc( struct kring_control *control )
+static inline unsigned long find_write_loc( struct kring_control *control )
 {
 	int id;
 	shr_desc_t desc = 0;
@@ -521,7 +521,7 @@ retry:
 	}
 }
 
-inline int writer_release( struct kring_control *control, shr_off_t whead )
+static inline int writer_release( struct kring_control *control, shr_off_t whead )
 {
 	/* orig value. */
 	shr_desc_t desc = control->descriptor[whead].desc;
@@ -538,7 +538,7 @@ inline int writer_release( struct kring_control *control, shr_off_t whead )
 	return 0;
 }
 
-inline int kring_prep_enter( struct kring_user *u, int ctrl )
+static inline int kring_prep_enter( struct kring_user *u, int ctrl )
 {
 	/* Init the read head. */
 	shr_off_t rhead = u->control[ctrl].writer->whead;

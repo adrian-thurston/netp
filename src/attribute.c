@@ -676,7 +676,7 @@ static void ringset_free( struct ringset *r )
 	kfree( r->ring );
 }
 
-static ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set, long writers_per_ring )
+ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set, long writers_per_ring )
 {
 	struct ringset *r;
 	if ( rings_per_set < 1 || rings_per_set > MAX_RINGS_PER_SET )
@@ -701,12 +701,12 @@ static ssize_t kring_add_store( struct kring *obj, const char *name, long rings_
 	return 0;
 }
 
-static ssize_t kring_del_store( struct kring *obj, const char *name  )
+ssize_t kring_del_store( struct kring *obj, const char *name  )
 {
 	return 0;
 }
 
-static int kring_init(void)
+int kring_init(void)
 {
 	int rc;
 
@@ -718,7 +718,7 @@ static int kring_init(void)
 	return 0;
 }
 
-static void kring_exit(void)
+void kring_exit(void)
 {
 	struct ringset *r;
 

@@ -3,6 +3,8 @@
 
 #include "kring.h"
 
+#include <linux/skbuff.h>
+
 #define KRING_WRITER_ID_ANY -1
 
 struct ring_reader

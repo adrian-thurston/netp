@@ -13,6 +13,7 @@ pkginclude_HEADERS = kring.h krkern.h
 EXTRA_DIST = kring.gf attribute.c attribute.h
 
 SOURCES = module.c attribute.c attribute.h
+MOBJS = attribute.o
 
 Module.symvers: kring.ko
 
@@ -24,5 +25,5 @@ kring.ko: $(SOURCES) .kbuild
 .PHONY: .kbuild
 
 .kbuild:
-	make -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
+	make MOBJS=$(MOBJS) -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
 
