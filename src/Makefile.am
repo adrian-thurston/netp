@@ -5,7 +5,7 @@ data_DATA = shuttle.ko
 
 EXTRA_DIST = shuttle.gf attribute.c attribute.h
 
-SOURCES = module.c attribute.c attribute.h
+SOURCES = attribute.h attribute.c module.c avl.h avl.c
 
 module.c: shuttle.gf $(GENF)
 	$(GENF) --kernf shuttle.gf

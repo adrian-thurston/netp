@@ -14,6 +14,42 @@
 
 #include <kring/krkern.h>
 
+#include "avl.h"
+#include "avl.c"
+
+struct connection
+{
+	uint32_t addr1, addr2;
+	uint16_t port1, port2;
+
+	struct avl_el el;
+};
+
+static inline int conn_compare( struct connection *el1, struct connection *el2 )
+{
+	if ( el1->addr1 < el2->addr1 )
+		return -1;
+	else if ( el1->addr1 > el2->addr1 )
+		return 1;
+	else if ( el1->addr2 < el2->addr2 )
+		return -1;
+	else if ( el1->addr2 > el2->addr2 )
+		return 1;
+	else if ( el1->port1 < el2->port1 )
+		return -1;
+	else if ( el1->port1 > el2->port1 )
+		return 1;
+	else if ( el1->port2 < el2->port2 )
+		return -1;
+	else if ( el1->port2 > el2->port2 )
+		return 1;
+	return 0;
+}
+
+avl_declare( conn, connection )
+
+struct avl_tree block = { 0, 0, 0, 0 };
+
 /* Root object. */
 struct shuttle
 {
@@ -62,6 +98,25 @@ bool in_ip_list( struct link *l, __be32 ip )
 	return false;
 }
 
+int block_conn( struct sk_buff *skb )
+{
+	struct iphdr *ih = ip_hdr(skb);
+	const int ihlen = ip_hdr(skb)->ihl * 4;
+	struct tcphdr *th = (struct tcphdr*) ( ( (char*)ih) + ihlen );
+
+	struct connection c;
+
+	c.addr1 = (ih->saddr);
+	c.addr2 = (ih->daddr);
+
+	c.port1 = ntohs(th->source);
+	c.port2 = ntohs(th->dest);
+
+	printk( "block? %u %u %hu %hu\n", c.addr1, c.addr2, c.port1, c.port2 );
+
+	return conn_find( &block, &c ) != 0;
+}
+
 rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
@@ -90,6 +145,11 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 				// printk( "inline.ko: version: %u\n", (unsigned) ip_hdr(skb)->version );
 				// printk( "inline.ko: tcp dest: %hu\n", ntohs(th->dest) );
 
+				if ( block_conn( skb ) ) {
+					kfree_skb( skb );
+					return RX_HANDLER_CONSUMED;
+				}
+
 				if ( th->dest == htons( 443 ) && ( in_ip_list( link, ip_hdr(skb)->daddr ) ) ) {
 					// printk( "inline.ko: ssl traffic\n" );
 					skb->dev = link->dev;
@@ -111,6 +171,14 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 		dev_queue_xmit( skb );
 	}
 	else if ( skb->dev == link->outside ) {
+		if ( eth_hdr(skb)->h_proto == htons( ETH_P_IP ) ) {
+			if ( ip_hdr(skb)->protocol == IPPROTO_TCP ) {
+				if ( block_conn( skb ) ) {
+					kfree_skb( skb );
+					return RX_HANDLER_CONSUMED;
+				}
+			}
+		}
 
 		skb->dev = link->inside;
 		skb_push( skb, ETH_HLEN );
@@ -196,6 +264,41 @@ static ssize_t link_ip_add_store( struct link *obj, const char *ip )
 
 	return 0;
 }
+
+static ssize_t link_block_store( struct link *obj, const char *ip1, long port1, const char *ip2, long port2 )
+{
+	uint32_t bip1 = in_aton( ip1 );
+	uint32_t bip2 = in_aton( ip2 );
+
+	struct connection c1, c2, *pc1, *pc2, *r;
+
+	c1.addr1 = c2.addr2 = bip1;
+	c1.addr2 = c2.addr1 = bip2;
+
+	c1.port1 = c2.port2 = port1;
+	c1.port2 = c2.port1 = port2;
+
+	r = conn_find( &block, &c1 );
+	printk( "conn find result: %p\n", r );
+
+	if ( r == 0 ) {
+		pc1 = kmalloc( sizeof(struct connection), GFP_KERNEL );
+		pc2 = kmalloc( sizeof(struct connection), GFP_KERNEL );
+
+		*pc1 = c1;
+		*pc2 = c2;
+
+		printk( "inserting into block %u %u %hu %hu\n", c1.addr1, c1.addr2, c1.port1, c1.port2 );
+
+		conn_insert( &block, pc1, 0 );
+		conn_insert( &block, pc2, 0 );
+
+		r = conn_find( &block, &c1 );
+		printk( "after insert find result: %p\n", r );
+	}
+
+	return 0;
+};
 
 static ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ring )
 {
