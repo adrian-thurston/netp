@@ -10,14 +10,14 @@ void attributeDecl( Kobj: kobj, Attr: attr )
 {
 	if ( Attr->Show ) {
 		send Output
-			"static ssize_t [Kobj->TypeName]_[Attr->Name]_show(
+			"ssize_t [Kobj->TypeName]_[Attr->Name]_show(
 			"		struct [Kobj->TypeName] *obj, char *buf );
 			"
 	}
 
 	if ( Attr->Store ) {
 		send Output
-			"static ssize_t [Kobj->TypeName]_[Attr->Name]_store(
+			"ssize_t [Kobj->TypeName]_[Attr->Name]_store(
 			"		struct [Kobj->TypeName] *obj"
 
 		for Arg: attr_arg in Attr->ArgList {
@@ -45,11 +45,15 @@ void attribute_h( P: program )
 	send Output
 		"#ifndef __ATTRIBUTE_H
 		"#define __ATTRIBUTE_H
+		"
+		"#include <linux/kobject.h>
+		"
+
 
 	for Kobj: kobj in KobjList {
 		send Output
 			"struct [Kobj->TypeName];
-			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
+			"int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
 			"		const char *name, struct kobject *parent );
 			"
 
@@ -58,6 +62,7 @@ void attribute_h( P: program )
 	}
 
 	send Output
+		"
 		"#endif
 
 	send Output [] eos
@@ -97,7 +102,7 @@ void module_c( P: program )
 
 	send Output
 		"
-		"static struct [ModuleName] *root_obj;
+		"struct [ModuleName] *root_obj;
 		"
 		"struct [ModuleName]_attribute
 		"{
@@ -112,7 +117,7 @@ void module_c( P: program )
 	}
 
 	send Output
-		"#include \"attribute.c\"
+		"#include \"module.h\"
 
 	for Kobj: kobj in KobjList {
 		send Output
@@ -281,7 +286,7 @@ void module_c( P: program )
 
 	for Kobj: kobj in KobjList {
 		send Output
-			"static int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
+			"int create_[Kobj->TypeName]( struct [Kobj->TypeName] **ret_obj,
 			"		const char *name, struct kobject *parent )
 			"{
 			"	int retval;
