@@ -10,11 +10,6 @@ struct ring_reader
 	bool allocated;
 };
 
-struct ring_writer
-{
-	bool allocated;
-};
-
 struct ring
 {
 	void *ctrl;
@@ -36,7 +31,6 @@ struct ringset
 
 	struct ring *ring;
 	int nrings;
-	int writers_per_ring;
 
 	struct ringset *next;
 };

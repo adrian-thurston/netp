@@ -617,22 +617,21 @@ static void ring_alloc( struct ring *r )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ringset_alloc( struct ringset *r, const char *name, long n, long writers_per_ring )
+static void ringset_alloc( struct ringset *r, const char *name, long nrings )
 {
 	int i;
 
+	printk( "allocating %ld rings\n", nrings );
+
 	strncpy( r->name, name, KRING_NLEN );
 	r->name[KRING_NLEN-1] = 0;
-	r->writers_per_ring = writers_per_ring;
 
-	printk( "allocating %ld rings\n", n );
+	r->nrings = nrings;
 
-	r->nrings = n;
+	r->ring = kmalloc( sizeof(struct ring) * nrings, GFP_KERNEL );
+	memset( r->ring, 0, sizeof(struct ring) * nrings  );
 
-	r->ring = kmalloc( sizeof(struct ring) * n, GFP_KERNEL );
-	memset( r->ring, 0, sizeof(struct ring) * n  );
-
-	for ( i = 0; i < n; i++ )
+	for ( i = 0; i < nrings; i++ )
 		ring_alloc( &r->ring[i] );
 
 	init_waitqueue_head( &r->reader_waitqueue );
@@ -656,17 +655,14 @@ static void ringset_free( struct ringset *r )
 	kfree( r->ring );
 }
 
-ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set, long writers_per_ring )
+ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set )
 {
 	struct ringset *r;
 	if ( rings_per_set < 1 || rings_per_set > MAX_RINGS_PER_SET )
 		return -EINVAL;
 
-	if ( writers_per_ring < 1 || writers_per_ring > KRING_MAX_WRITERS_PER_RING )
-		return -EINVAL;
-
 	r = kmalloc( sizeof(struct ringset), GFP_KERNEL );
-	ringset_alloc( r, name, rings_per_set, writers_per_ring );
+	ringset_alloc( r, name, rings_per_set );
 
 	if ( head == 0 )
 		head = r;
