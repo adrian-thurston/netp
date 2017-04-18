@@ -136,7 +136,6 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	copy_name( addr.name, ringset );
 	addr.ring_id = ring_id;
 	addr.mode = mode;
-	addr.writer_id = 0;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) {

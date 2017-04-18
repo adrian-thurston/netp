@@ -61,8 +61,6 @@ extern "C" {
 #define KR_OPT_READER_ID 1
 #define KR_OPT_RING_N    2
 
-#define KR_WRITER_ID_ANY -1
-
 /* Records an error in the user struct. Use before goto to function cleanup. */
 #define kring_func_error( _ke, _ee ) \
 	do { u->krerr = _ke; u->_errno = _ee; } while (0)
@@ -163,7 +161,6 @@ struct kring_addr
 	char name[KRING_NLEN];
 	int ring_id;
 	enum KRING_MODE mode;
-	int writer_id;
 };
 
 struct kring_packet

@@ -5,8 +5,6 @@
 
 #include <linux/skbuff.h>
 
-#define KRING_WRITER_ID_ANY -1
-
 struct ring_reader
 {
 	bool allocated;
@@ -23,11 +21,10 @@ struct ring
 	struct kring_control control;
 	struct page_desc *pd;
 	
-	bool num_writers;
-	long num_readers;
+	int num_readers;
+	bool writer_attached;
 
 	struct ring_reader reader[KRING_READERS];
-	struct ring_writer writer[KRING_MAX_WRITERS_PER_RING];
 
 	wait_queue_head_t reader_waitqueue;
 };
@@ -54,7 +51,7 @@ struct kring_kern
 
 int kring_wopen( struct kring_kern *kring, const char *ringset, int rid );
 int kring_wclose( struct kring_kern *kring );
-void kring_write( struct kring_kern *kring, int writer_id, int dir, const struct sk_buff *skb );
+void kring_write( struct kring_kern *kring, int dir, const struct sk_buff *skb );
 
 #endif
 

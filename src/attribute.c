@@ -57,7 +57,6 @@ struct kring_sock
 	struct ringset *ringset;
 	int ring_id;
 	enum KRING_MODE mode;
-	int writer_id;
 	int reader_id;
 };
 
@@ -184,7 +183,7 @@ static struct ringset *find_ring( const char *name )
 
 static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
-	int i, reader_id = -1; /*, writer_id = KR_WRITER_ID_ANY; */
+	int i, reader_id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct ringset *ringset;
@@ -218,13 +217,6 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 
-	if ( addr->writer_id != KR_WRITER_ID_ANY &&
-			( addr->writer_id < 0 || addr->writer_id >= ringset->writers_per_ring ) )
-	{
-		printk( "kring_bind: bad writer_id %d\n", addr->writer_id );
-		return -EINVAL;
-	}
-
 	krs = kring_sk( sock->sk );
 
 	if ( addr->mode == KRING_WRITE ) {
@@ -236,24 +228,13 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 
 		ring = &ringset->ring[addr->ring_id];
 
-		if ( ring->num_writers == ringset->writers_per_ring ) {
-			printk( "kring_bind: ring %d already has max writers (%d)\n",
-					addr->ring_id, ringset->writers_per_ring );
+		/* If a specific writer id is requested then make sure nobody else has it. */
+		if ( ring->writer_attached ) {
+			printk( "kring_bind: ring %d already has writer attached\n", addr->ring_id );
 			return -EINVAL;
 		}
 
-		/* If a specific writer id is requested then make sure nobody else has it. */
-		if ( addr->writer_id != KR_WRITER_ID_ANY ) {
-			if ( ring->writer[addr->writer_id].allocated ) {
-				printk( "kring_bind: ring %d already has writer id %d\n",
-						addr->ring_id, addr->writer_id );
-				return -EINVAL;
-			}
-
-			ring->writer[addr->writer_id].allocated = true;
-		}
-
-		ring->num_writers += 1;
+		ring->writer_attached = true;
 	}
 	else if ( addr->mode == KRING_READ ) {
 		if ( addr->ring_id != KR_RING_ID_ALL ) {
@@ -302,7 +283,6 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	krs->ringset = ringset;
 	krs->ring_id = addr->ring_id;
 	krs->mode = addr->mode;
-	krs->writer_id = addr->writer_id;
 	krs->reader_id = reader_id;
 
 	return 0;
@@ -433,7 +413,7 @@ static void kring_sock_destruct( struct sock *sk )
 
 	switch ( krs->mode ) {
 		case KRING_WRITE: {
-			krs->ringset->ring[krs->ring_id].num_writers -= 1;
+			krs->ringset->ring[krs->ring_id].writer_attached = false;
 			break;
 		}
 		case KRING_READ: {
@@ -506,19 +486,19 @@ int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
 	kring->ringset = r;
 	kring->ring_id = ring_id;
 
-	r->ring[ring_id].num_writers += 1;
+	r->ring[ring_id].writer_attached = false;
 
 	return 0;
 }
 
 int kring_wclose( struct kring_kern *kring )
 {
-	kring->ringset->ring[kring->ring_id].num_writers -= 1;
+	kring->ringset->ring[kring->ring_id].writer_attached = false;
 	return 0;
 }
 
-static void kring_write_single( struct kring_kern *kring,
-		int writer_id, int dir, const struct sk_buff *skb, int offset, int write, int len )
+static void kring_write_single( struct kring_kern *kring, int dir,
+		const struct sk_buff *skb, int offset, int write, int len )
 {
 	struct kring_packet_header *h;
 	void *pdata;
@@ -568,7 +548,7 @@ static void kring_write_single( struct kring_kern *kring,
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
 
-void kring_write( struct kring_kern *kring, int writer_id, int dir, const struct sk_buff *skb )
+void kring_write( struct kring_kern *kring, int dir, const struct sk_buff *skb )
 {
 	int offset = 0, write, len;
 
@@ -583,7 +563,7 @@ void kring_write( struct kring_kern *kring, int writer_id, int dir, const struct
 		if ( write > kring_packet_max_data() )
 			write = kring_packet_max_data();
 
-		kring_write_single( kring, writer_id, dir, skb, offset, write, len );
+		kring_write_single( kring, dir, skb, offset, write, len );
 
 		offset += write;
 	}
@@ -613,7 +593,7 @@ static void ring_alloc( struct ring *r )
 	r->control.reader = r->ctrl + sizeof(struct shared_writer);
 	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * KRING_READERS;
 
-	r->num_writers = 0;
+	r->writer_attached = false;
 	r->num_readers = 0;
 
 	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
