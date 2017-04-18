@@ -38,7 +38,7 @@ struct ringset
 	wait_queue_head_t reader_waitqueue;
 
 	struct ring *ring;
-	int N;
+	int nrings;
 	int writers_per_ring;
 
 	struct ringset *next;

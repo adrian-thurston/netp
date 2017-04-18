@@ -146,7 +146,7 @@ struct kring_user
 {
 	int socket;
 	int ring_id;
-	int N;
+	int nrings;
 	int reader_id;
 	enum KRING_MODE mode;
 
@@ -244,7 +244,7 @@ static inline unsigned long kring_skips( struct kring_user *u )
 		skips = u->control->reader[u->reader_id].skips;
 	else {
 		int ring;
-		for ( ring = 0; ring < u->N; ring++ )
+		for ( ring = 0; ring < u->nrings; ring++ )
 			skips += u->control[ring].reader[u->reader_id].skips;
 	}
 	return skips;
@@ -267,7 +267,7 @@ static inline int kring_avail( struct kring_user *u )
 		return kring_avail_impl( u->control, u->reader_id );
 	else {
 		int ctrl;
-		for ( ctrl = 0; ctrl < u->N; ctrl++ ) {
+		for ( ctrl = 0; ctrl < u->nrings; ctrl++ ) {
 			if ( kring_avail_impl( &u->control[ctrl], u->reader_id ) )
 				return 1;
 		}
@@ -354,7 +354,7 @@ static inline int kring_select_ctrl( struct kring_user *u )
 		return 0;
 	else {
 		int ctrl;
-		for ( ctrl = 0; ctrl < u->N; ctrl++ ) {
+		for ( ctrl = 0; ctrl < u->nrings; ctrl++ ) {
 			if ( kring_avail_impl( &u->control[ctrl], u->reader_id ) )
 				return ctrl;
 		}

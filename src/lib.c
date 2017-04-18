@@ -150,7 +150,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 		kring_func_error( KRING_ERR_RING_N, errno );
 		goto err_close;
 	}
-	u->N = ring_N;
+	u->nrings = ring_N;
 
 	/* Get the reader id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );

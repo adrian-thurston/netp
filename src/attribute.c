@@ -113,8 +113,8 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 	
 	decon_pgoff( vma->vm_pgoff, &ring_id, &region );
 
-	if ( ring_id > r->N ) {
-		printk( "kring mmap: error: rid > r->N\n" );
+	if ( ring_id > r->nrings ) {
+		printk( "kring mmap: error: rid > r->nrings\n" );
 		return -EINVAL;
 	}
 
@@ -212,7 +212,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	}
 
 	if ( addr->ring_id != KR_RING_ID_ALL &&
-			( addr->ring_id < 0 || addr->ring_id >= ringset->N ) )
+			( addr->ring_id < 0 || addr->ring_id >= ringset->nrings ) )
 	{
 		printk( "kring_bind: bad ring id %d\n", addr->ring_id );
 		return -EINVAL;
@@ -276,7 +276,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		else {
 			/* Search for a single reader id that is free across all the rings requested. */
 			for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
-				for ( i = 0; i < ringset->N; i++ ) {
+				for ( i = 0; i < ringset->nrings; i++ ) {
 					if ( ringset->ring[i].reader[reader_id].allocated )
 						goto next_id;
 				}
@@ -294,7 +294,7 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 			good: {}
 			
 			/* Allocate reader ids. */
-			for ( i = 0; i < ringset->N; i++ )
+			for ( i = 0; i < ringset->nrings; i++ )
 				ringset->ring[i].reader[reader_id].allocated = true;
 		}
 	}
@@ -340,7 +340,7 @@ static int kring_getsockopt( struct socket *sock, int level, int optname, char _
 
 	switch ( optname ) {
 		case KR_OPT_RING_N:
-			val = krs->ringset->N;
+			val = krs->ringset->nrings;
 			break;
 		case KR_OPT_READER_ID:
 			val = krs->reader_id;
@@ -367,7 +367,7 @@ static int kring_kern_avail( struct ringset *r, struct kring_sock *krs )
 		return kring_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
 	else {
 		int ring;
-		for ( ring = 0; ring < r->N; ring++ ) {
+		for ( ring = 0; ring < r->nrings; ring++ ) {
 			if ( kring_avail_impl( &r->ring[ring].control, krs->reader_id ) )
 				return 1;
 		}
@@ -450,7 +450,7 @@ static void kring_sock_destruct( struct sock *sk )
 				}
 			}
 			else {
-				for ( i = 0; i < krs->ringset->N; i++ ) {
+				for ( i = 0; i < krs->ringset->nrings; i++ ) {
 					struct kring_control *control = &krs->ringset->ring[i].control;
 
 					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
@@ -499,7 +499,7 @@ int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
 	if ( r == 0 )
 		return -1;
 	
-	if ( ring_id < 0 || ring_id >= r->N )
+	if ( ring_id < 0 || ring_id >= r->nrings )
 		return -1;
 
 	copy_name( kring->name, ringset );
@@ -647,7 +647,7 @@ static void ringset_alloc( struct ringset *r, const char *name, long n, long wri
 
 	printk( "allocating %ld rings\n", n );
 
-	r->N = n;
+	r->nrings = n;
 
 	r->ring = kmalloc( sizeof(struct ring) * n, GFP_KERNEL );
 	memset( r->ring, 0, sizeof(struct ring) * n  );
@@ -671,7 +671,7 @@ static void ring_free( struct ring *r )
 static void ringset_free( struct ringset *r )
 {
 	int i;
-	for ( i = 0; i < r->N; i++ )
+	for ( i = 0; i < r->nrings; i++ )
 		ring_free( &r->ring[i] );
 	kfree( r->ring );
 }
