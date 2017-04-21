@@ -6,10 +6,10 @@ extern "C" {
 #endif
 
 #define KRING 25
-#define NPAGES 2048
+#define KRING_NPAGES 2048
 
-#define PGOFF_CTRL 0
-#define PGOFF_DATA 1
+#define KRING_PGOFF_CTRL 0
+#define KRING_PGOFF_DATA 1
 
 /*
  * Memap identity information. 
@@ -19,7 +19,6 @@ extern "C" {
 
 /* Must match region shift below. */
 #define MAX_RINGS_PER_SET 32
-
 
 #define PGOFF_ID_SHIFT 0
 #define PGOFF_ID_MASK  0x1f
@@ -78,21 +77,21 @@ enum KRING_MODE
 	KRING_WRITE
 };
 
-typedef unsigned short shr_desc_t;
-typedef unsigned long shr_off_t;
+typedef unsigned short kring_desc_t;
+typedef unsigned long kring_off_t;
 
-struct shared_writer
+struct kring_shared_writer
 {
-	shr_off_t whead;
-	shr_off_t wresv;
+	kring_off_t whead;
+	kring_off_t wresv;
 	unsigned long long produced;
 	int write_mutex;
 	unsigned long long spins;
 };
 
-struct shared_reader
+struct kring_shared_reader
 {
-	shr_off_t rhead;
+	kring_off_t rhead;
 	unsigned long skips;
 	unsigned char entered;
 	unsigned long long consumed;
@@ -100,10 +99,10 @@ struct shared_reader
 
 struct shared_desc
 {
-	shr_desc_t desc;
+	kring_desc_t desc;
 };
 
-struct page_desc
+struct kring_page_desc
 {
 	struct page *p;
 	void *m;
@@ -115,17 +114,17 @@ struct kring_page
 };
 
 #define KRING_CTRL_SZ ( \
-	sizeof(struct shared_writer) + \
-	sizeof(struct shared_reader) * KRING_READERS + \
-	sizeof(struct shared_desc) * NPAGES \
+	sizeof(struct kring_shared_writer) + \
+	sizeof(struct kring_shared_reader) * KRING_READERS + \
+	sizeof(struct shared_desc) * KRING_NPAGES \
 )
 
-#define KRING_DATA_SZ KRING_PAGE_SIZE * NPAGES
+#define KRING_DATA_SZ KRING_PAGE_SIZE * KRING_NPAGES
 
 struct kring_control
 {
-	struct shared_writer *writer;
-	struct shared_reader *reader;
+	struct kring_shared_writer *writer;
+	struct kring_shared_reader *reader;
 	struct shared_desc *descriptor;
 };
 
@@ -252,8 +251,8 @@ static inline int kring_avail_impl( struct kring_control *control, int reader_id
 	return ( control->reader[reader_id].rhead != control->writer->whead );
 }
 
-static inline shr_desc_t kring_write_back( struct kring_control *control,
-		shr_off_t off, shr_desc_t oldval, shr_desc_t newval )
+static inline kring_desc_t kring_write_back( struct kring_control *control,
+		kring_off_t off, kring_desc_t oldval, kring_desc_t newval )
 {
 	return __sync_val_compare_and_swap( &control->descriptor[off].desc, oldval, newval );
 }
@@ -272,24 +271,24 @@ static inline int kring_avail( struct kring_user *u )
 	}
 }
 
-static inline shr_off_t kring_next( shr_off_t off )
+static inline kring_off_t kring_next( kring_off_t off )
 {
 	off += 1;
-	if ( off >= NPAGES )
+	if ( off >= KRING_NPAGES )
 		off = 0;
 	return off;
 }
 
-static inline shr_off_t kring_prev( shr_off_t off )
+static inline kring_off_t kring_prev( kring_off_t off )
 {
 	if ( off == 0 )
-		return NPAGES - 1;
+		return KRING_NPAGES - 1;
 	return off - 1;
 }
 
-static inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr_off_t rhead )
+static inline kring_off_t kring_advance_rhead( struct kring_user *u, int ctrl, kring_off_t rhead )
 {
-	shr_desc_t desc;
+	kring_desc_t desc;
 	while ( 1 ) {
 		rhead = kring_next( rhead );
 
@@ -297,10 +296,10 @@ static inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr
 		desc = u->control[ctrl].descriptor[rhead].desc;
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
-			shr_desc_t newval = desc | DSC_READER_BIT( u->reader_id );
+			kring_desc_t newval = desc | DSC_READER_BIT( u->reader_id );
 		
 			/* Attemp write back. */
-			shr_desc_t before = kring_write_back( &u->control[ctrl], rhead, desc, newval );
+			kring_desc_t before = kring_write_back( &u->control[ctrl], rhead, desc, newval );
 			if ( before == desc ) {
 				/* Write back okay. We can use. */
 				break;
@@ -317,9 +316,9 @@ static inline shr_off_t kring_advance_rhead( struct kring_user *u, int ctrl, shr
 }
 
 /* Unreserve prev. */
-static inline void kring_reader_release( int reader_id, struct kring_control *control, int ctrl, shr_off_t prev )
+static inline void kring_reader_release( int reader_id, struct kring_control *control, int ctrl, kring_off_t prev )
 {
-	shr_desc_t before, desc, newval;
+	kring_desc_t before, desc, newval;
 again:
 	/* Take a copy, modify, then try to write back. */
 	desc = control[ctrl].descriptor[prev].desc;
@@ -366,8 +365,8 @@ static inline void kring_next_packet( struct kring_user *u, struct kring_packet 
 
 	int ctrl = kring_select_ctrl( u );
 
-	shr_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
-	shr_off_t rhead = prev;
+	kring_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	kring_off_t rhead = prev;
 
 	rhead = kring_advance_rhead( u, ctrl, rhead );
 
@@ -400,8 +399,8 @@ static inline void kring_next_decrypted( struct kring_user *u, struct kring_decr
 
 	int ctrl = kring_select_ctrl( u );
 
-	shr_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
-	shr_off_t rhead = prev;
+	kring_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	kring_off_t rhead = prev;
 
 	rhead = kring_advance_rhead( u, ctrl, rhead );
 
@@ -432,8 +431,8 @@ static inline void kring_next_plain( struct kring_user *u, struct kring_plain *p
 
 	int ctrl = kring_select_ctrl( u );
 
-	shr_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
-	shr_off_t rhead = prev;
+	kring_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	kring_off_t rhead = prev;
 
 	rhead = kring_advance_rhead( u, ctrl, rhead );
 
@@ -456,20 +455,20 @@ static inline void kring_next_plain( struct kring_user *u, struct kring_plain *p
 
 static inline unsigned long kring_one_back( unsigned long pos )
 {
-	return pos == 0 ? NPAGES - 1 : pos - 1;
+	return pos == 0 ? KRING_NPAGES - 1 : pos - 1;
 }
 
 static inline unsigned long kring_one_forward( unsigned long pos )
 {
 	pos += 1;
-	return pos == NPAGES ? 0 : pos;
+	return pos == KRING_NPAGES ? 0 : pos;
 }
 
 static inline unsigned long find_write_loc( struct kring_control *control )
 {
 	int id;
-	shr_desc_t desc = 0;
-	shr_off_t whead = control->writer->whead;
+	kring_desc_t desc = 0;
+	kring_off_t whead = control->writer->whead;
 	while ( 1 ) {
 		/* Move to the next slot. */
 		whead = kring_next( whead );
@@ -480,7 +479,7 @@ retry:
 
 		/* Check, if not okay, go on to next. */
 		if ( desc & DSC_READER_OWNED || desc & DSC_SKIPPED ) {
-			shr_desc_t before;
+			kring_desc_t before;
 
 			/* register skips. */
 			for ( id = 0; id < KRING_READERS; id++ ) {
@@ -503,10 +502,10 @@ retry:
 		}
 		else {
 			/* Available. */
-			shr_desc_t newval = desc | DSC_WRITER_OWNED;
+			kring_desc_t newval = desc | DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
-			shr_desc_t before = kring_write_back( control, whead, desc, newval );
+			kring_desc_t before = kring_write_back( control, whead, desc, newval );
 			if ( before != desc )
 				goto retry;
 
@@ -518,17 +517,17 @@ retry:
 	}
 }
 
-static inline int writer_release( struct kring_control *control, shr_off_t whead )
+static inline int writer_release( struct kring_control *control, kring_off_t whead )
 {
 	/* orig value. */
-	shr_desc_t desc = control->descriptor[whead].desc;
+	kring_desc_t desc = control->descriptor[whead].desc;
 
 	/* Unrelease writer. */
-	shr_desc_t newval = desc & ~DSC_WRITER_OWNED;
+	kring_desc_t newval = desc & ~DSC_WRITER_OWNED;
 
 	/* Write back with check. No other reader or writer should have altered the
 	 * descriptor. */
-	shr_desc_t before = kring_write_back( control, whead, desc, newval );
+	kring_desc_t before = kring_write_back( control, whead, desc, newval );
 	if ( before != desc )
 		return -1;
 
@@ -538,7 +537,7 @@ static inline int writer_release( struct kring_control *control, shr_off_t whead
 static inline int kring_prep_enter( struct kring_user *u, int ctrl )
 {
 	/* Init the read head. */
-	shr_off_t rhead = u->control[ctrl].writer->whead;
+	kring_off_t rhead = u->control[ctrl].writer->whead;
 
 	/* Okay good. */
 	u->control[ctrl].reader[u->reader_id].rhead = rhead; 

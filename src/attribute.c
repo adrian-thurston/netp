@@ -14,7 +14,7 @@ struct kring
 	struct kobject kobj;
 };
 
-static struct ringset *head = 0;
+static struct kring_ringset *head = 0;
 
 static int kring_sock_release( struct socket *sock );
 static int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -54,7 +54,7 @@ static struct proto_ops kring_ops = {
 struct kring_sock
 {
 	struct sock sk;
-	struct ringset *ringset;
+	struct kring_ringset *ringset;
 	int ring_id;
 	enum KRING_MODE mode;
 	int reader_id;
@@ -101,7 +101,7 @@ static void decon_pgoff( unsigned long pgoff, unsigned long *rid, unsigned long 
 static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
-	struct ringset *r = krs->ringset;
+	struct kring_ringset *r = krs->ringset;
 	unsigned long ring_id, region;
 
 	/* Ensure bound. */
@@ -118,17 +118,17 @@ static int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 	}
 
 	switch ( region  ) {
-		case PGOFF_CTRL: {
+		case KRING_PGOFF_CTRL: {
 			printk( "mapping control region %p of ring %p-%lu\n", r->ring[ring_id].ctrl, r, ring_id );
 			remap_vmalloc_range( vma, r->ring[ring_id].ctrl, 0 );
 			break;
 		}
 
-		case PGOFF_DATA: {
+		case KRING_PGOFF_DATA: {
 			int i;
 			unsigned long uaddr = vma->vm_start;
 			printk( "mapping data region %lu of ring %p-%lu\n", uaddr, r, ring_id );
-			for ( i = 0; i < NPAGES; i++ ) {
+			for ( i = 0; i < KRING_NPAGES; i++ ) {
 				vm_insert_page( vma, uaddr, r->ring[ring_id].pd[i].p );
 				uaddr += PAGE_SIZE;
 			}
@@ -168,9 +168,9 @@ static int validate_ring_name( const char *name )
 	}
 }
 
-static struct ringset *find_ring( const char *name )
+static struct kring_ringset *find_ring( const char *name )
 {
-	struct ringset *r = head;
+	struct kring_ringset *r = head;
 	while ( r != 0 ) {
 		if ( strcmp( r->name, name ) == 0 )
 			return r;
@@ -186,8 +186,8 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	int i, reader_id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
-	struct ringset *ringset;
-	struct ring *ring;
+	struct kring_ringset *ringset;
+	struct kring_ring *ring;
 
 	if ( addr_len != sizeof(struct kring_addr) ) {
 		printk("kring_bind: addr_len wrong size\n");
@@ -341,7 +341,7 @@ static int kring_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static int kring_kern_avail( struct ringset *r, struct kring_sock *krs )
+static int kring_kern_avail( struct kring_ringset *r, struct kring_sock *krs )
 {
 	if ( krs->ring_id != KR_RING_ID_ALL )
 		return kring_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
@@ -359,7 +359,7 @@ static int kring_kern_avail( struct ringset *r, struct kring_sock *krs )
 static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
-	struct ringset *r = krs->ringset;
+	struct kring_ringset *r = krs->ringset;
 	sigset_t blocked, oldset;
 	int ret;
 	wait_queue_head_t *wq;
@@ -393,7 +393,7 @@ static int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 static int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
-	struct ringset *r = krs->ringset;
+	struct kring_ringset *r = krs->ringset;
 	wake_up_interruptible_all( &r->reader_waitqueue );
 	return 0;
 }
@@ -425,7 +425,7 @@ static void kring_sock_destruct( struct sock *sk )
 				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
 
 				if ( control->reader[krs->reader_id].entered ) {
-					shr_off_t prev = control->reader[krs->reader_id].rhead;
+					kring_off_t prev = control->reader[krs->reader_id].rhead;
 					kring_reader_release( krs->reader_id, control, 0, prev );
 				}
 			}
@@ -436,7 +436,7 @@ static void kring_sock_destruct( struct sock *sk )
 					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
 
 					if ( control->reader[krs->reader_id].entered ) {
-						shr_off_t prev = control->reader[krs->reader_id].rhead;
+						kring_off_t prev = control->reader[krs->reader_id].rhead;
 						kring_reader_release( krs->reader_id, control, 0, prev );
 					}
 				}
@@ -475,7 +475,7 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 
 int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
 {
-	struct ringset *r = find_ring( ringset );
+	struct kring_ringset *r = find_ring( ringset );
 	if ( r == 0 )
 		return -1;
 	
@@ -502,10 +502,10 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 {
 	struct kring_packet_header *h;
 	void *pdata;
-	shr_off_t whead;
+	kring_off_t whead;
 
 	/* Which ringset? */
-	struct ringset *r = kring->ringset;
+	struct kring_ringset *r = kring->ringset;
 
 	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( &r->ring[kring->ring_id].control );
@@ -538,7 +538,7 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 					r->ring[kring->ring_id].control.writer->produced -
 					r->ring[kring->ring_id].control.reader[id].units;
 			// printk( "diff: %llu\n", diff );
-			if ( diff > ( NPAGES / 2 ) ) {
+			if ( diff > ( KRING_NPAGES / 2 ) ) {
 				printk( "half full: ring_id: %d reader_id: %d\n", kring->ring_id, id );
 			}
 		}
@@ -583,21 +583,21 @@ static void free_shared_memory( void *m )
 	vfree(m);
 }
 
-static void ring_alloc( struct ring *r )
+static void ring_alloc( struct kring_ring *r )
 {
 	int i;
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
 	r->control.writer = r->ctrl;
-	r->control.reader = r->ctrl + sizeof(struct shared_writer);
-	r->control.descriptor = r->ctrl + sizeof(struct shared_writer) + sizeof(struct shared_reader) * KRING_READERS;
+	r->control.reader = r->ctrl + sizeof(struct kring_shared_writer);
+	r->control.descriptor = r->ctrl + sizeof(struct kring_shared_writer) + sizeof(struct kring_shared_reader) * KRING_READERS;
 
 	r->writer_attached = false;
 	r->num_readers = 0;
 
-	r->pd = kmalloc( sizeof(struct page_desc) * NPAGES, GFP_KERNEL );
-	for ( i = 0; i < NPAGES; i++ ) {
+	r->pd = kmalloc( sizeof(struct kring_page_desc) * KRING_NPAGES, GFP_KERNEL );
+	for ( i = 0; i < KRING_NPAGES; i++ ) {
 		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
 		if ( r->pd[i].p ) {
 			r->pd[i].m = page_address(r->pd[i].p);
@@ -617,7 +617,7 @@ static void ring_alloc( struct ring *r )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ringset_alloc( struct ringset *r, const char *name, long nrings )
+static void ringset_alloc( struct kring_ringset *r, const char *name, long nrings )
 {
 	int i;
 
@@ -628,8 +628,8 @@ static void ringset_alloc( struct ringset *r, const char *name, long nrings )
 
 	r->nrings = nrings;
 
-	r->ring = kmalloc( sizeof(struct ring) * nrings, GFP_KERNEL );
-	memset( r->ring, 0, sizeof(struct ring) * nrings  );
+	r->ring = kmalloc( sizeof(struct kring_ring) * nrings, GFP_KERNEL );
+	memset( r->ring, 0, sizeof(struct kring_ring) * nrings  );
 
 	for ( i = 0; i < nrings; i++ )
 		ring_alloc( &r->ring[i] );
@@ -637,17 +637,17 @@ static void ringset_alloc( struct ringset *r, const char *name, long nrings )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ring_free( struct ring *r )
+static void ring_free( struct kring_ring *r )
 {
 	int i;
-	for ( i = 0; i < NPAGES; i++ )
+	for ( i = 0; i < KRING_NPAGES; i++ )
 		__free_page( r->pd[i].p );
 
 	free_shared_memory( r->ctrl );
 	kfree( r->pd );
 }
 
-static void ringset_free( struct ringset *r )
+static void ringset_free( struct kring_ringset *r )
 {
 	int i;
 	for ( i = 0; i < r->nrings; i++ )
@@ -657,17 +657,17 @@ static void ringset_free( struct ringset *r )
 
 ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set )
 {
-	struct ringset *r;
+	struct kring_ringset *r;
 	if ( rings_per_set < 1 || rings_per_set > MAX_RINGS_PER_SET )
 		return -EINVAL;
 
-	r = kmalloc( sizeof(struct ringset), GFP_KERNEL );
+	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
 	ringset_alloc( r, name, rings_per_set );
 
 	if ( head == 0 )
 		head = r;
 	else {
-		struct ringset *tail = head;
+		struct kring_ringset *tail = head;
 		while ( tail->next != 0 )
 			tail = tail->next;
 		tail->next = r;
@@ -696,7 +696,7 @@ int kring_init(void)
 
 void kring_exit(void)
 {
-	struct ringset *r;
+	struct kring_ringset *r;
 
 	sock_unregister( KRING );
 

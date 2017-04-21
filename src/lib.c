@@ -81,21 +81,21 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, PGOFF_CTRL ) );
+			cons_pgoff( ring_id, KRING_PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
 		kring_func_error( KRING_ERR_MMAP, errno );
 		return -1;
 	}
 
-	u->control[ctrl].writer = (struct shared_writer*)r;
-	u->control[ctrl].reader = (struct shared_reader*)( (char*)r + sizeof(struct shared_writer) );
+	u->control[ctrl].writer = (struct kring_shared_writer*)r;
+	u->control[ctrl].reader = (struct kring_shared_reader*)( (char*)r + sizeof(struct kring_shared_writer) );
 	u->control[ctrl].descriptor = (struct shared_desc*)(
-			(char*)r + sizeof(struct shared_writer) + sizeof(struct shared_reader) * KRING_READERS );
+			(char*)r + sizeof(struct kring_shared_writer) + sizeof(struct kring_shared_reader) * KRING_READERS );
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, PGOFF_DATA ) );
+			cons_pgoff( ring_id, KRING_PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
 		kring_func_error( KRING_ERR_MMAP, errno );
@@ -202,7 +202,7 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 {
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
-	shr_off_t whead;
+	kring_off_t whead;
 	char buf[1];
 
 	if ( len > kring_decrypted_max_data()  )
@@ -262,7 +262,7 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 {
 	struct kring_plain_header *h;
 	unsigned char *bytes;
-	shr_off_t whead;
+	kring_off_t whead;
 	char buf[1];
 
 	if ( len > kring_plain_max_data()  )
