@@ -87,7 +87,7 @@ int block_conn( struct sk_buff *skb )
 	c.port1 = ntohs(th->source);
 	c.port2 = ntohs(th->dest);
 
-	printk( "block? %u %u %hu %hu\n", c.addr1, c.addr2, c.port1, c.port2 );
+	// printk( "block? %u %u %hu %hu\n", c.addr1, c.addr2, c.port1, c.port2 );
 
 	return conn_find( &block, &c ) != 0;
 }
@@ -100,6 +100,15 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 	if ( link == 0 || link->inside == 0 || link->outside == 0 ) {
 		kfree_skb( skb );
 		return RX_HANDLER_CONSUMED;
+	}
+
+	if ( kring_kavail( &link->cmd ) ) {
+		struct kring_plain plain;
+
+		kring_knext_plain( &link->cmd, &plain );
+
+		printk( "kring command: %s\n", plain.bytes );
+
 	}
 
 	if ( skb->dev == link->inside ) {
@@ -131,7 +140,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 					skb->pkt_type = PACKET_HOST;
 					
 					skb_push( skb, ETH_HLEN );
-					kring_write( &link->kring, KRING_DIR_INSIDE, skb );
+					kring_kwrite( &link->kring, KRING_DIR_INSIDE, skb );
 					skb_pull( skb, ETH_HLEN );
 
 					netif_receive_skb( skb );
@@ -142,7 +151,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 
 		skb->dev = link->outside;
 		skb_push( skb, ETH_HLEN );
-		kring_write( &link->kring, KRING_DIR_INSIDE, skb );
+		kring_kwrite( &link->kring, KRING_DIR_INSIDE, skb );
 		dev_queue_xmit( skb );
 	}
 	else if ( skb->dev == link->outside ) {
@@ -157,7 +166,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 
 		skb->dev = link->inside;
 		skb_push( skb, ETH_HLEN );
-		kring_write( &link->kring, KRING_DIR_OUTSIDE, skb );
+		kring_kwrite( &link->kring, KRING_DIR_OUTSIDE, skb );
 		dev_queue_xmit( skb );
 	}
 	else {
@@ -275,7 +284,7 @@ ssize_t link_block_store( struct link *obj, const char *ip1, long port1, const c
 	return 0;
 };
 
-ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ring )
+ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ctrl, const char *ring )
 {
 	int err;
 
@@ -285,9 +294,14 @@ ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ri
 	strcpy( link->name, name );
 	create_netdev( link, name );
 
-	err = kring_wopen( &link->kring, ring, 0 );
+	err = kring_kopen( &link->kring, ring, 0, KRING_WRITE );
 	if ( err < 0 )
-		printk( "shuttle: failed to open ring %s\n", ring );
+		printk( "shuttle: failed to open data ring %s\n", ring );
+
+	err = kring_kopen( &link->cmd, ctrl, 0, KRING_READ );
+	if ( err < 0 )
+		printk( "shuttle: failed to open control ring %s\n", ctrl );
+
 	return 0;
 }
 
@@ -312,7 +326,8 @@ ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
 		// dev_put( link->inside );
 		// dev_put( link->outside );
 
-		kring_wclose( &link->kring );
+		kring_kclose( &link->cmd );
+		kring_kclose( &link->kring );
 
 		rtnl_lock();
 		unregister_netdevice_queue( link->dev, NULL );
@@ -367,7 +382,7 @@ netdev_tx_t shuttle_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Probably need to find the right mac address now. */
 	skb->dev = priv->link->inside;
-	kring_write( &priv->link->kring, KRING_DIR_OUTSIDE, skb );
+	kring_kwrite( &priv->link->kring, KRING_DIR_OUTSIDE, skb );
 	dev_queue_xmit( skb );
 
 	return NETDEV_TX_OK;

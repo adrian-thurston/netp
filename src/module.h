@@ -24,6 +24,7 @@ struct link
 	int nips;
 
 	struct kring_kern kring;
+	struct kring_kern cmd;
 
 	struct list_head link_list;
 

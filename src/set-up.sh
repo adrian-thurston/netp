@@ -5,12 +5,14 @@ set -xe
 
 insmod $HOME/devel/kring/src/kring.ko
 
-echo r0 4 > /sys/kring/add
-echo r1 4 > /sys/kring/add
+echo r0 4 > /sys/kring/add_data
+echo r1 4 > /sys/kring/add_data
+
+echo c0 > /sys/kring/add_cmd
 
 insmod ./shuttle.ko
 
-echo shuttle1 r0 >/sys/shuttle/add
+echo shuttle1 c0 r0 >/sys/shuttle/add
 
 echo eth1 outside  >/sys/shuttle/shuttle1/port_add
 echo eth2 inside  >/sys/shuttle/shuttle1/port_add

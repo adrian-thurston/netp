@@ -10,6 +10,6 @@ kobj link
 	attribute store block( string ip1, long port1, string ip2, long port2 );
 };
 
-attribute store add( string name, string ring );
+attribute store add( string name, string ctrl, string ring );
 attribute store del( string name );
 
