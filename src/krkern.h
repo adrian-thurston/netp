@@ -42,8 +42,12 @@ struct kring_kern
 	int ring_id;
 };
 
-int kring_wopen( struct kring_kern *kring, const char *ringset, int rid );
-int kring_wclose( struct kring_kern *kring );
-void kring_write( struct kring_kern *kring, int dir, const struct sk_buff *skb );
+int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enum KRING_MODE mode );
+int kring_kclose( struct kring_kern *kring );
+
+void kring_kwrite( struct kring_kern *kring, int dir, const struct sk_buff *skb );
+int kring_kavail( struct kring_kern *kring );
+
+void kring_knext_plain( struct kring_kern *kring, struct kring_plain *plain );
 
 #endif

@@ -14,7 +14,8 @@ struct kring
 	struct kobject kobj;
 };
 
-static struct kring_ringset *head = 0;
+static struct kring_ringset *head_data = 0;
+static struct kring_ringset *head_cmd = 0;
 
 static int kring_sock_release( struct socket *sock );
 static int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -170,7 +171,7 @@ static int validate_ring_name( const char *name )
 
 static struct kring_ringset *find_ring( const char *name )
 {
-	struct kring_ringset *r = head;
+	struct kring_ringset *r = head_data;
 	while ( r != 0 ) {
 		if ( strcmp( r->name, name ) == 0 )
 			return r;
@@ -426,7 +427,7 @@ static void kring_sock_destruct( struct sock *sk )
 
 				if ( control->reader[krs->reader_id].entered ) {
 					kring_off_t prev = control->reader[krs->reader_id].rhead;
-					kring_reader_release( krs->reader_id, control, 0, prev );
+					kring_reader_release( krs->reader_id, &control[0], prev );
 				}
 			}
 			else {
@@ -437,7 +438,7 @@ static void kring_sock_destruct( struct sock *sk )
 
 					if ( control->reader[krs->reader_id].entered ) {
 						kring_off_t prev = control->reader[krs->reader_id].rhead;
-						kring_reader_release( krs->reader_id, control, 0, prev );
+						kring_reader_release( krs->reader_id, &control[0], prev );
 					}
 				}
 			}
@@ -473,7 +474,7 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
+int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
 	struct kring_ringset *r = find_ring( ringset );
 	if ( r == 0 )
@@ -486,12 +487,22 @@ int kring_wopen( struct kring_kern *kring, const char *ringset, int ring_id )
 	kring->ringset = r;
 	kring->ring_id = ring_id;
 
-	r->ring[ring_id].writer_attached = false;
+	if ( mode == KRING_WRITE )
+		r->ring[ring_id].writer_attached = true;
+	else {
+		r->ring[ring_id].num_readers += 1;
+
+		/*res = */kring_prep_enter( &r->ring[ring_id].control, 0 );
+		//if ( res < 0 ) {
+		//	kring_func_error( KRING_ERR_ENTER, 0 );
+		//	return -1;
+		//}
+	}
 
 	return 0;
 }
 
-int kring_wclose( struct kring_kern *kring )
+int kring_kclose( struct kring_kern *kring )
 {
 	kring->ringset->ring[kring->ring_id].writer_attached = false;
 	return 0;
@@ -548,7 +559,7 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
 
-void kring_write( struct kring_kern *kring, int dir, const struct sk_buff *skb )
+void kring_kwrite( struct kring_kern *kring, int dir, const struct sk_buff *skb )
 {
 	int offset = 0, write, len;
 
@@ -567,6 +578,47 @@ void kring_write( struct kring_kern *kring, int dir, const struct sk_buff *skb )
 
 		offset += write;
 	}
+}
+
+int kring_kavail( struct kring_kern *kring )
+{
+	struct kring_ring *ring = &kring->ringset->ring[kring->ring_id];
+	int reader_id = 0;
+
+	return ring->writer_attached &&
+		( ring->control.reader[reader_id].rhead != ring->control.writer->whead );
+}
+
+void kring_knext_plain( struct kring_kern *kring, struct kring_plain *plain )
+{
+	struct kring_plain_header *h;
+	unsigned char *bytes;
+
+	struct kring_ring *ring = &kring->ringset->ring[kring->ring_id];
+	int reader_id = 0;
+
+//	int ctrl = kring_select_ctrl( u );
+
+	kring_off_t prev = ring->control.reader[reader_id].rhead;
+	kring_off_t rhead = prev;
+
+	rhead = kring_advance_rhead( &ring->control, reader_id, rhead );
+
+	/* Set the rheadset rhead. */
+	ring->control.reader[reader_id].rhead = rhead;
+	
+	/* Release the previous only if we have entered with a successful read. */
+	if ( ring->control.reader[reader_id].entered )
+		kring_reader_release( reader_id, &ring->control, prev );
+
+	/* Indicate we have entered. */
+	ring->control.reader[reader_id].entered = 1;
+
+	h = ring->pd[rhead].m;
+	bytes = (unsigned char*)(h + 1);
+
+	plain->len = h->len;
+	plain->bytes = bytes;
 }
 
 static void *alloc_shared_memory( int size )
@@ -655,7 +707,20 @@ static void ringset_free( struct kring_ringset *r )
 	kfree( r->ring );
 }
 
-ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set )
+static void add_ringset( struct kring_ringset **phead, struct kring_ringset *set )
+{
+	if ( *phead == 0 )
+		*phead = set;
+	else {
+		struct kring_ringset *tail = *phead;
+		while ( tail->next != 0 )
+			tail = tail->next;
+		tail->next = set;
+	}
+	set->next = 0;
+}
+
+ssize_t kring_add_data_store( struct kring *obj, const char *name, long rings_per_set )
 {
 	struct kring_ringset *r;
 	if ( rings_per_set < 1 || rings_per_set > MAX_RINGS_PER_SET )
@@ -664,15 +729,19 @@ ssize_t kring_add_store( struct kring *obj, const char *name, long rings_per_set
 	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
 	ringset_alloc( r, name, rings_per_set );
 
-	if ( head == 0 )
-		head = r;
-	else {
-		struct kring_ringset *tail = head;
-		while ( tail->next != 0 )
-			tail = tail->next;
-		tail->next = r;
-	}
-	r->next = 0;
+	add_ringset( &head_data, r );
+
+	return 0;
+}
+
+ssize_t kring_add_cmd_store( struct kring *obj, const char *name )
+{
+	struct kring_ringset *r;
+
+	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
+	ringset_alloc( r, name, 1 );
+
+	add_ringset( &head_data, r );
 
 	return 0;
 }
@@ -694,22 +763,28 @@ int kring_init(void)
 	return 0;
 }
 
-void kring_exit(void)
+static void free_ringsets( struct kring_ringset *head )
 {
-	struct kring_ringset *r;
-
-	sock_unregister( KRING );
-
-	proto_unregister( &kring_proto );
-
-	r = head;
+	struct kring_ringset *r = head;
 	while ( r != 0 ) {
 		ringset_free( r );
 		r = r->next;
 	}
 }
 
+void kring_exit(void)
+{
+	sock_unregister( KRING );
 
-EXPORT_SYMBOL_GPL(kring_wopen);
-EXPORT_SYMBOL_GPL(kring_wclose);
-EXPORT_SYMBOL_GPL(kring_write);
+	proto_unregister( &kring_proto );
+
+	free_ringsets( head_cmd );
+	free_ringsets( head_data );
+}
+
+
+EXPORT_SYMBOL_GPL(kring_kopen);
+EXPORT_SYMBOL_GPL(kring_kclose);
+EXPORT_SYMBOL_GPL(kring_kwrite);
+EXPORT_SYMBOL_GPL(kring_kavail);
+EXPORT_SYMBOL_GPL(kring_knext_plain);

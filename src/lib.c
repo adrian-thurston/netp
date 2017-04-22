@@ -105,7 +105,7 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	u->data[ctrl].page = (struct kring_page*)r;
 
 	if ( u->mode == KRING_READ ) {
-		res = kring_prep_enter( u, ctrl );
+		res = kring_prep_enter( &u->control[ctrl], u->reader_id );
 		if ( res < 0 ) {
 			kring_func_error( KRING_ERR_ENTER, 0 );
 			return -1;
