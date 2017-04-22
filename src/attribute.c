@@ -92,6 +92,29 @@ int block_conn( struct sk_buff *skb )
 	return conn_find( &block, &c ) != 0;
 }
 
+static void parse_kring_command( struct link *link, unsigned char *bytes, int len )
+{
+	if ( bytes[0] == 'b' ) {
+		char cmd;
+		char ip1[32];
+		long port1;
+		char ip2[32];
+		long port2 ;
+
+		int scanned = sscanf( bytes, "%c %s %ld %s %ld", &cmd, ip1, &port1, ip2, &port2  );
+		if ( scanned == 5 )
+			link_block_store( link, ip1, port1, ip2, port2 );
+	}
+	else if ( bytes[0] == 'p' ) {
+		char cmd;
+		char ip[32];
+
+		int scanned = sscanf( bytes, "%c %s", &cmd, ip  );
+		if ( scanned == 2 )
+			link_ip_add_store( link, ip );
+	}
+}
+
 rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 {
 	struct sk_buff *skb = *pskb;
@@ -106,9 +129,8 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 		struct kring_plain plain;
 
 		kring_knext_plain( &link->cmd, &plain );
-
 		printk( "kring command: %s\n", plain.bytes );
-
+		parse_kring_command( link, plain.bytes, plain.len );
 	}
 
 	if ( skb->dev == link->inside ) {
