@@ -53,6 +53,7 @@ extern "C" {
 
 #define KRING_NLEN 32
 #define KRING_READERS 6
+#define KRING_WRITERS 6
 
 /* Configurable at allocation time. This specifies the maximum. */
 #define KRING_MAX_WRITERS_PER_RING 32

@@ -10,6 +10,12 @@ struct kring_ring_reader
 	bool allocated;
 };
 
+struct kring_ring_writer
+{
+	bool allocated;
+};
+
+
 struct kring_ring
 {
 	void *ctrl;
@@ -17,9 +23,10 @@ struct kring_ring
 	struct kring_page_desc *pd;
 	
 	int num_readers;
-	bool writer_attached;
+	int num_writers;
 
 	struct kring_ring_reader reader[KRING_READERS];
+	struct kring_ring_writer writer[KRING_WRITERS];
 
 	wait_queue_head_t reader_waitqueue;
 };

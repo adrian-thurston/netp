@@ -230,14 +230,16 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		ring = &ringset->ring[addr->ring_id];
 
 		/* If a specific writer id is requested then make sure nobody else has it. */
-		if ( ring->writer_attached ) {
+		if ( ring->num_writers > 0 ) {
 			printk( "kring_bind: ring %d already has writer attached\n", addr->ring_id );
 			return -EINVAL;
 		}
 
-		ring->writer_attached = true;
+		ring->num_writers += 1;
 	}
 	else if ( addr->mode == KRING_READ ) {
+		/* FIXME: does num-writers need to increase? */
+
 		if ( addr->ring_id != KR_RING_ID_ALL ) {
 			ring = &ringset->ring[addr->ring_id];
 
@@ -414,7 +416,7 @@ static void kring_sock_destruct( struct sock *sk )
 
 	switch ( krs->mode ) {
 		case KRING_WRITE: {
-			krs->ringset->ring[krs->ring_id].writer_attached = false;
+			krs->ringset->ring[krs->ring_id].num_writers -= 1;
 			break;
 		}
 		case KRING_READ: {
@@ -488,7 +490,7 @@ int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enu
 	kring->ring_id = ring_id;
 
 	if ( mode == KRING_WRITE )
-		r->ring[ring_id].writer_attached = true;
+		r->ring[ring_id].num_writers += 1;
 	else {
 		r->ring[ring_id].num_readers += 1;
 
@@ -504,7 +506,7 @@ int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enu
 
 int kring_kclose( struct kring_kern *kring )
 {
-	kring->ringset->ring[kring->ring_id].writer_attached = false;
+	kring->ringset->ring[kring->ring_id].num_writers -= 1;
 	return 0;
 }
 
@@ -585,7 +587,7 @@ int kring_kavail( struct kring_kern *kring )
 	struct kring_ring *ring = &kring->ringset->ring[kring->ring_id];
 	int reader_id = 0;
 
-	return ring->writer_attached &&
+	return ring->num_writers > 0 &&
 		( ring->control.reader[reader_id].rhead != ring->control.writer->whead );
 }
 
@@ -645,7 +647,7 @@ static void ring_alloc( struct kring_ring *r )
 	r->control.reader = r->ctrl + sizeof(struct kring_shared_writer);
 	r->control.descriptor = r->ctrl + sizeof(struct kring_shared_writer) + sizeof(struct kring_shared_reader) * KRING_READERS;
 
-	r->writer_attached = false;
+	r->num_writers = 0;
 	r->num_readers = 0;
 
 	r->pd = kmalloc( sizeof(struct kring_page_desc) * KRING_NPAGES, GFP_KERNEL );
