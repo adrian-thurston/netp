@@ -90,6 +90,12 @@ struct kring_shared_head
 	unsigned long long spins;
 };
 
+struct kring_shared_writer
+{
+	kring_off_t whead;
+	kring_off_t wresv;
+};
+
 struct kring_shared_reader
 {
 	kring_off_t rhead;
@@ -116,15 +122,22 @@ struct kring_page
 
 #define KRING_CTRL_SZ ( \
 	sizeof(struct kring_shared_head) + \
+	sizeof(struct kring_shared_writer) * KRING_WRITERS + \
 	sizeof(struct kring_shared_reader) * KRING_READERS + \
 	sizeof(struct shared_desc) * KRING_NPAGES \
 )
+	
+#define KRING_CTRL_OFF_HEAD   0
+#define KRING_CTRL_OFF_WRITER KRING_CTRL_OFF_HEAD + sizeof(struct kring_shared_head)
+#define KRING_CTRL_OFF_READER KRING_CTRL_OFF_WRITER + sizeof(struct kring_shared_writer) * KRING_WRITERS
+#define KRING_CTRL_OFF_DESC   KRING_CTRL_OFF_READER + sizeof(struct kring_shared_reader) * KRING_READERS
 
 #define KRING_DATA_SZ KRING_PAGE_SIZE * KRING_NPAGES
 
 struct kring_control
 {
 	struct kring_shared_head *head;
+	struct kring_shared_writer *writer;
 	struct kring_shared_reader *reader;
 	struct shared_desc *descriptor;
 };

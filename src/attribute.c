@@ -643,9 +643,10 @@ static void ring_alloc( struct kring_ring *r )
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
-	r->control.head = r->ctrl;
-	r->control.reader = r->ctrl + sizeof(struct kring_shared_head);
-	r->control.descriptor = r->ctrl + sizeof(struct kring_shared_head) + sizeof(struct kring_shared_reader) * KRING_READERS;
+	r->control.head = r->ctrl + KRING_CTRL_OFF_HEAD;
+	r->control.writer = r->ctrl + KRING_CTRL_OFF_WRITER;
+	r->control.reader = r->ctrl + KRING_CTRL_OFF_READER;
+	r->control.descriptor = r->ctrl + KRING_CTRL_OFF_DESC;
 
 	r->num_writers = 0;
 	r->num_readers = 0;

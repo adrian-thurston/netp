@@ -88,10 +88,10 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 		return -1;
 	}
 
-	u->control[ctrl].head = (struct kring_shared_head*)r;
-	u->control[ctrl].reader = (struct kring_shared_reader*)( (char*)r + sizeof(struct kring_shared_head) );
-	u->control[ctrl].descriptor = (struct shared_desc*)(
-			(char*)r + sizeof(struct kring_shared_head) + sizeof(struct kring_shared_reader) * KRING_READERS );
+	u->control[ctrl].head = r + KRING_CTRL_OFF_HEAD;
+	u->control[ctrl].writer = r + KRING_CTRL_OFF_WRITER;
+	u->control[ctrl].reader = r + KRING_CTRL_OFF_READER;
+	u->control[ctrl].descriptor = r + KRING_CTRL_OFF_DESC;
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
