@@ -524,7 +524,7 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 	whead = find_write_loc( &r->ring[kring->ring_id].control );
 
 	/* Reserve the space. */
-	r->ring[kring->ring_id].control.writer->wresv = whead;
+	r->ring[kring->ring_id].control.head->wresv = whead;
 
 	h = r->ring[kring->ring_id].pd[whead].m;
 	pdata = (char*)(h + 1);
@@ -539,10 +539,10 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 		printk( "writer release unexected value\n" );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->ring[kring->ring_id].control.writer->whead = whead;
+	r->ring[kring->ring_id].control.head->whead = whead;
 
 	/* track the number of packets produced. Note we don't account for overflow. */
-	__sync_add_and_fetch( &r->ring[kring->ring_id].control.writer->produced, 1 );
+	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
 
 	#if 0
 	for ( id = 0; id < KRING_READERS; id++ ) {
@@ -588,7 +588,7 @@ int kring_kavail( struct kring_kern *kring )
 	int reader_id = 0;
 
 	return ring->num_writers > 0 &&
-		( ring->control.reader[reader_id].rhead != ring->control.writer->whead );
+		( ring->control.reader[reader_id].rhead != ring->control.head->whead );
 }
 
 void kring_knext_plain( struct kring_kern *kring, struct kring_plain *plain )
@@ -643,9 +643,9 @@ static void ring_alloc( struct kring_ring *r )
 
 	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
 
-	r->control.writer = r->ctrl;
-	r->control.reader = r->ctrl + sizeof(struct kring_shared_writer);
-	r->control.descriptor = r->ctrl + sizeof(struct kring_shared_writer) + sizeof(struct kring_shared_reader) * KRING_READERS;
+	r->control.head = r->ctrl;
+	r->control.reader = r->ctrl + sizeof(struct kring_shared_head);
+	r->control.descriptor = r->ctrl + sizeof(struct kring_shared_head) + sizeof(struct kring_shared_reader) * KRING_READERS;
 
 	r->num_writers = 0;
 	r->num_readers = 0;
@@ -661,9 +661,9 @@ static void ring_alloc( struct kring_ring *r )
 		}
 	}
 
-	r->control.writer->whead = r->control.writer->wresv = kring_one_back( 0 );
+	r->control.head->whead = r->control.head->wresv = kring_one_back( 0 );
 
-	r->control.writer->write_mutex = 0;
+	r->control.head->write_mutex = 0;
 
 	for ( i = 0; i < KRING_READERS; i++ )
 		r->reader[i].allocated = false;

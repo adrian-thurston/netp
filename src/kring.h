@@ -81,7 +81,7 @@ enum KRING_MODE
 typedef unsigned short kring_desc_t;
 typedef unsigned long kring_off_t;
 
-struct kring_shared_writer
+struct kring_shared_head
 {
 	kring_off_t whead;
 	kring_off_t wresv;
@@ -115,7 +115,7 @@ struct kring_page
 };
 
 #define KRING_CTRL_SZ ( \
-	sizeof(struct kring_shared_writer) + \
+	sizeof(struct kring_shared_head) + \
 	sizeof(struct kring_shared_reader) * KRING_READERS + \
 	sizeof(struct shared_desc) * KRING_NPAGES \
 )
@@ -124,7 +124,7 @@ struct kring_page
 
 struct kring_control
 {
-	struct kring_shared_writer *writer;
+	struct kring_shared_head *head;
 	struct kring_shared_reader *reader;
 	struct shared_desc *descriptor;
 };
@@ -229,7 +229,7 @@ static inline int kring_plain_max_data(void)
 
 static inline unsigned long long kring_spins( struct kring_user *u )
 {
-	return u->control->writer->spins;
+	return u->control->head->spins;
 }
 
 char *kring_error( struct kring_user *u, int err );
@@ -249,7 +249,7 @@ static inline unsigned long kring_skips( struct kring_user *u )
 
 static inline int kring_avail_impl( struct kring_control *control, int reader_id )
 {
-	return ( control->reader[reader_id].rhead != control->writer->whead );
+	return ( control->reader[reader_id].rhead != control->head->whead );
 }
 
 static inline kring_desc_t kring_write_back( struct kring_control *control,
@@ -469,7 +469,7 @@ static inline unsigned long find_write_loc( struct kring_control *control )
 {
 	int id;
 	kring_desc_t desc = 0;
-	kring_off_t whead = control->writer->whead;
+	kring_off_t whead = control->head->whead;
 	while ( 1 ) {
 		/* Move to the next slot. */
 		whead = kring_next( whead );
@@ -538,13 +538,13 @@ static inline int writer_release( struct kring_control *control, kring_off_t whe
 static inline int kring_prep_enter( struct kring_control *control, int reader_id )
 {
 	/* Init the read head. */
-	kring_off_t rhead = control->writer->whead;
+	kring_off_t rhead = control->head->whead;
 
 	/* Okay good. */
 	control->reader[reader_id].rhead = rhead; 
 	control->reader[reader_id].skips = 0;
 	control->reader[reader_id].entered = 0;
-	control->reader[reader_id].consumed = control->writer->produced;
+	control->reader[reader_id].consumed = control->head->produced;
 
 	return 0;
 }

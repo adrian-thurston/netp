@@ -88,10 +88,10 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 		return -1;
 	}
 
-	u->control[ctrl].writer = (struct kring_shared_writer*)r;
-	u->control[ctrl].reader = (struct kring_shared_reader*)( (char*)r + sizeof(struct kring_shared_writer) );
+	u->control[ctrl].head = (struct kring_shared_head*)r;
+	u->control[ctrl].reader = (struct kring_shared_reader*)( (char*)r + sizeof(struct kring_shared_head) );
 	u->control[ctrl].descriptor = (struct shared_desc*)(
-			(char*)r + sizeof(struct kring_shared_writer) + sizeof(struct kring_shared_reader) * KRING_READERS );
+			(char*)r + sizeof(struct kring_shared_head) + sizeof(struct kring_shared_reader) * KRING_READERS );
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -212,7 +212,7 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 	whead = find_write_loc( u->control );
 
 	/* Reserve the space. */
-	u->control->writer->wresv = whead;
+	u->control->head->wresv = whead;
 
 	h = (struct kring_decrypted_header*)( u->data->page + whead );
 	bytes = (unsigned char*)( h + 1 );
@@ -233,7 +233,7 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 	writer_release( u->control, whead );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->writer->whead = whead;
+	u->control->head->whead = whead;
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
@@ -268,13 +268,13 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 	if ( len > kring_plain_max_data()  )
 		len = kring_plain_max_data();
 
-	kring_lock( &u->control->writer->write_mutex, &u->control->writer->spins );
+	kring_lock( &u->control->head->write_mutex, &u->control->head->spins );
 
 	/* Find the place to write to, skipping ahead as necessary. */
 	whead = find_write_loc( u->control );
 
 	/* Reserve the space. */
-	u->control->writer->wresv = whead;
+	u->control->head->wresv = whead;
 
 	h = (struct kring_plain_header*)( u->data->page + whead );
 	bytes = (unsigned char*)( h + 1 );
@@ -286,9 +286,9 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 	writer_release( u->control, whead );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->writer->whead = whead;
+	u->control->head->whead = whead;
 
-	kring_unlock( &u->control->writer->write_mutex );
+	kring_unlock( &u->control->head->write_mutex );
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
