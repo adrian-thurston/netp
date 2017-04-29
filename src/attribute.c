@@ -525,31 +525,19 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 {
 	struct kring_packet_header *h;
 	void *pdata;
-	kring_off_t whead;
 
 	/* Which ringset? */
 	struct kring_ringset *r = kring->ringset;
 
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( &r->ring[kring->ring_id].control );
-
-	/* Reserve the space. */
-	r->ring[kring->ring_id].control.head->wresv = whead;
-
-	h = r->ring[kring->ring_id].pd[whead].m;
-	pdata = (char*)(h + 1);
+	h = kring_write_FIRST( &kring->user );
 
 	h->len = len;
 	h->dir = (char) dir;
 
+	pdata = (char*)(h + 1);
 	skb_copy_bits( skb, offset, pdata, write );
 
-	/* Clear the writer owned bit from the buffer. */
-	if ( writer_release( &r->ring[kring->ring_id].control, r->ring[kring->ring_id].control.head->wresv ) < 0 )
-		printk( "writer release unexected value\n" );
-
-	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->ring[kring->ring_id].control.head->whead = r->ring[kring->ring_id].control.head->wresv;
+	kring_write_SECOND( &kring->user );
 
 	/* track the number of packets produced. Note we don't account for overflow. */
 	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
@@ -603,15 +591,12 @@ int kring_kavail( struct kring_kern *kring )
 
 void kring_knext_plain( struct kring_kern *kring, struct kring_plain *plain )
 {
-	struct kring_user *u = &kring->user;
 	struct kring_plain_header *h;
-	unsigned char *bytes;
 
-	h = (struct kring_plain_header*) kring_next_generic( u );
-	bytes = (unsigned char*)(h + 1);
+	h = (struct kring_plain_header*) kring_next_generic( &kring->user );
 
 	plain->len = h->len;
-	plain->bytes = bytes;
+	plain->bytes = (unsigned char*)(h + 1);
 }
 
 static void *alloc_shared_memory( int size )

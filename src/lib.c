@@ -209,14 +209,6 @@ void kring_unlock( int *mutex )
 	__sync_lock_release( mutex, 0 );
 }
 
-void kring_write_first()
-{
-}
-
-void kring_write_second()
-{
-}
-
 /*
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
@@ -225,20 +217,12 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 {
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
-	kring_off_t whead;
 	char buf[1];
 
 	if ( len > kring_decrypted_max_data()  )
 		len = kring_decrypted_max_data();
 
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( u->control );
-
-	/* Reserve the space. */
-	u->control->head->wresv = whead;
-
-	h = (struct kring_decrypted_header*)( u->data->page + whead );
-	bytes = (unsigned char*)( h + 1 );
+	h = (struct kring_decrypted_header*) kring_write_FIRST( u );
 
 	h->len = len;
 	h->id = id;
@@ -250,13 +234,10 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 		h->host[sizeof(h->host)-1] = 0;
 	}   
 
+	bytes = (unsigned char*)( h + 1 );
 	memcpy( bytes, data, len );
 
-	/* Clear the writer owned bit from the buffer. */
-	writer_release( u->control, u->control->head->wresv );
-
-	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->head->whead = u->control->head->wresv;
+	kring_write_SECOND( u );
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
@@ -272,7 +253,6 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 {
 	struct kring_plain_header *h;
 	unsigned char *bytes;
-	kring_off_t whead;
 	char buf[1];
 
 	if ( len > kring_plain_max_data()  )
@@ -280,23 +260,14 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 
 	kring_lock( &u->control->head->write_mutex, &u->control->head->spins );
 
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = find_write_loc( u->control );
-
-	/* Reserve the space. */
-	u->control->head->wresv = whead;
-
-	h = (struct kring_plain_header*)( u->data->page + whead );
-	bytes = (unsigned char*)( h + 1 );
+	h = (struct kring_plain_header*) kring_write_FIRST( u );
 
 	h->len = len;
+
+	bytes = (unsigned char*)( h + 1 );
 	memcpy( bytes, data, len );
 
-	/* Clear the writer owned bit from the buffer. */
-	writer_release( u->control, u->control->head->wresv );
-
-	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->head->whead = u->control->head->wresv;
+	kring_write_SECOND( u );
 
 	kring_unlock( &u->control->head->write_mutex );
 

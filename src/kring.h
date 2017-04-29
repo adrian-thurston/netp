@@ -408,10 +408,8 @@ static inline void *kring_next_generic( struct kring_user *u )
 static inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
 {
 	struct kring_packet_header *h;
-	unsigned char *bytes;
 
 	h = (struct kring_packet_header*) kring_next_generic( u );
-	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
 	packet->caplen = 
@@ -419,34 +417,30 @@ static inline void kring_next_packet( struct kring_user *u, struct kring_packet 
 			h->len :
 			kring_packet_max_data();
 	packet->dir = h->dir;
-	packet->bytes = bytes;
+	packet->bytes = (unsigned char*)( h + 1 );
 }
 
 static inline void kring_next_decrypted( struct kring_user *u, struct kring_decrypted *decrypted )
 {
 	struct kring_decrypted_header *h;
-	unsigned char *bytes;
 
 	h = (struct kring_decrypted_header*) kring_next_generic( u );
-	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
 	decrypted->id = h->id;
 	decrypted->type = h->type;
 	decrypted->host = h->host;
-	decrypted->bytes = bytes;
+	decrypted->bytes = (unsigned char*)( h + 1 );
 }
 
 static inline void kring_next_plain( struct kring_user *u, struct kring_plain *plain )
 {
 	struct kring_plain_header *h;
-	unsigned char *bytes;
 
 	h = (struct kring_plain_header*) kring_next_generic( u );
-	bytes = (unsigned char*)( h + 1 );
 
 	plain->len = h->len;
-	plain->bytes = bytes;
+	plain->bytes = (unsigned char*)( h + 1 );
 }
 
 static inline unsigned long kring_one_back( unsigned long pos )
@@ -513,6 +507,22 @@ retry:
 	}
 }
 
+static inline void *kring_write_FIRST( struct kring_user *u )
+{
+	kring_off_t whead;
+
+	/* Find the place to write to, skipping ahead as necessary. */
+	whead = find_write_loc( u->control );
+
+	/* Reserve the space. */
+	u->control->head->wresv = whead;
+
+	if ( u->socket < 0 )
+		return u->pd[whead].m;
+	else
+		return u->data->page + whead;
+}
+
 static inline int writer_release( struct kring_control *control, kring_off_t whead )
 {
 	/* orig value. */
@@ -528,6 +538,15 @@ static inline int writer_release( struct kring_control *control, kring_off_t whe
 		return -1;
 
 	return 0;
+}
+
+static inline void kring_write_SECOND( struct kring_user *u )
+{
+	/* Clear the writer owned bit from the buffer. */
+	writer_release( u->control, u->control->head->wresv );
+
+	/* Write back the write head, thereby releasing the buffer to writer. */
+	u->control->head->whead = u->control->head->wresv;
 }
 
 static inline int kring_prep_enter( struct kring_control *control, int reader_id )
