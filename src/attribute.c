@@ -545,11 +545,11 @@ static void kring_write_single( struct kring_kern *kring, int dir,
 	skb_copy_bits( skb, offset, pdata, write );
 
 	/* Clear the writer owned bit from the buffer. */
-	if ( writer_release( &r->ring[kring->ring_id].control, whead ) < 0 )
+	if ( writer_release( &r->ring[kring->ring_id].control, r->ring[kring->ring_id].control.head->wresv ) < 0 )
 		printk( "writer release unexected value\n" );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	r->ring[kring->ring_id].control.head->whead = whead;
+	r->ring[kring->ring_id].control.head->whead = r->ring[kring->ring_id].control.head->wresv;
 
 	/* track the number of packets produced. Note we don't account for overflow. */
 	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );

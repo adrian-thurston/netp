@@ -196,6 +196,27 @@ err_return:
 	return u->krerr;
 }
 
+void kring_lock( int *mutex, unsigned long long *spins )
+{
+	while ( __sync_lock_test_and_set( mutex, 1 ) ) {
+		/* If builtin returns 1 we did not flip it and therefore did not acquire the lock. */
+		__sync_add_and_fetch( spins, 1 );
+	}
+}
+
+void kring_unlock( int *mutex )
+{
+	__sync_lock_release( mutex, 0 );
+}
+
+void kring_write_first()
+{
+}
+
+void kring_write_second()
+{
+}
+
 /*
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
@@ -232,29 +253,16 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 	memcpy( bytes, data, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	writer_release( u->control, whead );
+	writer_release( u->control, u->control->head->wresv );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->head->whead = whead;
+	u->control->head->whead = u->control->head->wresv;
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
 
 	return 0;
 }   
-
-void kring_lock( int *mutex, unsigned long long *spins )
-{
-	while ( __sync_lock_test_and_set( mutex, 1 ) ) {
-		/* If builtin returns 1 we did not flip it and therefore did not acquire the lock. */
-		__sync_add_and_fetch( spins, 1 );
-	}
-}
-
-void kring_unlock( int *mutex )
-{
-	__sync_lock_release( mutex, 0 );
-}
 
 /*
  * NOTE: when open for writing we always are writing to a specific ring id. No
@@ -285,10 +293,10 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 	memcpy( bytes, data, len );
 
 	/* Clear the writer owned bit from the buffer. */
-	writer_release( u->control, whead );
+	writer_release( u->control, u->control->head->wresv );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->head->whead = whead;
+	u->control->head->whead = u->control->head->wresv;
 
 	kring_unlock( &u->control->head->write_mutex );
 
