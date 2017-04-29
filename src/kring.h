@@ -162,7 +162,12 @@ struct kring_user
 	enum KRING_MODE mode;
 
 	struct kring_control *control;
+
+	/* When used in user space we use the data pointer, which points to the
+	 * mmapped region. In the kernel we use pd, which points to the array of
+	 * pages+memory pointers. Must be interpreted according to socket value. */
 	struct kring_data *data;
+	struct kring_page_desc *pd;
 
 	int krerr;
 	int _errno;
@@ -355,7 +360,12 @@ again:
 
 static inline void *kring_data( struct kring_user *u, int ctrl )
 {
-	return ( u->data[ctrl].page + u->control[ctrl].reader[u->reader_id].rhead );
+	if ( u->socket < 0 ) {
+		return u->pd[u->control[ctrl].reader[u->reader_id].rhead].m;
+	}
+	else {
+		return ( u->data[ctrl].page + u->control[ctrl].reader[u->reader_id].rhead );
+	}
 }
 
 static inline int kring_select_ctrl( struct kring_user *u )
@@ -372,11 +382,8 @@ static inline int kring_select_ctrl( struct kring_user *u )
 	}
 }
 
-static inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
+static inline void *kring_next_generic( struct kring_user *u )
 {
-	struct kring_packet_header *h;
-	unsigned char *bytes;
-
 	int ctrl = kring_select_ctrl( u );
 
 	kring_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
@@ -394,7 +401,16 @@ static inline void kring_next_packet( struct kring_user *u, struct kring_packet 
 	/* Indicate we have entered. */
 	u->control[ctrl].reader[u->reader_id].entered = 1;
 
-	h = (struct kring_packet_header*)kring_data( u, ctrl );
+	return kring_data( u, ctrl );
+}
+
+
+static inline void kring_next_packet( struct kring_user *u, struct kring_packet *packet )
+{
+	struct kring_packet_header *h;
+	unsigned char *bytes;
+
+	h = (struct kring_packet_header*) kring_next_generic( u );
 	bytes = (unsigned char*)( h + 1 );
 
 	packet->len = h->len;
@@ -411,24 +427,7 @@ static inline void kring_next_decrypted( struct kring_user *u, struct kring_decr
 	struct kring_decrypted_header *h;
 	unsigned char *bytes;
 
-	int ctrl = kring_select_ctrl( u );
-
-	kring_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
-	kring_off_t rhead = prev;
-
-	rhead = kring_advance_rhead( &u->control[ctrl], u->reader_id, rhead );
-
-	/* Set the rheadset rhead. */
-	u->control[ctrl].reader[u->reader_id].rhead = rhead;
-	
-	/* Release the previous only if we have entered with a successful read. */
-	if ( u->control[ctrl].reader[u->reader_id].entered )
-		kring_reader_release( u->reader_id, &u->control[ctrl], prev );
-
-	/* Indicate we have entered. */
-	u->control[ctrl].reader[u->reader_id].entered = 1;
-
-	h = (struct kring_decrypted_header*)kring_data( u, ctrl );
+	h = (struct kring_decrypted_header*) kring_next_generic( u );
 	bytes = (unsigned char*)( h + 1 );
 
 	decrypted->len = h->len;
@@ -443,24 +442,7 @@ static inline void kring_next_plain( struct kring_user *u, struct kring_plain *p
 	struct kring_plain_header *h;
 	unsigned char *bytes;
 
-	int ctrl = kring_select_ctrl( u );
-
-	kring_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
-	kring_off_t rhead = prev;
-
-	rhead = kring_advance_rhead( &u->control[ctrl], u->reader_id, rhead );
-
-	/* Set the rheadset rhead. */
-	u->control[ctrl].reader[u->reader_id].rhead = rhead;
-	
-	/* Release the previous only if we have entered with a successful read. */
-	if ( u->control[ctrl].reader[u->reader_id].entered )
-		kring_reader_release( u->reader_id, &u->control[ctrl], prev );
-
-	/* Indicate we have entered. */
-	u->control[ctrl].reader[u->reader_id].entered = 1;
-
-	h = (struct kring_plain_header*)kring_data( u, ctrl );
+	h = (struct kring_plain_header*) kring_next_generic( u );
 	bytes = (unsigned char*)( h + 1 );
 
 	plain->len = h->len;

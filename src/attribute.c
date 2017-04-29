@@ -501,6 +501,16 @@ int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enu
 		//}
 	}
 
+	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
+	kring->user.socket = -1;
+	kring->user.control = &r->ring[ring_id].control;
+	kring->user.data = 0;
+	kring->user.pd = r->ring[ring_id].pd;
+	kring->user.mode = mode;
+	kring->user.ring_id = ring_id;
+	kring->user.reader_id = 0;
+	kring->user.nrings = r->nrings;
+
 	return 0;
 }
 
@@ -593,30 +603,11 @@ int kring_kavail( struct kring_kern *kring )
 
 void kring_knext_plain( struct kring_kern *kring, struct kring_plain *plain )
 {
+	struct kring_user *u = &kring->user;
 	struct kring_plain_header *h;
 	unsigned char *bytes;
 
-	struct kring_ring *ring = &kring->ringset->ring[kring->ring_id];
-	int reader_id = 0;
-
-//	int ctrl = kring_select_ctrl( u );
-
-	kring_off_t prev = ring->control.reader[reader_id].rhead;
-	kring_off_t rhead = prev;
-
-	rhead = kring_advance_rhead( &ring->control, reader_id, rhead );
-
-	/* Set the rheadset rhead. */
-	ring->control.reader[reader_id].rhead = rhead;
-	
-	/* Release the previous only if we have entered with a successful read. */
-	if ( ring->control.reader[reader_id].entered )
-		kring_reader_release( reader_id, &ring->control, prev );
-
-	/* Indicate we have entered. */
-	ring->control.reader[reader_id].entered = 1;
-
-	h = ring->pd[rhead].m;
+	h = (struct kring_plain_header*) kring_next_generic( u );
 	bytes = (unsigned char*)(h + 1);
 
 	plain->len = h->len;

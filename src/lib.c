@@ -172,6 +172,8 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
 	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
 
+	u->pd = 0;
+
 	/* Which rings to map. */
 	if ( ring_id != KR_RING_ID_ALL ) {
 		res = kring_map_enter( u, ring_id, 0 );

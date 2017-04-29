@@ -47,6 +47,7 @@ struct kring_kern
 	char name[KRING_NLEN];
 	struct kring_ringset *ringset;
 	int ring_id;
+	struct kring_user user;
 };
 
 int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enum KRING_MODE mode );
