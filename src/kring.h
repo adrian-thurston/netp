@@ -55,8 +55,9 @@ extern "C" {
 #define KRING_ERR_MMAP       -2
 #define KRING_ERR_BIND       -3
 #define KRING_ERR_READER_ID  -4
-#define KRING_ERR_RING_N     -5
-#define KRING_ERR_ENTER      -6
+#define KRING_ERR_WRITER_ID  -5
+#define KRING_ERR_RING_N     -6
+#define KRING_ERR_ENTER      -7
 
 /* Direction: from client, or from server. */
 #define KRING_DIR_CLIENT 1
@@ -72,8 +73,9 @@ extern "C" {
 /* Configurable at allocation time. This specifies the maximum. */
 #define KRING_MAX_WRITERS_PER_RING 32
 
-#define KR_OPT_READER_ID 1
-#define KR_OPT_RING_N    2
+#define KR_OPT_WRITER_ID 1
+#define KR_OPT_READER_ID 2
+#define KR_OPT_RING_N    3
 
 /* Records an error in the user struct. Use before goto to function cleanup. */
 #define kring_func_error( _ke, _ee ) \
@@ -172,6 +174,7 @@ struct kring_user
 	int socket;
 	int ring_id;
 	int nrings;
+	int writer_id;
 	int reader_id;
 	enum KRING_MODE mode;
 

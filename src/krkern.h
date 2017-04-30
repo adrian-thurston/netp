@@ -15,7 +15,6 @@ struct kring_ring_writer
 	bool allocated;
 };
 
-
 struct kring_ring
 {
 	void *ctrl;
@@ -47,6 +46,7 @@ struct kring_kern
 	char name[KRING_NLEN];
 	struct kring_ringset *ringset;
 	int ring_id;
+	int writer_id;
 	struct kring_user user;
 };
 

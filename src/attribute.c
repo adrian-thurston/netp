@@ -58,6 +58,7 @@ struct kring_sock
 	struct kring_ringset *ringset;
 	int ring_id;
 	enum KRING_MODE mode;
+	int writer_id;
 	int reader_id;
 };
 
@@ -199,6 +200,7 @@ static int kring_allocate_reader_on_ring( struct kring_ring *ring )
 
 	/* All okay. */
 	ring->reader[reader_id].allocated = true;
+	ring->num_readers += 1;
 
 	return reader_id;
 }
@@ -226,21 +228,43 @@ static int kring_allocate_reader_all_rings( struct kring_ringset *ringset )
 	/* All okay. */
 	good: {}
 	
-	/* Allocate reader ids. */
-	for ( i = 0; i < ringset->nrings; i++ )
+	/* Allocate reader ids, increas reader count. */
+	for ( i = 0; i < ringset->nrings; i++ ) {
 		ringset->ring[i].reader[reader_id].allocated = true;
+		ringset->ring[i].num_readers += 1;
+	}
 	
 	return reader_id;
 }
 
+static int kring_allocate_writer_on_ring( struct kring_ring *ring )
+{
+	int writer_id;
+
+	/* Search for a writer id that is free on the ring requested. */
+	for ( writer_id = 0; writer_id < KRING_WRITERS; writer_id++ ) {
+		if ( !ring->writer[writer_id].allocated )
+			break;
+	}
+
+	if ( writer_id == KRING_WRITERS ) {
+		/* No valid id found */
+		return -EINVAL;
+	}
+
+	/* All okay. */
+	ring->writer[writer_id].allocated = true;
+	ring->num_writers += 1;
+
+	return writer_id;
+}
 
 static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
-	int reader_id = -1;
+	int reader_id = -1, writer_id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct kring_ringset *ringset;
-	struct kring_ring *ring;
 
 	if ( addr_len != sizeof(struct kring_addr) ) {
 		printk("kring_bind: addr_len wrong size\n");
@@ -270,24 +294,19 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 
+	/* Cannot write to all rings. */
+	if ( addr->mode == KRING_WRITE && addr->ring_id == KR_RING_ID_ALL ) {
+		printk( "kring_bind: cannot write to ring id ALL\n" );
+		return -EINVAL;
+	}
+
 	krs = kring_sk( sock->sk );
 
 	if ( addr->mode == KRING_WRITE ) {
-		/* Cannot write to all rings. */
-		if ( addr->ring_id == KR_RING_ID_ALL ) {
-			printk( "kring_bind: cannot write to ring id ALL\n" );
-			return -EINVAL;
-		}
-
-		ring = &ringset->ring[addr->ring_id];
-
-		/* If a specific writer id is requested then make sure nobody else has it. */
-		if ( ring->num_writers > 0 ) {
-			printk( "kring_bind: ring %d already has writer attached\n", addr->ring_id );
-			return -EINVAL;
-		}
-
-		ring->num_writers += 1;
+		/* Find a writer ID. */
+		writer_id = kring_allocate_writer_on_ring( &ringset->ring[addr->ring_id] );
+		if ( writer_id < 0 )
+			return writer_id;
 	}
 	else if ( addr->mode == KRING_READ ) {
 		/* Find a reader ID. */
@@ -298,16 +317,17 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		else {
 			/* Find a reader ID that works for all rings. This can fail. */
 			reader_id = kring_allocate_reader_all_rings( ringset );
-			if ( reader_id < 0 )
-				return reader_id;
 		}
 
-		ring->num_readers += 1;
+		if ( reader_id < 0 )
+			return reader_id;
+
 	}
 
 	krs->ringset = ringset;
 	krs->ring_id = addr->ring_id;
 	krs->mode = addr->mode;
+	krs->writer_id = writer_id;
 	krs->reader_id = reader_id;
 
 	return 0;
@@ -349,6 +369,9 @@ static int kring_getsockopt( struct socket *sock, int level, int optname, char _
 			break;
 		case KR_OPT_READER_ID:
 			val = krs->reader_id;
+			break;
+		case KR_OPT_WRITER_ID:
+			val = krs->writer_id;
 			break;
 	}
 
@@ -498,25 +521,42 @@ int kring_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enum KRING_MODE mode )
+int kring_kopen( struct kring_kern *kring, const char *rsname, int ring_id, enum KRING_MODE mode )
 {
-	struct kring_ringset *r = find_ring( ringset );
-	if ( r == 0 )
+	int reader_id = -1, writer_id = -1;
+
+	struct kring_ringset *ringset = find_ring( rsname );
+	if ( ringset == 0 )
 		return -1;
 	
-	if ( ring_id < 0 || ring_id >= r->nrings )
+	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
-	copy_name( kring->name, ringset );
-	kring->ringset = r;
+	copy_name( kring->name, rsname );
+	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 
-	if ( mode == KRING_WRITE )
-		r->ring[ring_id].num_writers += 1;
-	else {
-		r->ring[ring_id].num_readers += 1;
+	if ( mode == KRING_WRITE ) {
+		/* Find a writer ID. */
+		writer_id = kring_allocate_writer_on_ring( &ringset->ring[ring_id] );
+		if ( writer_id < 0 )
+			return writer_id;
+	}
+	else if ( mode == KRING_READ ) {
+		/* Find a reader ID. */
+		if ( ring_id != KR_RING_ID_ALL ) {
+			/* Reader ID for ring specified. */
+			reader_id = kring_allocate_reader_on_ring( &ringset->ring[ring_id] );
+		}
+		else {
+			/* Find a reader ID that works for all rings. This can fail. */
+			reader_id = kring_allocate_reader_all_rings( ringset );
+		}
 
-		/*res = */kring_prep_enter( &r->ring[ring_id].control, 0 );
+		if ( reader_id < 0 )
+			return reader_id;
+
+		/*res = */kring_prep_enter( &ringset->ring[ring_id].control, 0 );
 		//if ( res < 0 ) {
 		//	kring_func_error( KRING_ERR_ENTER, 0 );
 		//	return -1;
@@ -525,13 +565,14 @@ int kring_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enu
 
 	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
 	kring->user.socket = -1;
-	kring->user.control = &r->ring[ring_id].control;
+	kring->user.control = &ringset->ring[ring_id].control;
 	kring->user.data = 0;
-	kring->user.pd = r->ring[ring_id].pd;
+	kring->user.pd = ringset->ring[ring_id].pd;
 	kring->user.mode = mode;
 	kring->user.ring_id = ring_id;
-	kring->user.reader_id = 0;
-	kring->user.nrings = r->nrings;
+	kring->user.reader_id = reader_id;
+	kring->user.writer_id = writer_id;
+	kring->user.nrings = ringset->nrings;
 
 	return 0;
 }

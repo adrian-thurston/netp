@@ -34,6 +34,9 @@ char *kring_error( struct kring_user *u, int err )
 		case KRING_ERR_READER_ID:
 			prefix = "getsockopt(reader_id) call failed";
 			break;
+		case KRING_ERR_WRITER_ID:
+			prefix = "getsockopt(writer_id) call failed";
+			break;
 		case KRING_ERR_RING_N:
 			prefix = "getsockopt(ring_n) call failed";
 			break;
@@ -117,7 +120,7 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 
 int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
-	int ctrl, to_alloc, res, ring_N, reader_id;
+	int ctrl, to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
 	struct kring_addr addr;
@@ -150,6 +153,14 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 		goto err_close;
 	}
 	u->nrings = ring_N;
+
+	/* Get the writer_id we were assigned. */
+	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_WRITER_ID, &writer_id, &idlen );
+	if ( res < 0 ) {
+		kring_func_error( KRING_ERR_WRITER_ID, errno );
+		goto err_close;
+	}
+	u->writer_id = writer_id;
 
 	/* Get the reader id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );
