@@ -8,6 +8,8 @@ extern "C" {
 #define KRING 25
 #define KRING_NPAGES 2048
 
+#define KRING_INDEX(off) ((off) & 0x7ff)
+
 #define KRING_PGOFF_CTRL 0
 #define KRING_PGOFF_DATA 1
 
@@ -30,6 +32,18 @@ extern "C" {
 
 /* MUST match system page size. */
 #define KRING_PAGE_SIZE 4096
+
+/*
+ * Argument for non-wrapping offsets, allowing lockless multiple writers and
+ * readers.
+ *
+ * ( 2 ^ 64 * 4096 * 8 ) / ( 1024 * 1024 * 1024 * 1024 ) / ( 60 * 60 * 24 * 360 )
+ * = 17674 years
+ *
+ * DATA      = ( IDX * page-size * bits )
+ * 1tbit/s   = ( 1024 * 1024 * 1024 * 1024 )
+ * year      = ( sec * min * hour * days ) 
+ */
 
 #define DSC_READER_SHIFT    2
 #define DSC_WRITER_OWNED    0x01
@@ -244,7 +258,6 @@ static inline int kring_plain_max_data(void)
 	return KRING_PAGE_SIZE - sizeof(struct kring_plain_header);
 }
 
-
 static inline unsigned long long kring_spins( struct kring_user *u )
 {
 	return u->control->head->spins;
@@ -270,10 +283,24 @@ static inline int kring_avail_impl( struct kring_control *control, int reader_id
 	return ( control->reader[reader_id].rhead != control->head->whead );
 }
 
+static inline kring_desc_t kring_read_desc( struct kring_control *control, kring_off_t off )
+{
+	return control->descriptor[KRING_INDEX(off)].desc;
+}
+
 static inline kring_desc_t kring_write_back( struct kring_control *control,
 		kring_off_t off, kring_desc_t oldval, kring_desc_t newval )
 {
-	return __sync_val_compare_and_swap( &control->descriptor[off].desc, oldval, newval );
+	return __sync_val_compare_and_swap(
+			&control->descriptor[KRING_INDEX(off)].desc, oldval, newval );
+}
+
+static inline void *kring_page_data( struct kring_user *u, int ctrl, kring_off_t off )
+{
+	if ( u->socket < 0 )
+		return u->pd[KRING_INDEX(off)].m;
+	else
+		return u->data[ctrl].page + KRING_INDEX(off);
 }
 
 static inline int kring_avail( struct kring_user *u )
@@ -292,17 +319,7 @@ static inline int kring_avail( struct kring_user *u )
 
 static inline kring_off_t kring_next( kring_off_t off )
 {
-	off += 1;
-	if ( off >= KRING_NPAGES )
-		off = 0;
-	return off;
-}
-
-static inline kring_off_t kring_prev( kring_off_t off )
-{
-	if ( off == 0 )
-		return KRING_NPAGES - 1;
-	return off - 1;
+	return off + 1;
 }
 
 static inline kring_off_t kring_advance_rhead( struct kring_control *control, int reader_id, kring_off_t rhead )
@@ -312,7 +329,7 @@ static inline kring_off_t kring_advance_rhead( struct kring_control *control, in
 		rhead = kring_next( rhead );
 
 		/* reserve next. */
-		desc = control->descriptor[rhead].desc;
+		desc = kring_read_desc( control, rhead );
 		if ( ! ( desc & DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
 			kring_desc_t newval = desc | DSC_READER_BIT( reader_id );
@@ -340,7 +357,7 @@ static inline void kring_reader_release( int reader_id, struct kring_control *co
 	kring_desc_t before, desc, newval;
 again:
 	/* Take a copy, modify, then try to write back. */
-	desc = control->descriptor[prev].desc;
+	desc = kring_read_desc( control, prev );
 	
 	newval = desc & ~( DSC_READER_BIT( reader_id ) );
 
@@ -356,16 +373,6 @@ again:
 		goto again;
 	
 	__sync_add_and_fetch( &control->reader->consumed, 1 );
-}
-
-static inline void *kring_data( struct kring_user *u, int ctrl )
-{
-	if ( u->socket < 0 ) {
-		return u->pd[u->control[ctrl].reader[u->reader_id].rhead].m;
-	}
-	else {
-		return ( u->data[ctrl].page + u->control[ctrl].reader[u->reader_id].rhead );
-	}
 }
 
 static inline int kring_select_ctrl( struct kring_user *u )
@@ -391,7 +398,7 @@ static inline void *kring_next_generic( struct kring_user *u )
 
 	rhead = kring_advance_rhead( &u->control[ctrl], u->reader_id, rhead );
 
-	/* Set the rheadset rhead. */
+	/* Set the rhead. */
 	u->control[ctrl].reader[u->reader_id].rhead = rhead;
 
 	/* Release the previous only if we have entered with a successful read. */
@@ -401,7 +408,7 @@ static inline void *kring_next_generic( struct kring_user *u )
 	/* Indicate we have entered. */
 	u->control[ctrl].reader[u->reader_id].entered = 1;
 
-	return kring_data( u, ctrl );
+	return kring_page_data( u, ctrl, rhead );
 }
 
 
@@ -448,11 +455,6 @@ static inline unsigned long kring_one_back( unsigned long pos )
 	return pos == 0 ? KRING_NPAGES - 1 : pos - 1;
 }
 
-static inline unsigned long kring_one_forward( unsigned long pos )
-{
-	pos += 1;
-	return pos == KRING_NPAGES ? 0 : pos;
-}
 
 static inline unsigned long find_write_loc( struct kring_control *control )
 {
@@ -465,7 +467,7 @@ static inline unsigned long find_write_loc( struct kring_control *control )
 
 retry:
 		/* Read the descriptor. */
-		desc = control->descriptor[whead].desc;
+		desc = kring_read_desc( control, whead );
 
 		/* Check, if not okay, go on to next. */
 		if ( desc & DSC_READER_OWNED || desc & DSC_SKIPPED ) {
@@ -517,16 +519,13 @@ static inline void *kring_write_FIRST( struct kring_user *u )
 	/* Reserve the space. */
 	u->control->head->wresv = whead;
 
-	if ( u->socket < 0 )
-		return u->pd[whead].m;
-	else
-		return u->data->page + whead;
+	return kring_page_data( u, 0, whead );
 }
 
 static inline int writer_release( struct kring_control *control, kring_off_t whead )
 {
 	/* orig value. */
-	kring_desc_t desc = control->descriptor[whead].desc;
+	kring_desc_t desc = kring_read_desc( control, whead );
 
 	/* Unrelease writer. */
 	kring_desc_t newval = desc & ~DSC_WRITER_OWNED;
