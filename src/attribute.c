@@ -182,9 +182,61 @@ static struct kring_ringset *find_ring( const char *name )
 	return 0;
 }
 
+static int kring_allocate_reader_on_ring( struct kring_ring *ring )
+{
+	int reader_id;
+
+	/* Search for a reader id that is free on the ring requested. */
+	for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
+		if ( !ring->reader[reader_id].allocated )
+			break;
+	}
+
+	if ( reader_id == KRING_READERS ) {
+		/* No valid id found */
+		return -EINVAL;
+	}
+
+	/* All okay. */
+	ring->reader[reader_id].allocated = true;
+
+	return reader_id;
+}
+
+static int kring_allocate_reader_all_rings( struct kring_ringset *ringset )
+{
+	int i, reader_id;
+
+	/* Search for a single reader id that is free across all the rings requested. */
+	for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
+		for ( i = 0; i < ringset->nrings; i++ ) {
+			if ( ringset->ring[i].reader[reader_id].allocated )
+				goto next_id;
+		}
+
+		/* Got through all the rings, break with a valid id. */
+		goto good;
+
+		next_id: {}
+	}
+
+	/* No valid id found (exited id loop). */
+	return -EINVAL;
+
+	/* All okay. */
+	good: {}
+	
+	/* Allocate reader ids. */
+	for ( i = 0; i < ringset->nrings; i++ )
+		ringset->ring[i].reader[reader_id].allocated = true;
+	
+	return reader_id;
+}
+
+
 static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
-	int i, reader_id = -1;
+	int reader_id = -1;
 	struct kring_addr *addr = (struct kring_addr*)sa;
 	struct kring_sock *krs;
 	struct kring_ringset *ringset;
@@ -238,49 +290,19 @@ static int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		ring->num_writers += 1;
 	}
 	else if ( addr->mode == KRING_READ ) {
-		/* FIXME: does num-writers need to increase? */
-
+		/* Find a reader ID. */
 		if ( addr->ring_id != KR_RING_ID_ALL ) {
-			ring = &ringset->ring[addr->ring_id];
-
-			/* Search for a reader id that is free on the ring requested. */
-			for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
-				if ( !ring->reader[reader_id].allocated )
-					break;
-			}
-
-			if ( reader_id == KRING_READERS ) {
-				/* No valid id found */
-				return -EINVAL;
-			}
-
-			/* All okay. */
-			ring->reader[reader_id].allocated = true;
+			/* Reader ID for ring specified. */
+			reader_id = kring_allocate_reader_on_ring( &ringset->ring[addr->ring_id] );
 		}
 		else {
-			/* Search for a single reader id that is free across all the rings requested. */
-			for ( reader_id = 0; reader_id < KRING_READERS; reader_id++ ) {
-				for ( i = 0; i < ringset->nrings; i++ ) {
-					if ( ringset->ring[i].reader[reader_id].allocated )
-						goto next_id;
-				}
-
-				/* Got through all the rings, break with a valid id. */
-				goto good;
-
-				next_id: {}
-			}
-
-			/* No valid id found (exited id loop). */
-			return -EINVAL;
-
-			/* All okay. */
-			good: {}
-			
-			/* Allocate reader ids. */
-			for ( i = 0; i < ringset->nrings; i++ )
-				ringset->ring[i].reader[reader_id].allocated = true;
+			/* Find a reader ID that works for all rings. This can fail. */
+			reader_id = kring_allocate_reader_all_rings( ringset );
+			if ( reader_id < 0 )
+				return reader_id;
 		}
+
+		ring->num_readers += 1;
 	}
 
 	krs->ringset = ringset;
