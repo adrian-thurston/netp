@@ -136,7 +136,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	u->ring_id = ring_id;
 	u->mode = mode;
 
-	copy_name( addr.name, ringset );
+	kring_copy_name( addr.name, ringset );
 	addr.ring_id = ring_id;
 	addr.mode = mode;
 

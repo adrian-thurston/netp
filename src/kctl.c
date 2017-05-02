@@ -13,7 +13,6 @@ struct kring
 	struct kobject kobj;
 };
 
-static struct kctl_ringset *head_data = 0;
 static struct kctl_ringset *head_cmd = 0;
 
 static int kctl_sock_release( struct socket *sock );
@@ -61,7 +60,7 @@ struct kctl_sock
 	int reader_id;
 };
 
-static void copy_name( char *dest, const char *src )
+static void kctl_copy_name( char *dest, const char *src )
 {
 	strncpy( dest, src, KCTL_NLEN );
 	dest[KCTL_NLEN-1] = 0;
@@ -175,9 +174,9 @@ static int validate_ring_name( const char *name )
 	}
 }
 
-static struct kctl_ringset *find_ring( const char *name )
+static struct kctl_ringset *kctl_find_ring( const char *name )
 {
-	struct kctl_ringset *r = head_data;
+	struct kctl_ringset *r = head_cmd;
 	while ( r != 0 ) {
 		if ( strcmp( r->name, name ) == 0 )
 			return r;
@@ -286,7 +285,7 @@ static int kctl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 	
-	ringset = find_ring( addr->name );
+	ringset = kctl_find_ring( addr->name );
 	if ( ringset == 0 ) {
 		printk( "kctl_bind: bad mode, not read or write\n" );
 		return -EINVAL;
@@ -530,14 +529,14 @@ int kctl_kopen( struct kctl_kern *kring, const char *rsname, int ring_id, enum K
 {
 	int reader_id = -1, writer_id = -1;
 
-	struct kctl_ringset *ringset = find_ring( rsname );
+	struct kctl_ringset *ringset = kctl_find_ring( rsname );
 	if ( ringset == 0 )
 		return -1;
 	
 	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
-	copy_name( kring->name, rsname );
+	kctl_copy_name( kring->name, rsname );
 	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 
@@ -667,7 +666,7 @@ void kctl_knext_plain( struct kctl_kern *kring, struct kctl_plain *plain )
 	plain->bytes = (unsigned char*)(h + 1);
 }
 
-static void *alloc_shared_memory( int size )
+static void *kctl_alloc_shared_memory( int size )
 {
 	void *mem;
 	size = PAGE_ALIGN(size);
@@ -676,16 +675,16 @@ static void *alloc_shared_memory( int size )
 	return mem;
 }
 
-static void free_shared_memory( void *m )
+static void kctl_free_shared_memory( void *m )
 {
 	vfree(m);
 }
 
-static void ring_alloc( struct kctl_ring *r )
+static void kctl_ring_alloc( struct kctl_ring *r )
 {
 	int i;
 
-	r->ctrl = alloc_shared_memory( KCTL_CTRL_SZ );
+	r->ctrl = kctl_alloc_shared_memory( KCTL_CTRL_SZ );
 
 	r->control.head = r->ctrl + KCTL_CTRL_OFF_HEAD;
 	r->control.writer = r->ctrl + KCTL_CTRL_OFF_WRITER;
@@ -716,7 +715,7 @@ static void ring_alloc( struct kctl_ring *r )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ringset_alloc( struct kctl_ringset *r, const char *name, long nrings )
+static void kctl_ringset_alloc( struct kctl_ringset *r, const char *name, long nrings )
 {
 	int i;
 
@@ -731,30 +730,30 @@ static void ringset_alloc( struct kctl_ringset *r, const char *name, long nrings
 	memset( r->ring, 0, sizeof(struct kctl_ring) * nrings  );
 
 	for ( i = 0; i < nrings; i++ )
-		ring_alloc( &r->ring[i] );
+		kctl_ring_alloc( &r->ring[i] );
 
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ring_free( struct kctl_ring *r )
+static void kctl_ring_free( struct kctl_ring *r )
 {
 	int i;
 	for ( i = 0; i < KCTL_NPAGES; i++ )
 		__free_page( r->pd[i].p );
 
-	free_shared_memory( r->ctrl );
+	kctl_free_shared_memory( r->ctrl );
 	kfree( r->pd );
 }
 
-static void ringset_free( struct kctl_ringset *r )
+static void kctl_ringset_free( struct kctl_ringset *r )
 {
 	int i;
 	for ( i = 0; i < r->nrings; i++ )
-		ring_free( &r->ring[i] );
+		kctl_ring_free( &r->ring[i] );
 	kfree( r->ring );
 }
 
-static void add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set )
+static void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set )
 {
 	if ( *phead == 0 )
 		*phead = set;
@@ -774,9 +773,9 @@ ssize_t kctl_add_data_store( struct kring *obj, const char *name, long rings_per
 		return -EINVAL;
 
 	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
-	ringset_alloc( r, name, rings_per_set );
+	kctl_ringset_alloc( r, name, rings_per_set );
 
-	add_ringset( &head_data, r );
+	kctl_add_ringset( &head_cmd, r );
 
 	return 0;
 }
@@ -786,9 +785,9 @@ ssize_t kctl_add_cmd_store( struct kring *obj, const char *name )
 	struct kctl_ringset *r;
 
 	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
-	ringset_alloc( r, name, 1 );
+	kctl_ringset_alloc( r, name, 1 );
 
-	add_ringset( &head_data, r );
+	kctl_add_ringset( &head_cmd, r );
 
 	return 0;
 }
@@ -810,11 +809,11 @@ int kctl_init(void)
 	return 0;
 }
 
-static void free_ringsets( struct kctl_ringset *head )
+static void kctl_free_ringsets( struct kctl_ringset *head )
 {
 	struct kctl_ringset *r = head;
 	while ( r != 0 ) {
-		ringset_free( r );
+		kctl_ringset_free( r );
 		r = r->next;
 	}
 }
@@ -825,8 +824,7 @@ void kctl_exit(void)
 
 	proto_unregister( &kctl_proto );
 
-	free_ringsets( head_cmd );
-	free_ringsets( head_data );
+	kctl_free_ringsets( head_cmd );
 }
 
 

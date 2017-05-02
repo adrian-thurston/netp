@@ -532,7 +532,7 @@ int kring_kopen( struct kring_kern *kring, const char *rsname, int ring_id, enum
 	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
-	copy_name( kring->name, rsname );
+	kring_copy_name( kring->name, rsname );
 	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 
@@ -662,7 +662,7 @@ void kring_knext_plain( struct kring_kern *kring, struct kring_plain *plain )
 	plain->bytes = (unsigned char*)(h + 1);
 }
 
-static void *alloc_shared_memory( int size )
+static void *kring_alloc_shared_memory( int size )
 {
 	void *mem;
 	size = PAGE_ALIGN(size);
@@ -671,16 +671,16 @@ static void *alloc_shared_memory( int size )
 	return mem;
 }
 
-static void free_shared_memory( void *m )
+static void kring_free_shared_memory( void *m )
 {
-	vfree(m);
+	vfree( m );
 }
 
-static void ring_alloc( struct kring_ring *r )
+static void kring_ring_alloc( struct kring_ring *r )
 {
 	int i;
 
-	r->ctrl = alloc_shared_memory( KRING_CTRL_SZ );
+	r->ctrl = kring_alloc_shared_memory( KRING_CTRL_SZ );
 
 	r->control.head = r->ctrl + KRING_CTRL_OFF_HEAD;
 	r->control.writer = r->ctrl + KRING_CTRL_OFF_WRITER;
@@ -711,7 +711,7 @@ static void ring_alloc( struct kring_ring *r )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ringset_alloc( struct kring_ringset *r, const char *name, long nrings )
+static void kring_ringset_alloc( struct kring_ringset *r, const char *name, long nrings )
 {
 	int i;
 
@@ -726,30 +726,30 @@ static void ringset_alloc( struct kring_ringset *r, const char *name, long nring
 	memset( r->ring, 0, sizeof(struct kring_ring) * nrings  );
 
 	for ( i = 0; i < nrings; i++ )
-		ring_alloc( &r->ring[i] );
+		kring_ring_alloc( &r->ring[i] );
 
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void ring_free( struct kring_ring *r )
+static void kring_ring_free( struct kring_ring *r )
 {
 	int i;
 	for ( i = 0; i < KRING_NPAGES; i++ )
 		__free_page( r->pd[i].p );
 
-	free_shared_memory( r->ctrl );
+	kring_free_shared_memory( r->ctrl );
 	kfree( r->pd );
 }
 
-static void ringset_free( struct kring_ringset *r )
+static void kring_ringset_free( struct kring_ringset *r )
 {
 	int i;
 	for ( i = 0; i < r->nrings; i++ )
-		ring_free( &r->ring[i] );
+		kring_ring_free( &r->ring[i] );
 	kfree( r->ring );
 }
 
-static void add_ringset( struct kring_ringset **phead, struct kring_ringset *set )
+static void kring_add_ringset( struct kring_ringset **phead, struct kring_ringset *set )
 {
 	if ( *phead == 0 )
 		*phead = set;
@@ -769,9 +769,9 @@ ssize_t kring_add_data_store( struct kring *obj, const char *name, long rings_pe
 		return -EINVAL;
 
 	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
-	ringset_alloc( r, name, rings_per_set );
+	kring_ringset_alloc( r, name, rings_per_set );
 
-	add_ringset( &head_data, r );
+	kring_add_ringset( &head_data, r );
 
 	return 0;
 }
@@ -781,15 +781,6 @@ ssize_t kctl_add_cmd_store( struct kring *obj, const char *name );
 ssize_t kring_add_cmd_store( struct kring *obj, const char *name )
 {
 	return kctl_add_cmd_store( obj, name );
-
-//	struct kring_ringset *r;
-//
-//	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
-//	ringset_alloc( r, name, 1 );
-//
-//	add_ringset( &head_data, r );
-//
-//	return 0;
 }
 
 ssize_t kring_del_store( struct kring *obj, const char *name  )
@@ -807,15 +798,14 @@ int kring_init(void)
 	if ( (rc = proto_register(&kring_proto, 0) ) != 0 )
 		return rc;
 
-//	return 0;
 	return kctl_init();;
 }
 
-static void free_ringsets( struct kring_ringset *head )
+static void kring_free_ringsets( struct kring_ringset *head )
 {
 	struct kring_ringset *r = head;
 	while ( r != 0 ) {
-		ringset_free( r );
+		kring_ringset_free( r );
 		r = r->next;
 	}
 }
@@ -829,8 +819,8 @@ void kring_exit(void)
 
 	proto_unregister( &kring_proto );
 
-	free_ringsets( head_cmd );
-	free_ringsets( head_data );
+	kring_free_ringsets( head_cmd );
+	kring_free_ringsets( head_data );
 }
 
 
