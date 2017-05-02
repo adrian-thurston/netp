@@ -24,8 +24,8 @@ struct kdata_ring
 	int num_readers;
 	int num_writers;
 
-	struct kdata_ring_reader reader[KRING_READERS];
-	struct kdata_ring_writer writer[KRING_WRITERS];
+	struct kdata_ring_reader reader[KDATA_READERS];
+	struct kdata_ring_writer writer[KDATA_WRITERS];
 
 	wait_queue_head_t reader_waitqueue;
 };

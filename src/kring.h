@@ -8,10 +8,10 @@ extern "C" {
 #define KDATA 25
 #define KDATA_NPAGES 2048
 
-#define KRING_INDEX(off) ((off) & 0x7ff)
+#define KDATA_INDEX(off) ((off) & 0x7ff)
 
-#define KRING_PGOFF_CTRL 0
-#define KRING_PGOFF_DATA 1
+#define KDATA_PGOFF_CTRL 0
+#define KDATA_PGOFF_DATA 1
 
 /*
  * Memap identity information. 
@@ -20,18 +20,18 @@ extern "C" {
 /* Ring id (5), region to map (1) */
 
 /* Must match region shift below. */
-#define KRING_MAX_RINGS_PER_SET 32
+#define KDATA_MAX_RINGS_PER_SET 32
 
-#define KRING_PGOFF_ID_SHIFT 0
-#define KRING_PGOFF_ID_MASK  0x1f
+#define KDATA_PGOFF_ID_SHIFT 0
+#define KDATA_PGOFF_ID_MASK  0x1f
 
-#define KRING_PGOFF_REGION_SHIFT 5
-#define KRING_PGOFF_REGION_MASK  0x20
+#define KDATA_PGOFF_REGION_SHIFT 5
+#define KDATA_PGOFF_REGION_MASK  0x20
 
-#define KRING_RING_ID_ALL -1
+#define KDATA_RING_ID_ALL -1
 
 /* MUST match system page size. */
-#define KRING_PAGE_SIZE 4096
+#define KDATA_PAGE_SIZE 4096
 
 /*
  * Argument for non-wrapping offsets, allowing lockless multiple writers and
@@ -45,11 +45,11 @@ extern "C" {
  * year      = ( sec * min * hour * days ) 
  */
 
-#define KRING_DSC_READER_SHIFT    2
-#define KRING_DSC_WRITER_OWNED    0x01
-#define KRING_DSC_SKIPPED         0x02
-#define KRING_DSC_READER_OWNED    0xfc
-#define KRING_DSC_READER_BIT(id)  ( 0x1 << ( KRING_DSC_READER_SHIFT + (id) ) )
+#define KDATA_DSC_READER_SHIFT    2
+#define KDATA_DSC_WRITER_OWNED    0x01
+#define KDATA_DSC_SKIPPED         0x02
+#define KDATA_DSC_READER_OWNED    0xfc
+#define KDATA_DSC_READER_BIT(id)  ( 0x1 << ( KDATA_DSC_READER_SHIFT + (id) ) )
 
 #define KRING_ERR_SOCK       -1
 #define KRING_ERR_MMAP       -2
@@ -60,18 +60,18 @@ extern "C" {
 #define KRING_ERR_ENTER      -7
 
 /* Direction: from client, or from server. */
-#define KRING_DIR_CLIENT 1
-#define KRING_DIR_SERVER 2
+#define KDATA_DIR_CLIENT 1
+#define KDATA_DIR_SERVER 2
 
-#define KRING_DIR_INSIDE  1
-#define KRING_DIR_OUTSIDE 2
+#define KDATA_DIR_INSIDE  1
+#define KDATA_DIR_OUTSIDE 2
 
 #define KRING_NLEN 32
-#define KRING_READERS 6
-#define KRING_WRITERS 6
+#define KDATA_READERS 6
+#define KDATA_WRITERS 6
 
 /* Configurable at allocation time. This specifies the maximum. */
-#define KRING_MAX_WRITERS_PER_RING 32
+#define KDATA_MAX_WRITERS_PER_RING 32
 
 #define KR_OPT_WRITER_ID 1
 #define KR_OPT_READER_ID 2
@@ -134,22 +134,22 @@ struct kdata_page_desc
 
 struct kdata_page
 {
-	char d[KRING_PAGE_SIZE];
+	char d[KDATA_PAGE_SIZE];
 };
 
 #define KRING_CTRL_SZ ( \
 	sizeof(struct kdata_shared_head) + \
-	sizeof(struct kdata_shared_writer) * KRING_WRITERS + \
-	sizeof(struct kdata_shared_reader) * KRING_READERS + \
+	sizeof(struct kdata_shared_writer) * KDATA_WRITERS + \
+	sizeof(struct kdata_shared_reader) * KDATA_READERS + \
 	sizeof(struct kdata_shared_desc) * KDATA_NPAGES \
 )
 	
 #define KRING_CTRL_OFF_HEAD   0
 #define KRING_CTRL_OFF_WRITER KRING_CTRL_OFF_HEAD + sizeof(struct kdata_shared_head)
-#define KRING_CTRL_OFF_READER KRING_CTRL_OFF_WRITER + sizeof(struct kdata_shared_writer) * KRING_WRITERS
-#define KRING_CTRL_OFF_DESC   KRING_CTRL_OFF_READER + sizeof(struct kdata_shared_reader) * KRING_READERS
+#define KRING_CTRL_OFF_READER KRING_CTRL_OFF_WRITER + sizeof(struct kdata_shared_writer) * KDATA_WRITERS
+#define KRING_CTRL_OFF_DESC   KRING_CTRL_OFF_READER + sizeof(struct kdata_shared_reader) * KDATA_READERS
 
-#define KRING_DATA_SZ KRING_PAGE_SIZE * KDATA_NPAGES
+#define KRING_DATA_SZ KDATA_PAGE_SIZE * KDATA_NPAGES
 
 struct kdata_control
 {
@@ -248,17 +248,17 @@ int kdata_read_wait( struct kdata_user *u );
 
 static inline int kdata_packet_max_data(void)
 {
-	return KRING_PAGE_SIZE - sizeof(struct kdata_packet_header);
+	return KDATA_PAGE_SIZE - sizeof(struct kdata_packet_header);
 }
 
 static inline int kdata_decrypted_max_data(void)
 {
-	return KRING_PAGE_SIZE - sizeof(struct kdata_decrypted_header);
+	return KDATA_PAGE_SIZE - sizeof(struct kdata_decrypted_header);
 }
 
 static inline int kdata_plain_max_data(void)
 {
-	return KRING_PAGE_SIZE - sizeof(struct kdata_plain_header);
+	return KDATA_PAGE_SIZE - sizeof(struct kdata_plain_header);
 }
 
 static inline unsigned long long kdata_spins( struct kdata_user *u )
@@ -271,7 +271,7 @@ char *kdata_error( struct kdata_user *u, int err );
 static inline unsigned long kdata_skips( struct kdata_user *u )
 {
 	unsigned long skips = 0;
-	if ( u->ring_id != KRING_RING_ID_ALL )
+	if ( u->ring_id != KDATA_RING_ID_ALL )
 		skips = u->control->reader[u->reader_id].skips;
 	else {
 		int ring;
@@ -288,14 +288,14 @@ static inline int kdata_avail_impl( struct kdata_control *control, int reader_id
 
 static inline kdata_desc_t kdata_read_desc( struct kdata_control *control, kdata_off_t off )
 {
-	return control->descriptor[KRING_INDEX(off)].desc;
+	return control->descriptor[KDATA_INDEX(off)].desc;
 }
 
 static inline kdata_desc_t kdata_write_back( struct kdata_control *control,
 		kdata_off_t off, kdata_desc_t oldval, kdata_desc_t newval )
 {
 	return __sync_val_compare_and_swap(
-			&control->descriptor[KRING_INDEX(off)].desc, oldval, newval );
+			&control->descriptor[KDATA_INDEX(off)].desc, oldval, newval );
 }
 
 static inline kdata_off_t kdata_wresv_write_back( struct kdata_control *control,
@@ -314,14 +314,14 @@ static inline kdata_off_t kdata_whead_write_back( struct kdata_control *control,
 static inline void *kdata_page_data( struct kdata_user *u, int ctrl, kdata_off_t off )
 {
 	if ( u->socket < 0 )
-		return u->pd[KRING_INDEX(off)].m;
+		return u->pd[KDATA_INDEX(off)].m;
 	else
-		return u->data[ctrl].page + KRING_INDEX(off);
+		return u->data[ctrl].page + KDATA_INDEX(off);
 }
 
 static inline int kdata_avail( struct kdata_user *u )
 {
-	if ( u->ring_id != KRING_RING_ID_ALL )
+	if ( u->ring_id != KDATA_RING_ID_ALL )
 		return kdata_avail_impl( u->control, u->reader_id );
 	else {
 		int ctrl;
@@ -346,9 +346,9 @@ static inline kdata_off_t kdata_advance_rhead( struct kdata_control *control, in
 
 		/* reserve next. */
 		desc = kdata_read_desc( control, rhead );
-		if ( ! ( desc & KRING_DSC_WRITER_OWNED ) ) {
+		if ( ! ( desc & KDATA_DSC_WRITER_OWNED ) ) {
 			/* Okay we can take it. */
-			kdata_desc_t newval = desc | KRING_DSC_READER_BIT( reader_id );
+			kdata_desc_t newval = desc | KDATA_DSC_READER_BIT( reader_id );
 		
 			/* Attemp write back. */
 			kdata_desc_t before = kdata_write_back( control, rhead, desc, newval );
@@ -375,13 +375,13 @@ again:
 	/* Take a copy, modify, then try to write back. */
 	desc = kdata_read_desc( control, prev );
 	
-	newval = desc & ~( KRING_DSC_READER_BIT( reader_id ) );
+	newval = desc & ~( KDATA_DSC_READER_BIT( reader_id ) );
 
 	/* Was it skipped? */
-	if ( desc & KRING_DSC_SKIPPED ) {
+	if ( desc & KDATA_DSC_SKIPPED ) {
 		/* If we are the last to release it, then reset the skipped bit. */
-		if ( ! ( newval & KRING_DSC_READER_OWNED ) )
-			newval &= ~KRING_DSC_SKIPPED;
+		if ( ! ( newval & KDATA_DSC_READER_OWNED ) )
+			newval &= ~KDATA_DSC_SKIPPED;
 	}
 
 	before = kdata_write_back( control, prev, desc, newval );
@@ -393,7 +393,7 @@ again:
 
 static inline int kdata_select_ctrl( struct kdata_user *u )
 {
-	if ( u->ring_id != KRING_RING_ID_ALL )
+	if ( u->ring_id != KDATA_RING_ID_ALL )
 		return 0;
 	else {
 		int ctrl;
@@ -485,31 +485,31 @@ retry:
 		desc = kdata_read_desc( control, whead );
 
 		/* Check, if not okay, go on to next. */
-		if ( desc & KRING_DSC_READER_OWNED || desc & KRING_DSC_SKIPPED ) {
+		if ( desc & KDATA_DSC_READER_OWNED || desc & KDATA_DSC_SKIPPED ) {
 			kdata_desc_t before;
 
 			/* register skips. */
-			for ( id = 0; id < KRING_READERS; id++ ) {
-				if ( desc & KRING_DSC_READER_BIT( id ) ) {
+			for ( id = 0; id < KDATA_READERS; id++ ) {
+				if ( desc & KDATA_DSC_READER_BIT( id ) ) {
 					/* reader id present. */
 					control->reader[id].skips += 1;
 				}
 			}
 
 			/* Mark as skipped. If a reader got in before us, retry. */
-			before = kdata_write_back( control, whead, desc, desc | KRING_DSC_SKIPPED );
+			before = kdata_write_back( control, whead, desc, desc | KDATA_DSC_SKIPPED );
 			if ( before != desc )
 				goto retry;
 
 			/* After registering the skip, go on to look for another block. */
 		}
-		else if ( desc & KRING_DSC_WRITER_OWNED ) {
+		else if ( desc & KDATA_DSC_WRITER_OWNED ) {
 			/* A different writer has the block. Go forward to find another
 			 * block. */
 		}
 		else {
 			/* Available. */
-			kdata_desc_t newval = desc | KRING_DSC_WRITER_OWNED;
+			kdata_desc_t newval = desc | KDATA_DSC_WRITER_OWNED;
 
 			/* Okay. Attempt to claim with an atomic write back. */
 			kdata_desc_t before = kdata_write_back( control, whead, desc, newval );
@@ -543,7 +543,7 @@ static inline int kdata_writer_release( struct kdata_control *control, kdata_off
 	kdata_desc_t desc = kdata_read_desc( control, whead );
 
 	/* Unrelease writer. */
-	kdata_desc_t newval = desc & ~KRING_DSC_WRITER_OWNED;
+	kdata_desc_t newval = desc & ~KDATA_DSC_WRITER_OWNED;
 
 	/* Write back with check. No other reader or writer should have altered the
 	 * descriptor. */
@@ -575,7 +575,7 @@ again:
 	 * inactive then it's resv will be left behind and not affect this
 	 * compuation. */
 	highest = 0;
-	for ( w = 0; w < KRING_WRITERS; w++ ) {
+	for ( w = 0; w < KDATA_WRITERS; w++ ) {
 		if ( u->control->writer[w].wresv > highest )
 			highest = u->control->writer[w].wresv;
 	}
@@ -603,13 +603,13 @@ retry:
 	/* Order of these two matters. Cannot look for the limit first. */
 
 	/* First pass, find the highest write head. */
-	for ( w = 0; w < KRING_WRITERS; w++ ) {
+	for ( w = 0; w < KDATA_WRITERS; w++ ) {
 		if ( u->control->writer[w].whead > whead )
 			whead = u->control->writer[w].whead;
 	}
 
 	/* Second pass. Find the lowest barrier. */
-	for ( w = 0; w < KRING_WRITERS; w++ ) {
+	for ( w = 0; w < KDATA_WRITERS; w++ ) {
 		if ( u->control->writer[w].wbar != 0 ) {
 			if ( u->control->writer[w].wbar < wbar )
 				wbar = u->control->writer[w].wbar;

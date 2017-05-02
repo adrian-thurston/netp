@@ -72,9 +72,9 @@ char *kdata_error( struct kdata_user *u, int err )
 static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 {
 	return (
-		( ( ring_id << KRING_PGOFF_ID_SHIFT )    & KRING_PGOFF_ID_MASK ) |
-		( ( region << KRING_PGOFF_REGION_SHIFT ) & KRING_PGOFF_REGION_MASK )
-	) * KRING_PAGE_SIZE;
+		( ( ring_id << KDATA_PGOFF_ID_SHIFT )    & KDATA_PGOFF_ID_MASK ) |
+		( ( region << KDATA_PGOFF_REGION_SHIFT ) & KDATA_PGOFF_REGION_MASK )
+	) * KDATA_PAGE_SIZE;
 }
 
 static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
@@ -84,7 +84,7 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, KRING_PGOFF_CTRL ) );
+			cons_pgoff( ring_id, KDATA_PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
 		kdata_func_error( KRING_ERR_MMAP, errno );
@@ -98,7 +98,7 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, KRING_PGOFF_DATA ) );
+			cons_pgoff( ring_id, KDATA_PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
 		kdata_func_error( KRING_ERR_MMAP, errno );
@@ -174,7 +174,7 @@ int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset,
 	 * Allocate ring-specific structs. May not use them all.
 	 */
 	to_alloc = 1;
-	if ( ring_id == KRING_RING_ID_ALL )
+	if ( ring_id == KDATA_RING_ID_ALL )
 		to_alloc = ring_N;
 
 	u->control = (struct kdata_control*)malloc( sizeof( struct kdata_control ) * to_alloc );
@@ -186,7 +186,7 @@ int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset,
 	u->pd = 0;
 
 	/* Which rings to map. */
-	if ( ring_id != KRING_RING_ID_ALL ) {
+	if ( ring_id != KDATA_RING_ID_ALL ) {
 		res = kdata_map_enter( u, ring_id, 0 );
 		if ( res < 0 )
 			goto err_close;
