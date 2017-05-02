@@ -9,30 +9,30 @@
 #include "kckern.h"
 
 
-static int kctl_sock_release( struct socket *sock );
-static int kctl_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
-static int kctl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma );
-static int kctl_bind( struct socket *sock, struct sockaddr *sa, int addr_len);
-static unsigned int kctl_poll(struct file *file, struct socket *sock, poll_table * wait);
-static int kctl_setsockopt( struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen);
-static int kctl_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen);
-static int kctl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
-static int kctl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags );
-static int kctl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len );
+static int kctrl_sock_release( struct socket *sock );
+static int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
+static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma );
+static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len);
+static unsigned int kctrl_poll(struct file *file, struct socket *sock, poll_table * wait);
+static int kctrl_setsockopt( struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen);
+static int kctrl_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen);
+static int kctrl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
+static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags );
+static int kctrl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len );
 
-static struct proto_ops kctl_ops = {
-	.family = KCTL,
+static struct proto_ops kctrl_ops = {
+	.family = KCTRL,
 	.owner = THIS_MODULE,
 
-	.release = kctl_sock_release,
-	.bind = kctl_bind,
-	.mmap = kctl_sock_mmap,
-	.poll = kctl_poll,
-	.setsockopt = kctl_setsockopt,
-	.getsockopt = kctl_getsockopt,
-	.ioctl = kctl_ioctl,
-	.recvmsg = kctl_recvmsg,
-	.sendmsg = kctl_sendmsg,
+	.release = kctrl_sock_release,
+	.bind = kctrl_bind,
+	.mmap = kctrl_sock_mmap,
+	.poll = kctrl_poll,
+	.setsockopt = kctrl_setsockopt,
+	.getsockopt = kctrl_getsockopt,
+	.ioctl = kctrl_ioctl,
+	.recvmsg = kctrl_recvmsg,
+	.sendmsg = kctrl_sendmsg,
 
 	/* Not used. */
 	.connect = sock_no_connect,
@@ -44,48 +44,48 @@ static struct proto_ops kctl_ops = {
 	.sendpage = sock_no_sendpage,
 };
 
-struct kctl_sock
+struct kctrl_sock
 {
 	struct sock sk;
-	struct kctl_ringset *ringset;
+	struct kctrl_ringset *ringset;
 	int ring_id;
-	enum KCTL_MODE mode;
+	enum KCTRL_MODE mode;
 	int writer_id;
 	int reader_id;
 };
 
-static void kctl_copy_name( char *dest, const char *src )
+static void kctrl_copy_name( char *dest, const char *src )
 {
-	strncpy( dest, src, KCTL_NLEN );
-	dest[KCTL_NLEN-1] = 0;
+	strncpy( dest, src, KCTRL_NLEN );
+	dest[KCTRL_NLEN-1] = 0;
 }
 
-static inline struct kctl_sock *kctl_sk( const struct sock *sk )
+static inline struct kctrl_sock *kctrl_sk( const struct sock *sk )
 {
-	return container_of( sk, struct kctl_sock, sk );
+	return container_of( sk, struct kctrl_sock, sk );
 }
 
-static struct proto kctl_proto = {
-	.name = "KCTL",
+static struct proto kctrl_proto = {
+	.name = "KCTRL",
 	.owner = THIS_MODULE,
-	.obj_size = sizeof(struct kctl_sock),
+	.obj_size = sizeof(struct kctrl_sock),
 };
 
-static struct net_proto_family kctl_family_ops = {
-	.family = KCTL,
-	.create = kctl_sock_create,
+static struct net_proto_family kctrl_family_ops = {
+	.family = KCTRL,
+	.create = kctrl_sock_create,
 	.owner = THIS_MODULE,
 };
 
 
-static int kctl_sock_release( struct socket *sock )
+static int kctrl_sock_release( struct socket *sock )
 {
 	struct sock *sk = sock->sk;
 
 	if ( !sk )
 		return 0;
 
-	printk( "kctl_sock_release\n" );
+	printk( "kctrl_sock_release\n" );
 
 	sock->sk = NULL;
 	sock_put( sk );
@@ -94,14 +94,14 @@ static int kctl_sock_release( struct socket *sock )
 
 static void decon_pgoff( unsigned long pgoff, unsigned long *rid, unsigned long *region )
 {
-	*rid = ( pgoff & KCTL_PGOFF_ID_MASK ) >> KCTL_PGOFF_ID_SHIFT;
-	*region = ( pgoff & KCTL_PGOFF_REGION_MASK ) >> KCTL_PGOFF_REGION_SHIFT;
+	*rid = ( pgoff & KCTRL_PGOFF_ID_MASK ) >> KCTRL_PGOFF_ID_SHIFT;
+	*region = ( pgoff & KCTRL_PGOFF_REGION_MASK ) >> KCTRL_PGOFF_REGION_SHIFT;
 }
 
-static int kctl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
+static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
-	struct kctl_sock *krs = kctl_sk( sock->sk );
-	struct kctl_ringset *r = krs->ringset;
+	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kctrl_ringset *r = krs->ringset;
 	unsigned long ring_id, region;
 
 	/* Ensure bound. */
@@ -118,17 +118,17 @@ static int kctl_sock_mmap( struct file *file, struct socket *sock, struct vm_are
 	}
 
 	switch ( region  ) {
-		case KCTL_PGOFF_CTRL: {
+		case KCTRL_PGOFF_CTRL: {
 			printk( "mapping control region %p of ring %p-%lu\n", r->ring[ring_id].ctrl, r, ring_id );
 			remap_vmalloc_range( vma, r->ring[ring_id].ctrl, 0 );
 			break;
 		}
 
-		case KCTL_PGOFF_DATA: {
+		case KCTRL_PGOFF_DATA: {
 			int i;
 			unsigned long uaddr = vma->vm_start;
 			printk( "mapping data region %lu of ring %p-%lu\n", uaddr, r, ring_id );
-			for ( i = 0; i < KCTL_NPAGES; i++ ) {
+			for ( i = 0; i < KCTRL_NPAGES; i++ ) {
 				vm_insert_page( vma, uaddr, r->ring[ring_id].pd[i].p );
 				uaddr += PAGE_SIZE;
 			}
@@ -143,7 +143,7 @@ static int kctl_sock_mmap( struct file *file, struct socket *sock, struct vm_are
 static int validate_ring_name( const char *name )
 {
 	const char *p = name;
-	const char *pe = name + KCTL_NLEN;
+	const char *pe = name + KCTRL_NLEN;
 	while ( 1 ) {
 		/* Reached the end without validation. */
 		if ( p == pe )
@@ -168,17 +168,17 @@ static int validate_ring_name( const char *name )
 	}
 }
 
-static int kctl_allocate_reader_on_ring( struct kctl_ring *ring )
+static int kctrl_allocate_reader_on_ring( struct kctrl_ring *ring )
 {
 	int reader_id;
 
 	/* Search for a reader id that is free on the ring requested. */
-	for ( reader_id = 0; reader_id < KCTL_READERS; reader_id++ ) {
+	for ( reader_id = 0; reader_id < KCTRL_READERS; reader_id++ ) {
 		if ( !ring->reader[reader_id].allocated )
 			break;
 	}
 
-	if ( reader_id == KCTL_READERS ) {
+	if ( reader_id == KCTRL_READERS ) {
 		/* No valid id found */
 		return -EINVAL;
 	}
@@ -190,12 +190,12 @@ static int kctl_allocate_reader_on_ring( struct kctl_ring *ring )
 	return reader_id;
 }
 
-static int kctl_allocate_reader_all_rings( struct kctl_ringset *ringset )
+static int kctrl_allocate_reader_all_rings( struct kctrl_ringset *ringset )
 {
 	int i, reader_id;
 
 	/* Search for a single reader id that is free across all the rings requested. */
-	for ( reader_id = 0; reader_id < KCTL_READERS; reader_id++ ) {
+	for ( reader_id = 0; reader_id < KCTRL_READERS; reader_id++ ) {
 		for ( i = 0; i < ringset->nrings; i++ ) {
 			if ( ringset->ring[i].reader[reader_id].allocated )
 				goto next_id;
@@ -222,17 +222,17 @@ static int kctl_allocate_reader_all_rings( struct kctl_ringset *ringset )
 	return reader_id;
 }
 
-static int kctl_allocate_writer_on_ring( struct kctl_ring *ring )
+static int kctrl_allocate_writer_on_ring( struct kctrl_ring *ring )
 {
 	int writer_id;
 
 	/* Search for a writer id that is free on the ring requested. */
-	for ( writer_id = 0; writer_id < KCTL_WRITERS; writer_id++ ) {
+	for ( writer_id = 0; writer_id < KCTRL_WRITERS; writer_id++ ) {
 		if ( !ring->writer[writer_id].allocated )
 			break;
 	}
 
-	if ( writer_id == KCTL_WRITERS ) {
+	if ( writer_id == KCTRL_WRITERS ) {
 		/* No valid id found */
 		return -EINVAL;
 	}
@@ -244,64 +244,64 @@ static int kctl_allocate_writer_on_ring( struct kctl_ring *ring )
 	return writer_id;
 }
 
-static int kctl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
+static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
 	int reader_id = -1, writer_id = -1;
-	struct kctl_addr *addr = (struct kctl_addr*)sa;
-	struct kctl_sock *krs;
-	struct kctl_ringset *ringset;
+	struct kctrl_addr *addr = (struct kctrl_addr*)sa;
+	struct kctrl_sock *krs;
+	struct kctrl_ringset *ringset;
 
-	if ( addr_len != sizeof(struct kctl_addr) ) {
-		printk("kctl_bind: addr_len wrong size\n");
+	if ( addr_len != sizeof(struct kctrl_addr) ) {
+		printk("kctrl_bind: addr_len wrong size\n");
 		return -EINVAL;
 	}
 
 	if ( validate_ring_name( addr->name ) < 0 ) {
-		printk( "kctl_bind: bad ring name\n" );
+		printk( "kctrl_bind: bad ring name\n" );
 		return -EINVAL;
 	}
 	
-	if ( addr->mode != KCTL_READ && addr->mode != KCTL_WRITE ) {
-		printk( "kctl_bind: bad mode, not read or write\n" );
+	if ( addr->mode != KCTRL_READ && addr->mode != KCTRL_WRITE ) {
+		printk( "kctrl_bind: bad mode, not read or write\n" );
 		return -EINVAL;
 	}
 	
-	ringset = kctl_find_ring( addr->name );
+	ringset = kctrl_find_ring( addr->name );
 	if ( ringset == 0 ) {
-		printk( "kctl_bind: bad mode, not read or write\n" );
+		printk( "kctrl_bind: bad mode, not read or write\n" );
 		return -EINVAL;
 	}
 
-	if ( addr->ring_id != KCTL_RING_ID_ALL &&
+	if ( addr->ring_id != KCTRL_RING_ID_ALL &&
 			( addr->ring_id < 0 || addr->ring_id >= ringset->nrings ) )
 	{
-		printk( "kctl_bind: bad ring id %d\n", addr->ring_id );
+		printk( "kctrl_bind: bad ring id %d\n", addr->ring_id );
 		return -EINVAL;
 	}
 
 	/* Cannot write to all rings. */
-	if ( addr->mode == KCTL_WRITE && addr->ring_id == KCTL_RING_ID_ALL ) {
-		printk( "kctl_bind: cannot write to ring id ALL\n" );
+	if ( addr->mode == KCTRL_WRITE && addr->ring_id == KCTRL_RING_ID_ALL ) {
+		printk( "kctrl_bind: cannot write to ring id ALL\n" );
 		return -EINVAL;
 	}
 
-	krs = kctl_sk( sock->sk );
+	krs = kctrl_sk( sock->sk );
 
-	if ( addr->mode == KCTL_WRITE ) {
+	if ( addr->mode == KCTRL_WRITE ) {
 		/* Find a writer ID. */
-		writer_id = kctl_allocate_writer_on_ring( &ringset->ring[addr->ring_id] );
+		writer_id = kctrl_allocate_writer_on_ring( &ringset->ring[addr->ring_id] );
 		if ( writer_id < 0 )
 			return writer_id;
 	}
-	else if ( addr->mode == KCTL_READ ) {
+	else if ( addr->mode == KCTRL_READ ) {
 		/* Find a reader ID. */
-		if ( addr->ring_id != KCTL_RING_ID_ALL ) {
+		if ( addr->ring_id != KCTRL_RING_ID_ALL ) {
 			/* Reader ID for ring specified. */
-			reader_id = kctl_allocate_reader_on_ring( &ringset->ring[addr->ring_id] );
+			reader_id = kctrl_allocate_reader_on_ring( &ringset->ring[addr->ring_id] );
 		}
 		else {
 			/* Find a reader ID that works for all rings. This can fail. */
-			reader_id = kctl_allocate_reader_all_rings( ringset );
+			reader_id = kctrl_allocate_reader_all_rings( ringset );
 		}
 
 		if ( reader_id < 0 )
@@ -318,24 +318,24 @@ static int kctl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	return 0;
 }
 
-unsigned int kctl_poll(struct file *file, struct socket *sock, poll_table * wait)
+unsigned int kctrl_poll(struct file *file, struct socket *sock, poll_table * wait)
 {
-	printk( "kctl_poll\n" );
+	printk( "kctrl_poll\n" );
 	return 0;
 }
 
-static int kctl_setsockopt(struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen)
+static int kctrl_setsockopt(struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen)
 {
-	printk( "kctl_setsockopt\n" );
+	printk( "kctrl_setsockopt\n" );
 	return 0;
 }
 
-static int kctl_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen )
+static int kctrl_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen )
 {
 	int len;
 	int val, lv = sizeof(val);
 	void *data = &val;
-	struct kctl_sock *krs = kctl_sk( sock->sk );
+	struct kctrl_sock *krs = kctrl_sk( sock->sk );
 
 	if ( level != SOL_PACKET )
 		return -ENOPROTOOPT;
@@ -346,7 +346,7 @@ static int kctl_getsockopt( struct socket *sock, int level, int optname, char __
 	if ( len != lv )
 		return -EINVAL;
 
-	printk( "kctl_getsockopt\n" );
+	printk( "kctrl_getsockopt\n" );
 
 	switch ( optname ) {
 		case KR_OPT_RING_N:
@@ -368,20 +368,20 @@ static int kctl_getsockopt( struct socket *sock, int level, int optname, char __
 	return 0;
 }
 
-static int kctl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+static int kctrl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	printk( "kctl_ioctl\n" );
+	printk( "kctrl_ioctl\n" );
 	return 0;
 }
 
-static int kctl_kern_avail( struct kctl_ringset *r, struct kctl_sock *krs )
+static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
 {
-	if ( krs->ring_id != KCTL_RING_ID_ALL )
-		return kctl_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
+	if ( krs->ring_id != KCTRL_RING_ID_ALL )
+		return kctrl_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
 	else {
 		int ring;
 		for ( ring = 0; ring < r->nrings; ring++ ) {
-			if ( kctl_avail_impl( &r->ring[ring].control, krs->reader_id ) )
+			if ( kctrl_avail_impl( &r->ring[ring].control, krs->reader_id ) )
 				return 1;
 		}
 		return 0;
@@ -389,10 +389,10 @@ static int kctl_kern_avail( struct kctl_ringset *r, struct kctl_sock *krs )
 }
 
 /* Waiting writers go to sleep with the recvmsg system call. */
-static int kctl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
+static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
-	struct kctl_sock *krs = kctl_sk( sock->sk );
-	struct kctl_ringset *r = krs->ringset;
+	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kctrl_ringset *r = krs->ringset;
 	sigset_t blocked, oldset;
 	int ret;
 	wait_queue_head_t *wq;
@@ -409,7 +409,7 @@ static int kctl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr 
 
 	wq = &r->reader_waitqueue;
 
-	ret = wait_event_interruptible( *wq, kctl_kern_avail( r, krs ) );
+	ret = wait_event_interruptible( *wq, kctrl_kern_avail( r, krs ) );
 
 	if ( ret == -ERESTARTSYS ) {
 		/* Interrupted by a signal. */
@@ -423,54 +423,54 @@ static int kctl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr 
 }
 
 /* The sendmsg system call is used for waking up waiting readers. */
-static int kctl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
+static int kctrl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
-	struct kctl_sock *krs = kctl_sk( sock->sk );
-	struct kctl_ringset *r = krs->ringset;
+	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kctrl_ringset *r = krs->ringset;
 	wake_up_interruptible_all( &r->reader_waitqueue );
 	return 0;
 }
 
-static void kctl_sock_destruct( struct sock *sk )
+static void kctrl_sock_destruct( struct sock *sk )
 {
-	struct kctl_sock *krs = kctl_sk( sk );
+	struct kctrl_sock *krs = kctrl_sk( sk );
 	int i;
 
 	if ( krs == 0 ) {
-		printk("kctl_sock_destruct: don't have krs\n" );
+		printk("kctrl_sock_destruct: don't have krs\n" );
 		return;
 	}
 
-	printk( "kctl_sock_destruct mode: %d ring_id: %d reader_id: %d\n",
+	printk( "kctrl_sock_destruct mode: %d ring_id: %d reader_id: %d\n",
 			krs->mode, krs->ring_id, krs->reader_id );
 
 	switch ( krs->mode ) {
-		case KCTL_WRITE: {
+		case KCTRL_WRITE: {
 			krs->ringset->ring[krs->ring_id].num_writers -= 1;
 			break;
 		}
-		case KCTL_READ: {
+		case KCTRL_READ: {
 
 			/* One ring or all? */
-			if ( krs->ring_id != KCTL_RING_ID_ALL ) {
-				struct kctl_control *control = &krs->ringset->ring[krs->ring_id].control;
+			if ( krs->ring_id != KCTRL_RING_ID_ALL ) {
+				struct kctrl_control *control = &krs->ringset->ring[krs->ring_id].control;
 
 				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
 
 				if ( control->reader[krs->reader_id].entered ) {
-					kctl_off_t prev = control->reader[krs->reader_id].rhead;
-					kctl_reader_release( krs->reader_id, &control[0], prev );
+					kctrl_off_t prev = control->reader[krs->reader_id].rhead;
+					kctrl_reader_release( krs->reader_id, &control[0], prev );
 				}
 			}
 			else {
 				for ( i = 0; i < krs->ringset->nrings; i++ ) {
-					struct kctl_control *control = &krs->ringset->ring[i].control;
+					struct kctrl_control *control = &krs->ringset->ring[i].control;
 
 					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
 
 					if ( control->reader[krs->reader_id].entered ) {
-						kctl_off_t prev = control->reader[krs->reader_id].rhead;
-						kctl_reader_release( krs->reader_id, &control[0], prev );
+						kctrl_off_t prev = control->reader[krs->reader_id].rhead;
+						kctrl_reader_release( krs->reader_id, &control[0], prev );
 					}
 				}
 			}
@@ -478,7 +478,7 @@ static void kctl_sock_destruct( struct sock *sk )
 	}
 }
 
-int kctl_sock_create( struct net *net, struct socket *sock, int protocol, int kern )
+int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int kern )
 {
 	struct sock *sk;
 
@@ -492,58 +492,58 @@ int kctl_sock_create( struct net *net, struct socket *sock, int protocol, int ke
 	if ( protocol != htons(ETH_P_ALL) )
 		return -EPROTONOSUPPORT;
 
-	sk = sk_alloc( net, PF_INET, GFP_KERNEL, &kctl_proto );
+	sk = sk_alloc( net, PF_INET, GFP_KERNEL, &kctrl_proto );
 
 	if ( sk == NULL )
 		return -ENOMEM;
 
-	sock->ops = &kctl_ops;
+	sock->ops = &kctrl_ops;
 	sock_init_data( sock, sk );
 
-	sk->sk_family = KCTL;
-	sk->sk_destruct = kctl_sock_destruct;
+	sk->sk_family = KCTRL;
+	sk->sk_destruct = kctrl_sock_destruct;
 
 	return 0;
 }
 
-int kctl_kopen( struct kctl_kern *kring, const char *rsname, int ring_id, enum KCTL_MODE mode )
+int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, int ring_id, enum KCTRL_MODE mode )
 {
 	int reader_id = -1, writer_id = -1;
 
-	struct kctl_ringset *ringset = kctl_find_ring( rsname );
+	struct kctrl_ringset *ringset = kctrl_find_ring( rsname );
 	if ( ringset == 0 )
 		return -1;
 	
 	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
-	kctl_copy_name( kring->name, rsname );
+	kctrl_copy_name( kring->name, rsname );
 	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 
-	if ( mode == KCTL_WRITE ) {
+	if ( mode == KCTRL_WRITE ) {
 		/* Find a writer ID. */
-		writer_id = kctl_allocate_writer_on_ring( &ringset->ring[ring_id] );
+		writer_id = kctrl_allocate_writer_on_ring( &ringset->ring[ring_id] );
 		if ( writer_id < 0 )
 			return writer_id;
 	}
-	else if ( mode == KCTL_READ ) {
+	else if ( mode == KCTRL_READ ) {
 		/* Find a reader ID. */
-		if ( ring_id != KCTL_RING_ID_ALL ) {
+		if ( ring_id != KCTRL_RING_ID_ALL ) {
 			/* Reader ID for ring specified. */
-			reader_id = kctl_allocate_reader_on_ring( &ringset->ring[ring_id] );
+			reader_id = kctrl_allocate_reader_on_ring( &ringset->ring[ring_id] );
 		}
 		else {
 			/* Find a reader ID that works for all rings. This can fail. */
-			reader_id = kctl_allocate_reader_all_rings( ringset );
+			reader_id = kctrl_allocate_reader_all_rings( ringset );
 		}
 
 		if ( reader_id < 0 )
 			return reader_id;
 
-		/*res = */kctl_prep_enter( &ringset->ring[ring_id].control, 0 );
+		/*res = */kctrl_prep_enter( &ringset->ring[ring_id].control, 0 );
 		//if ( res < 0 ) {
-		//	kctl_func_error( KCTL_ERR_ENTER, 0 );
+		//	kctrl_func_error( KCTRL_ERR_ENTER, 0 );
 		//	return -1;
 		//}
 	}
@@ -562,22 +562,22 @@ int kctl_kopen( struct kctl_kern *kring, const char *rsname, int ring_id, enum K
 	return 0;
 }
 
-int kctl_kclose( struct kctl_kern *kring )
+int kctrl_kclose( struct kctrl_kern *kring )
 {
 	kring->ringset->ring[kring->ring_id].num_writers -= 1;
 	return 0;
 }
 
-static void kctl_write_single( struct kctl_kern *kring, int dir,
+static void kctrl_write_single( struct kctrl_kern *kring, int dir,
 		const struct sk_buff *skb, int offset, int write, int len )
 {
-	struct kctl_packet_header *h;
+	struct kctrl_packet_header *h;
 	void *pdata;
 
 	/* Which ringset? */
-	struct kctl_ringset *r = kring->ringset;
+	struct kctrl_ringset *r = kring->ringset;
 
-	h = kctl_write_FIRST( &kring->user );
+	h = kctrl_write_FIRST( &kring->user );
 
 	h->len = len;
 	h->dir = (char) dir;
@@ -585,19 +585,19 @@ static void kctl_write_single( struct kctl_kern *kring, int dir,
 	pdata = (char*)(h + 1);
 	skb_copy_bits( skb, offset, pdata, write );
 
-	kctl_write_SECOND( &kring->user );
+	kctrl_write_SECOND( &kring->user );
 
 	/* track the number of packets produced. Note we don't account for overflow. */
 	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
 
 	#if 0
-	for ( id = 0; id < KCTL_READERS; id++ ) {
+	for ( id = 0; id < KCTRL_READERS; id++ ) {
 		if ( r->ring[kring->ring_id].reader[id].allocated ) {
 			unsigned long long diff =
 					r->ring[kring->ring_id].control.writer->produced -
 					r->ring[kring->ring_id].control.reader[id].units;
 			// printk( "diff: %llu\n", diff );
-			if ( diff > ( KCTL_NPAGES / 2 ) ) {
+			if ( diff > ( KCTRL_NPAGES / 2 ) ) {
 				printk( "half full: ring_id: %d reader_id: %d\n", kring->ring_id, id );
 			}
 		}
@@ -607,7 +607,7 @@ static void kctl_write_single( struct kctl_kern *kring, int dir,
 	wake_up_interruptible_all( &r->reader_waitqueue );
 }
 
-void kctl_kwrite( struct kctl_kern *kring, int dir, const struct sk_buff *skb )
+void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb )
 {
 	int offset = 0, write, len;
 
@@ -619,35 +619,35 @@ void kctl_kwrite( struct kctl_kern *kring, int dir, const struct sk_buff *skb )
 
 		/* What can we write this time? */
 		write = len;
-		if ( write > kctl_packet_max_data() )
-			write = kctl_packet_max_data();
+		if ( write > kctrl_packet_max_data() )
+			write = kctrl_packet_max_data();
 
-		kctl_write_single( kring, dir, skb, offset, write, len );
+		kctrl_write_single( kring, dir, skb, offset, write, len );
 
 		offset += write;
 	}
 }
 
-int kctl_kavail( struct kctl_kern *kring )
+int kctrl_kavail( struct kctrl_kern *kring )
 {
-	struct kctl_ring *ring = &kring->ringset->ring[kring->ring_id];
+	struct kctrl_ring *ring = &kring->ringset->ring[kring->ring_id];
 	int reader_id = 0;
 
 	return ring->num_writers > 0 &&
 		( ring->control.reader[reader_id].rhead != ring->control.head->whead );
 }
 
-void kctl_knext_plain( struct kctl_kern *kring, struct kctl_plain *plain )
+void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
 {
-	struct kctl_plain_header *h;
+	struct kctrl_plain_header *h;
 
-	h = (struct kctl_plain_header*) kctl_next_generic( &kring->user );
+	h = (struct kctrl_plain_header*) kctrl_next_generic( &kring->user );
 
 	plain->len = h->len;
 	plain->bytes = (unsigned char*)(h + 1);
 }
 
-static void *kctl_alloc_shared_memory( int size )
+static void *kctrl_alloc_shared_memory( int size )
 {
 	void *mem;
 	size = PAGE_ALIGN(size);
@@ -656,27 +656,27 @@ static void *kctl_alloc_shared_memory( int size )
 	return mem;
 }
 
-static void kctl_free_shared_memory( void *m )
+static void kctrl_free_shared_memory( void *m )
 {
 	vfree(m);
 }
 
-static void kctl_ring_alloc( struct kctl_ring *r )
+static void kctrl_ring_alloc( struct kctrl_ring *r )
 {
 	int i;
 
-	r->ctrl = kctl_alloc_shared_memory( KCTL_CTRL_SZ );
+	r->ctrl = kctrl_alloc_shared_memory( KCTRL_CTRL_SZ );
 
-	r->control.head = r->ctrl + KCTL_CTRL_OFF_HEAD;
-	r->control.writer = r->ctrl + KCTL_CTRL_OFF_WRITER;
-	r->control.reader = r->ctrl + KCTL_CTRL_OFF_READER;
-	r->control.descriptor = r->ctrl + KCTL_CTRL_OFF_DESC;
+	r->control.head = r->ctrl + KCTRL_CTRL_OFF_HEAD;
+	r->control.writer = r->ctrl + KCTRL_CTRL_OFF_WRITER;
+	r->control.reader = r->ctrl + KCTRL_CTRL_OFF_READER;
+	r->control.descriptor = r->ctrl + KCTRL_CTRL_OFF_DESC;
 
 	r->num_writers = 0;
 	r->num_readers = 0;
 
-	r->pd = kmalloc( sizeof(struct kctl_page_desc) * KCTL_NPAGES, GFP_KERNEL );
-	for ( i = 0; i < KCTL_NPAGES; i++ ) {
+	r->pd = kmalloc( sizeof(struct kctrl_page_desc) * KCTRL_NPAGES, GFP_KERNEL );
+	for ( i = 0; i < KCTRL_NPAGES; i++ ) {
 		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
 		if ( r->pd[i].p ) {
 			r->pd[i].m = page_address(r->pd[i].p);
@@ -686,60 +686,60 @@ static void kctl_ring_alloc( struct kctl_ring *r )
 		}
 	}
 
-	r->control.head->whead = r->control.head->wresv = kctl_one_back( 0 );
+	r->control.head->whead = r->control.head->wresv = kctrl_one_back( 0 );
 
 	r->control.head->write_mutex = 0;
 
-	for ( i = 0; i < KCTL_READERS; i++ )
+	for ( i = 0; i < KCTRL_READERS; i++ )
 		r->reader[i].allocated = false;
 
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-void kctl_ringset_alloc( struct kctl_ringset *r, const char *name, long nrings )
+void kctrl_ringset_alloc( struct kctrl_ringset *r, const char *name, long nrings )
 {
 	int i;
 
 	printk( "allocating %ld rings\n", nrings );
 
-	strncpy( r->name, name, KCTL_NLEN );
-	r->name[KCTL_NLEN-1] = 0;
+	strncpy( r->name, name, KCTRL_NLEN );
+	r->name[KCTRL_NLEN-1] = 0;
 
 	r->nrings = nrings;
 
-	r->ring = kmalloc( sizeof(struct kctl_ring) * nrings, GFP_KERNEL );
-	memset( r->ring, 0, sizeof(struct kctl_ring) * nrings  );
+	r->ring = kmalloc( sizeof(struct kctrl_ring) * nrings, GFP_KERNEL );
+	memset( r->ring, 0, sizeof(struct kctrl_ring) * nrings  );
 
 	for ( i = 0; i < nrings; i++ )
-		kctl_ring_alloc( &r->ring[i] );
+		kctrl_ring_alloc( &r->ring[i] );
 
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void kctl_ring_free( struct kctl_ring *r )
+static void kctrl_ring_free( struct kctrl_ring *r )
 {
 	int i;
-	for ( i = 0; i < KCTL_NPAGES; i++ )
+	for ( i = 0; i < KCTRL_NPAGES; i++ )
 		__free_page( r->pd[i].p );
 
-	kctl_free_shared_memory( r->ctrl );
+	kctrl_free_shared_memory( r->ctrl );
 	kfree( r->pd );
 }
 
-static void kctl_ringset_free( struct kctl_ringset *r )
+static void kctrl_ringset_free( struct kctrl_ringset *r )
 {
 	int i;
 	for ( i = 0; i < r->nrings; i++ )
-		kctl_ring_free( &r->ring[i] );
+		kctrl_ring_free( &r->ring[i] );
 	kfree( r->ring );
 }
 
-void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set )
+void kctrl_add_ringset( struct kctrl_ringset **phead, struct kctrl_ringset *set )
 {
 	if ( *phead == 0 )
 		*phead = set;
 	else {
-		struct kctl_ringset *tail = *phead;
+		struct kctrl_ringset *tail = *phead;
 		while ( tail->next != 0 )
 			tail = tail->next;
 		tail->next = set;
@@ -747,39 +747,38 @@ void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set )
 	set->next = 0;
 }
 
-int kctl_init(void)
+int kctrl_init(void)
 {
 	int rc;
 
-	sock_register(&kctl_family_ops);
+	sock_register(&kctrl_family_ops);
 
-	if ( (rc = proto_register(&kctl_proto, 0) ) != 0 )
+	if ( (rc = proto_register(&kctrl_proto, 0) ) != 0 )
 		return rc;
 
 	return 0;
 }
 
-void kctl_free_ringsets( struct kctl_ringset *head )
+void kctrl_free_ringsets( struct kctrl_ringset *head )
 {
-	struct kctl_ringset *r = head;
+	struct kctrl_ringset *r = head;
 	while ( r != 0 ) {
-		kctl_ringset_free( r );
+		kctrl_ringset_free( r );
 		r = r->next;
 	}
 }
 
-void kctl_exit(void)
+void kctrl_exit(void)
 {
-	sock_unregister( KCTL );
+	sock_unregister( KCTRL );
 
-	proto_unregister( &kctl_proto );
-
+	proto_unregister( &kctrl_proto );
 }
 
 
-EXPORT_SYMBOL_GPL(kctl_kopen);
-EXPORT_SYMBOL_GPL(kctl_kclose);
-EXPORT_SYMBOL_GPL(kctl_kwrite);
-EXPORT_SYMBOL_GPL(kctl_kavail);
-EXPORT_SYMBOL_GPL(kctl_knext_plain);
+EXPORT_SYMBOL_GPL(kctrl_kopen);
+EXPORT_SYMBOL_GPL(kctrl_kclose);
+EXPORT_SYMBOL_GPL(kctrl_kwrite);
+EXPORT_SYMBOL_GPL(kctrl_kavail);
+EXPORT_SYMBOL_GPL(kctrl_knext_plain);
 

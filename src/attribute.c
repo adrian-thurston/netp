@@ -16,7 +16,7 @@ struct kring
 };
 
 static struct kdata_ringset *head_data = 0;
-static struct kctl_ringset *head_cmd = 0;
+static struct kctrl_ringset *head_cmd = 0;
 
 static int kdata_sock_release( struct socket *sock );
 static int kdata_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -171,9 +171,9 @@ static int validate_ring_name( const char *name )
 	}
 }
 
-struct kctl_ringset *kctl_find_ring( const char *name )
+struct kctrl_ringset *kctrl_find_ring( const char *name )
 {
-	struct kctl_ringset *r = head_cmd;
+	struct kctrl_ringset *r = head_cmd;
 	while ( r != 0 ) {
 		if ( strcmp( r->name, name ) == 0 )
 			return r;
@@ -790,11 +790,11 @@ ssize_t kring_add_data_store( struct kring *obj, const char *name, long rings_pe
 	return 0;
 }
 
-ssize_t kctl_add_cmd_store( const char *name );
+ssize_t kctrl_add_cmd_store( const char *name );
 
 ssize_t kring_add_cmd_store( struct kring *obj, const char *name )
 {
-	return kctl_add_cmd_store( name );
+	return kctrl_add_cmd_store( name );
 }
 
 ssize_t kring_del_store( struct kring *obj, const char *name  )
@@ -802,39 +802,39 @@ ssize_t kring_del_store( struct kring *obj, const char *name  )
 	return 0;
 }
 
-ssize_t kctl_add_data_store( const char *name, long rings_per_set )
+ssize_t kctrl_add_data_store( const char *name, long rings_per_set )
 {
-	struct kctl_ringset *r;
-	if ( rings_per_set < 1 || rings_per_set > KCTL_MAX_RINGS_PER_SET )
+	struct kctrl_ringset *r;
+	if ( rings_per_set < 1 || rings_per_set > KCTRL_MAX_RINGS_PER_SET )
 		return -EINVAL;
 
-	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
-	kctl_ringset_alloc( r, name, rings_per_set );
+	r = kmalloc( sizeof(struct kctrl_ringset), GFP_KERNEL );
+	kctrl_ringset_alloc( r, name, rings_per_set );
 
-	kctl_add_ringset( &head_cmd, r );
+	kctrl_add_ringset( &head_cmd, r );
 
 	return 0;
 }
 
-ssize_t kctl_add_cmd_store( const char *name )
+ssize_t kctrl_add_cmd_store( const char *name )
 {
-	struct kctl_ringset *r;
+	struct kctrl_ringset *r;
 
-	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
-	kctl_ringset_alloc( r, name, 1 );
+	r = kmalloc( sizeof(struct kctrl_ringset), GFP_KERNEL );
+	kctrl_ringset_alloc( r, name, 1 );
 
-	kctl_add_ringset( &head_cmd, r );
+	kctrl_add_ringset( &head_cmd, r );
 
 	return 0;
 }
 
-ssize_t kctl_del_store( const char *name  )
+ssize_t kctrl_del_store( const char *name  )
 {
 	return 0;
 }
 
 
-int kctl_init(void);
+int kctrl_init(void);
 int kring_init(void)
 {
 	int rc;
@@ -844,7 +844,7 @@ int kring_init(void)
 	if ( (rc = proto_register(&kdata_proto, 0) ) != 0 )
 		return rc;
 
-	return kctl_init();;
+	return kctrl_init();;
 }
 
 static void kring_free_ringsets( struct kdata_ringset *head )
@@ -856,17 +856,17 @@ static void kring_free_ringsets( struct kdata_ringset *head )
 	}
 }
 
-void kctl_exit(void);
+void kctrl_exit(void);
 void kring_exit(void)
 {
-	kctl_exit();
+	kctrl_exit();
 
 	sock_unregister( KDATA );
 
 	proto_unregister( &kdata_proto );
 
 	kring_free_ringsets( head_data );
-	kctl_free_ringsets( head_cmd );
+	kctrl_free_ringsets( head_cmd );
 }
 
 
