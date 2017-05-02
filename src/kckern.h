@@ -5,57 +5,57 @@
 
 #include <linux/skbuff.h>
 
-struct kring_ring_reader
+struct kctl_ring_reader
 {
 	bool allocated;
 };
 
-struct kring_ring_writer
+struct kctl_ring_writer
 {
 	bool allocated;
 };
 
-struct kring_ring
+struct kctl_ring
 {
 	void *ctrl;
-	struct kring_control control;
-	struct kring_page_desc *pd;
+	struct kctl_control control;
+	struct kctl_page_desc *pd;
 	
 	int num_readers;
 	int num_writers;
 
-	struct kring_ring_reader reader[KCTL_READERS];
-	struct kring_ring_writer writer[KCTL_WRITERS];
+	struct kctl_ring_reader reader[KCTL_READERS];
+	struct kctl_ring_writer writer[KCTL_WRITERS];
 
 	wait_queue_head_t reader_waitqueue;
 };
 
-struct kring_ringset
+struct kctl_ringset
 {
 	char name[KCTL_NLEN];
 	wait_queue_head_t reader_waitqueue;
 
-	struct kring_ring *ring;
+	struct kctl_ring *ring;
 	int nrings;
 
-	struct kring_ringset *next;
+	struct kctl_ringset *next;
 };
 
-struct kring_kern
+struct kctl_kern
 {
 	char name[KCTL_NLEN];
-	struct kring_ringset *ringset;
+	struct kctl_ringset *ringset;
 	int ring_id;
 	int writer_id;
-	struct kring_user user;
+	struct kctl_user user;
 };
 
-int kctl_kopen( struct kring_kern *kring, const char *ringset, int ring_id, enum KCTL_MODE mode );
-int kctl_kclose( struct kring_kern *kring );
+int kctl_kopen( struct kctl_kern *kring, const char *ringset, int ring_id, enum KCTL_MODE mode );
+int kctl_kclose( struct kctl_kern *kring );
 
-void kctl_kwrite( struct kring_kern *kring, int dir, const struct sk_buff *skb );
-int kctl_kavail( struct kring_kern *kring );
+void kctl_kwrite( struct kctl_kern *kring, int dir, const struct sk_buff *skb );
+int kctl_kavail( struct kctl_kern *kring );
 
-void kctl_knext_plain( struct kring_kern *kring, struct kring_plain *plain );
+void kctl_knext_plain( struct kctl_kern *kring, struct kctl_plain *plain );
 
 #endif
