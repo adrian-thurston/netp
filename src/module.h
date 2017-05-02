@@ -3,6 +3,7 @@
 
 #include <linux/kobject.h>
 #include <kring/krkern.h>
+#include <kring/kckern.h>
 
 /* Root object. */
 struct shuttle
@@ -24,7 +25,7 @@ struct link
 	int nips;
 
 	struct kring_kern kring;
-	struct kring_kern cmd;
+	struct kctl_kern cmd;
 
 	struct list_head link_list;
 

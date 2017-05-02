@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 
 #include <kring/krkern.h>
+#include <kring/kckern.h>
 
 #include "module.h"
 #include "attribute.h"
@@ -125,10 +126,10 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 		return RX_HANDLER_CONSUMED;
 	}
 
-	if ( kring_kavail( &link->cmd ) ) {
-		struct kring_plain plain;
+	if ( kctl_kavail( &link->cmd ) ) {
+		struct kctl_plain plain;
 
-		kring_knext_plain( &link->cmd, &plain );
+		kctl_knext_plain( &link->cmd, &plain );
 		printk( "kring command: %s\n", plain.bytes );
 		parse_kring_command( link, plain.bytes, plain.len );
 	}
@@ -320,7 +321,7 @@ ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ct
 	if ( err < 0 )
 		printk( "shuttle: failed to open data ring %s\n", ring );
 
-	err = kring_kopen( &link->cmd, ctrl, 0, KRING_READ );
+	err = kctl_kopen( &link->cmd, ctrl, 0, KRING_READ );
 	if ( err < 0 )
 		printk( "shuttle: failed to open control ring %s\n", ctrl );
 
@@ -348,7 +349,7 @@ ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
 		// dev_put( link->inside );
 		// dev_put( link->outside );
 
-		kring_kclose( &link->cmd );
+		kctl_kclose( &link->cmd );
 		kring_kclose( &link->kring );
 
 		rtnl_lock();
