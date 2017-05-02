@@ -6,8 +6,7 @@
 #include <net/sock.h>
 #include <asm/cacheflush.h>
 
-#include "kckern.h"
-
+#include "krkern.h"
 
 static int kctrl_sock_release( struct socket *sock );
 static int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int kern );

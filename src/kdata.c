@@ -7,7 +7,6 @@
 #include <asm/cacheflush.h>
 
 #include "krkern.h"
-#include "kckern.h"
 #include "common.c"
 
 struct kring
