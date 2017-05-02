@@ -7,6 +7,7 @@
 #include <asm/cacheflush.h>
 
 #include "krkern.h"
+#include "kckern.h"
 #include "common.c"
 
 struct kring
@@ -15,7 +16,7 @@ struct kring
 };
 
 static struct kring_ringset *head_data = 0;
-static struct kring_ringset *head_cmd = 0;
+static struct kctl_ringset *head_cmd = 0;
 
 static int kring_sock_release( struct socket *sock );
 static int kring_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -168,6 +169,19 @@ static int validate_ring_name( const char *name )
 		/* Okay, next char. */
 		p += 1;
 	}
+}
+
+struct kctl_ringset *kctl_find_ring( const char *name )
+{
+	struct kctl_ringset *r = head_cmd;
+	while ( r != 0 ) {
+		if ( strcmp( r->name, name ) == 0 )
+			return r;
+
+		r = r->next;
+	}
+
+	return 0;
 }
 
 static struct kring_ringset *find_ring( const char *name )
@@ -776,17 +790,49 @@ ssize_t kring_add_data_store( struct kring *obj, const char *name, long rings_pe
 	return 0;
 }
 
-ssize_t kctl_add_cmd_store( struct kring *obj, const char *name );
+ssize_t kctl_add_cmd_store( const char *name );
 
 ssize_t kring_add_cmd_store( struct kring *obj, const char *name )
 {
-	return kctl_add_cmd_store( obj, name );
+	return kctl_add_cmd_store( name );
 }
 
 ssize_t kring_del_store( struct kring *obj, const char *name  )
 {
 	return 0;
 }
+
+ssize_t kctl_add_data_store( const char *name, long rings_per_set )
+{
+	struct kctl_ringset *r;
+	if ( rings_per_set < 1 || rings_per_set > KCTL_MAX_RINGS_PER_SET )
+		return -EINVAL;
+
+	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
+	kctl_ringset_alloc( r, name, rings_per_set );
+
+	kctl_add_ringset( &head_cmd, r );
+
+	return 0;
+}
+
+ssize_t kctl_add_cmd_store( const char *name )
+{
+	struct kctl_ringset *r;
+
+	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
+	kctl_ringset_alloc( r, name, 1 );
+
+	kctl_add_ringset( &head_cmd, r );
+
+	return 0;
+}
+
+ssize_t kctl_del_store( const char *name  )
+{
+	return 0;
+}
+
 
 int kctl_init(void);
 int kring_init(void)
@@ -819,8 +865,8 @@ void kring_exit(void)
 
 	proto_unregister( &kring_proto );
 
-	kring_free_ringsets( head_cmd );
 	kring_free_ringsets( head_data );
+	kctl_free_ringsets( head_cmd );
 }
 
 

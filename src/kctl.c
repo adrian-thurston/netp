@@ -8,12 +8,6 @@
 
 #include "kckern.h"
 
-struct kring
-{
-	struct kobject kobj;
-};
-
-static struct kctl_ringset *head_cmd = 0;
 
 static int kctl_sock_release( struct socket *sock );
 static int kctl_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
@@ -172,19 +166,6 @@ static int validate_ring_name( const char *name )
 		/* Okay, next char. */
 		p += 1;
 	}
-}
-
-static struct kctl_ringset *kctl_find_ring( const char *name )
-{
-	struct kctl_ringset *r = head_cmd;
-	while ( r != 0 ) {
-		if ( strcmp( r->name, name ) == 0 )
-			return r;
-
-		r = r->next;
-	}
-
-	return 0;
 }
 
 static int kctl_allocate_reader_on_ring( struct kctl_ring *ring )
@@ -715,7 +696,7 @@ static void kctl_ring_alloc( struct kctl_ring *r )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void kctl_ringset_alloc( struct kctl_ringset *r, const char *name, long nrings )
+void kctl_ringset_alloc( struct kctl_ringset *r, const char *name, long nrings )
 {
 	int i;
 
@@ -753,7 +734,7 @@ static void kctl_ringset_free( struct kctl_ringset *r )
 	kfree( r->ring );
 }
 
-static void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set )
+void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set )
 {
 	if ( *phead == 0 )
 		*phead = set;
@@ -764,37 +745,6 @@ static void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *
 		tail->next = set;
 	}
 	set->next = 0;
-}
-
-ssize_t kctl_add_data_store( struct kring *obj, const char *name, long rings_per_set )
-{
-	struct kctl_ringset *r;
-	if ( rings_per_set < 1 || rings_per_set > KCTL_MAX_RINGS_PER_SET )
-		return -EINVAL;
-
-	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
-	kctl_ringset_alloc( r, name, rings_per_set );
-
-	kctl_add_ringset( &head_cmd, r );
-
-	return 0;
-}
-
-ssize_t kctl_add_cmd_store( struct kring *obj, const char *name )
-{
-	struct kctl_ringset *r;
-
-	r = kmalloc( sizeof(struct kctl_ringset), GFP_KERNEL );
-	kctl_ringset_alloc( r, name, 1 );
-
-	kctl_add_ringset( &head_cmd, r );
-
-	return 0;
-}
-
-ssize_t kctl_del_store( struct kring *obj, const char *name  )
-{
-	return 0;
 }
 
 int kctl_init(void)
@@ -809,7 +759,7 @@ int kctl_init(void)
 	return 0;
 }
 
-static void kctl_free_ringsets( struct kctl_ringset *head )
+void kctl_free_ringsets( struct kctl_ringset *head )
 {
 	struct kctl_ringset *r = head;
 	while ( r != 0 ) {
@@ -824,7 +774,6 @@ void kctl_exit(void)
 
 	proto_unregister( &kctl_proto );
 
-	kctl_free_ringsets( head_cmd );
 }
 
 

@@ -58,4 +58,9 @@ int kctl_kavail( struct kctl_kern *kring );
 
 void kctl_knext_plain( struct kctl_kern *kring, struct kctl_plain *plain );
 
+void kctl_ringset_alloc( struct kctl_ringset *r, const char *name, long nrings );
+void kctl_add_ringset( struct kctl_ringset **phead, struct kctl_ringset *set );
+void kctl_free_ringsets( struct kctl_ringset *head );
+struct kctl_ringset *kctl_find_ring( const char *name );
+
 #endif
