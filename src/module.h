@@ -24,8 +24,8 @@ struct link
 	__be32 ips[LINK_IPS];
 	int nips;
 
-	struct kring_kern kring;
-	struct kctl_kern cmd;
+	struct kdata_kern kring;
+	struct kctrl_kern cmd;
 
 	struct list_head link_list;
 
