@@ -15,7 +15,7 @@
 
 #include "common.c"
 
-char *kring_error( struct kring_user *u, int err )
+char *kdata_error( struct kdata_user *u, int err )
 {
 	int len;
 	const char *prefix, *errnostr;
@@ -77,7 +77,7 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 	) * KRING_PAGE_SIZE;
 }
 
-static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
+static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 {
 	int res;
 	void *r;
@@ -87,7 +87,7 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 			cons_pgoff( ring_id, KRING_PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
-		kring_func_error( KRING_ERR_MMAP, errno );
+		kdata_func_error( KRING_ERR_MMAP, errno );
 		return -1;
 	}
 
@@ -101,16 +101,16 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 			cons_pgoff( ring_id, KRING_PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
-		kring_func_error( KRING_ERR_MMAP, errno );
+		kdata_func_error( KRING_ERR_MMAP, errno );
 		return -1;
 	}
 
-	u->data[ctrl].page = (struct kring_page*)r;
+	u->data[ctrl].page = (struct kdata_page*)r;
 
 	if ( u->mode == KRING_READ ) {
-		res = kring_prep_enter( &u->control[ctrl], u->reader_id );
+		res = kdata_prep_enter( &u->control[ctrl], u->reader_id );
 		if ( res < 0 ) {
-			kring_func_error( KRING_ERR_ENTER, 0 );
+			kdata_func_error( KRING_ERR_ENTER, 0 );
 			return -1;
 		}
 	}
@@ -118,38 +118,38 @@ static int kring_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
+int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
 {
 	int ctrl, to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
-	struct kring_addr addr;
+	struct kdata_addr addr;
 
-	memset( u, 0, sizeof(struct kring_user) );
+	memset( u, 0, sizeof(struct kdata_user) );
 
-	u->socket = socket( KRING, SOCK_RAW, htons(ETH_P_ALL) );
+	u->socket = socket( KDATA, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( u->socket < 0 ) {
-		kring_func_error( KRING_ERR_SOCK, errno );
+		kdata_func_error( KRING_ERR_SOCK, errno );
 		goto err_return;
 	}
 
 	u->ring_id = ring_id;
 	u->mode = mode;
 
-	kring_copy_name( addr.name, ringset );
+	kdata_copy_name( addr.name, ringset );
 	addr.ring_id = ring_id;
 	addr.mode = mode;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) {
-		kring_func_error( KRING_ERR_BIND, errno );
+		kdata_func_error( KRING_ERR_BIND, errno );
 		goto err_close;
 	}
 
 	/* Get the number of rings in the ringset. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RING_N, &ring_N, &nlen );
 	if ( res < 0 ) {
-		kring_func_error( KRING_ERR_RING_N, errno );
+		kdata_func_error( KRING_ERR_RING_N, errno );
 		goto err_close;
 	}
 	u->nrings = ring_N;
@@ -157,7 +157,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	/* Get the writer_id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_WRITER_ID, &writer_id, &idlen );
 	if ( res < 0 ) {
-		kring_func_error( KRING_ERR_WRITER_ID, errno );
+		kdata_func_error( KRING_ERR_WRITER_ID, errno );
 		goto err_close;
 	}
 	u->writer_id = writer_id;
@@ -165,7 +165,7 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	/* Get the reader id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );
 	if ( res < 0 ) {
-		kring_func_error( KRING_ERR_READER_ID, errno );
+		kdata_func_error( KRING_ERR_READER_ID, errno );
 		goto err_close;
 	}
 	u->reader_id = reader_id;
@@ -177,23 +177,23 @@ int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 	if ( ring_id == KRING_RING_ID_ALL )
 		to_alloc = ring_N;
 
-	u->control = (struct kring_control*)malloc( sizeof( struct kring_control ) * to_alloc );
-	memset( u->control, 0, sizeof( struct kring_control ) * to_alloc );
+	u->control = (struct kdata_control*)malloc( sizeof( struct kdata_control ) * to_alloc );
+	memset( u->control, 0, sizeof( struct kdata_control ) * to_alloc );
 
-	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
-	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
+	u->data = (struct kdata_data*)malloc( sizeof( struct kdata_data ) * to_alloc );
+	memset( u->data, 0, sizeof( struct kdata_data ) * to_alloc );
 
 	u->pd = 0;
 
 	/* Which rings to map. */
 	if ( ring_id != KRING_RING_ID_ALL ) {
-		res = kring_map_enter( u, ring_id, 0 );
+		res = kdata_map_enter( u, ring_id, 0 );
 		if ( res < 0 )
 			goto err_close;
 	}
 	else {
 		for ( ctrl = 0; ctrl < ring_N; ctrl++ ) {
-			res = kring_map_enter( u, ctrl, ctrl );
+			res = kdata_map_enter( u, ctrl, ctrl );
 			if ( res < 0 )
 				goto err_close;
 		}
@@ -207,7 +207,7 @@ err_return:
 	return u->krerr;
 }
 
-void kring_lock( int *mutex, unsigned long long *spins )
+void kdata_lock( int *mutex, unsigned long long *spins )
 {
 	while ( __sync_lock_test_and_set( mutex, 1 ) ) {
 		/* If builtin returns 1 we did not flip it and therefore did not acquire the lock. */
@@ -215,7 +215,7 @@ void kring_lock( int *mutex, unsigned long long *spins )
 	}
 }
 
-void kring_unlock( int *mutex )
+void kdata_unlock( int *mutex )
 {
 	__sync_lock_release( mutex, 0 );
 }
@@ -224,16 +224,16 @@ void kring_unlock( int *mutex )
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
  */
-int kring_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len )
+int kdata_write_decrypted( struct kdata_user *u, long id, int type, const char *remoteHost, char *data, int len )
 {
-	struct kring_decrypted_header *h;
+	struct kdata_decrypted_header *h;
 	unsigned char *bytes;
 	char buf[1];
 
-	if ( len > kring_decrypted_max_data()  )
-		len = kring_decrypted_max_data();
+	if ( len > kdata_decrypted_max_data()  )
+		len = kdata_decrypted_max_data();
 
-	h = (struct kring_decrypted_header*) kring_write_FIRST( u );
+	h = (struct kdata_decrypted_header*) kdata_write_FIRST( u );
 
 	h->len = len;
 	h->id = id;
@@ -248,7 +248,7 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
 	bytes = (unsigned char*)( h + 1 );
 	memcpy( bytes, data, len );
 
-	kring_write_SECOND( u );
+	kdata_write_SECOND( u );
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
@@ -260,27 +260,27 @@ int kring_write_decrypted( struct kring_user *u, long id, int type, const char *
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
  */
-int kring_write_plain( struct kring_user *u, char *data, int len )
+int kdata_write_plain( struct kdata_user *u, char *data, int len )
 {
-	struct kring_plain_header *h;
+	struct kdata_plain_header *h;
 	unsigned char *bytes;
 	char buf[1];
 
-	if ( len > kring_plain_max_data()  )
-		len = kring_plain_max_data();
+	if ( len > kdata_plain_max_data()  )
+		len = kdata_plain_max_data();
 
-	kring_lock( &u->control->head->write_mutex, &u->control->head->spins );
+	kdata_lock( &u->control->head->write_mutex, &u->control->head->spins );
 
-	h = (struct kring_plain_header*) kring_write_FIRST( u );
+	h = (struct kdata_plain_header*) kdata_write_FIRST( u );
 
 	h->len = len;
 
 	bytes = (unsigned char*)( h + 1 );
 	memcpy( bytes, data, len );
 
-	kring_write_SECOND( u );
+	kdata_write_SECOND( u );
 
-	kring_unlock( &u->control->head->write_mutex );
+	kdata_unlock( &u->control->head->write_mutex );
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
@@ -288,7 +288,7 @@ int kring_write_plain( struct kring_user *u, char *data, int len )
 	return 0;
 }   
 
-int kring_read_wait( struct kring_user *u )
+int kdata_read_wait( struct kdata_user *u )
 {
 	char buf[1];
 	int ret = recv( u->socket, buf, 1, 1 ); 
