@@ -60,6 +60,7 @@ int kdata_kclose( struct kdata_kern *kdata );
 void kdata_kwrite( struct kdata_kern *kdata, int dir, const struct sk_buff *skb );
 int kdata_kavail( struct kdata_kern *kdata );
 void kdata_knext_plain( struct kdata_kern *kdata, struct kdata_plain *plain );
+void kring_ring_free( struct kdata_ring *r );
 
 /*
  * Command.
@@ -119,9 +120,15 @@ int kctrl_kavail( struct kctrl_kern *kring );
 void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain );
 
 void kctrl_ringset_alloc( struct kctrl_ringset *r, const char *name, long nrings );
+void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long nrings );
+
 void kctrl_add_ringset( struct kctrl_ringset **phead, struct kctrl_ringset *set );
 void kctrl_free_ringsets( struct kctrl_ringset *head );
+
+void kctrl_ring_free( struct kctrl_ring *r );
+
 struct kctrl_ringset *kctrl_find_ring( const char *name );
+struct kdata_ringset *kdata_find_ring( const char *name );
 
 
 #endif

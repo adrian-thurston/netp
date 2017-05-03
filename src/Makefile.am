@@ -10,17 +10,16 @@ pkgdata_DATA = Module.symvers
 
 pkginclude_HEADERS = kring.h krkern.h kdata.h kctrl.h
 
-EXTRA_DIST = kring.gf kdata.c attribute.h kctrl.c kctrl.h
+EXTRA_DIST = kring.gf attribute.c attribute.h kring.h kdata.c kdata.h kctrl.c kctrl.h
 
-SOURCES = module.c kdata.c attribute.h kctrl.c kctrl.h
-MOBJS = kdata.o kctrl.o
+MOBJS = attribute.o kdata.o kctrl.o
 
 Module.symvers: kring.ko
 
 module.c: kring.gf $(GENF)
 	$(GENF) --kernf kring.gf
 
-kring.ko: $(SOURCES) .kbuild
+kring.ko: .kbuild
 
 .PHONY: .kbuild
 

@@ -715,7 +715,7 @@ void kctrl_ringset_alloc( struct kctrl_ringset *r, const char *name, long nrings
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void kctrl_ring_free( struct kctrl_ring *r )
+void kctrl_ring_free( struct kctrl_ring *r )
 {
 	int i;
 	for ( i = 0; i < KCTRL_NPAGES; i++ )
@@ -725,13 +725,6 @@ static void kctrl_ring_free( struct kctrl_ring *r )
 	kfree( r->pd );
 }
 
-static void kctrl_ringset_free( struct kctrl_ringset *r )
-{
-	int i;
-	for ( i = 0; i < r->nrings; i++ )
-		kctrl_ring_free( &r->ring[i] );
-	kfree( r->ring );
-}
 
 void kctrl_add_ringset( struct kctrl_ringset **phead, struct kctrl_ringset *set )
 {
@@ -758,14 +751,6 @@ int kctrl_init(void)
 	return 0;
 }
 
-void kctrl_free_ringsets( struct kctrl_ringset *head )
-{
-	struct kctrl_ringset *r = head;
-	while ( r != 0 ) {
-		kctrl_ringset_free( r );
-		r = r->next;
-	}
-}
 
 void kctrl_exit(void)
 {

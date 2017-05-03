@@ -9,14 +9,6 @@
 #include "krkern.h"
 #include "common.c"
 
-struct kring
-{
-	struct kobject kobj;
-};
-
-static struct kdata_ringset *head_data = 0;
-static struct kctrl_ringset *head_cmd = 0;
-
 static int kdata_sock_release( struct socket *sock );
 static int kdata_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
 static int kdata_sock_mmap(struct file *file, struct socket *sock, struct vm_area_struct *vma );
@@ -170,32 +162,6 @@ static int validate_ring_name( const char *name )
 	}
 }
 
-struct kctrl_ringset *kctrl_find_ring( const char *name )
-{
-	struct kctrl_ringset *r = head_cmd;
-	while ( r != 0 ) {
-		if ( strcmp( r->name, name ) == 0 )
-			return r;
-
-		r = r->next;
-	}
-
-	return 0;
-}
-
-static struct kdata_ringset *find_ring( const char *name )
-{
-	struct kdata_ringset *r = head_data;
-	while ( r != 0 ) {
-		if ( strcmp( r->name, name ) == 0 )
-			return r;
-
-		r = r->next;
-	}
-
-	return 0;
-}
-
 static int kdata_allocate_reader_on_ring( struct kdata_ring *ring )
 {
 	int reader_id;
@@ -294,7 +260,7 @@ static int kdata_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 	
-	ringset = find_ring( addr->name );
+	ringset = kdata_find_ring( addr->name );
 	if ( ringset == 0 ) {
 		printk( "kdata_bind: bad mode, not read or write\n" );
 		return -EINVAL;
@@ -538,7 +504,7 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 {
 	int reader_id = -1, writer_id = -1;
 
-	struct kdata_ringset *ringset = find_ring( rsname );
+	struct kdata_ringset *ringset = kdata_find_ring( rsname );
 	if ( ringset == 0 )
 		return -1;
 	
@@ -724,7 +690,7 @@ static void kring_ring_alloc( struct kdata_ring *r )
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long nrings )
+void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long nrings )
 {
 	int i;
 
@@ -744,7 +710,8 @@ static void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long
 	init_waitqueue_head( &r->reader_waitqueue );
 }
 
-static void kring_ring_free( struct kdata_ring *r )
+
+void kring_ring_free( struct kdata_ring *r )
 {
 	int i;
 	for ( i = 0; i < KDATA_NPAGES; i++ )
@@ -754,87 +721,8 @@ static void kring_ring_free( struct kdata_ring *r )
 	kfree( r->pd );
 }
 
-static void kring_ringset_free( struct kdata_ringset *r )
-{
-	int i;
-	for ( i = 0; i < r->nrings; i++ )
-		kring_ring_free( &r->ring[i] );
-	kfree( r->ring );
-}
 
-static void kring_add_ringset( struct kdata_ringset **phead, struct kdata_ringset *set )
-{
-	if ( *phead == 0 )
-		*phead = set;
-	else {
-		struct kdata_ringset *tail = *phead;
-		while ( tail->next != 0 )
-			tail = tail->next;
-		tail->next = set;
-	}
-	set->next = 0;
-}
-
-ssize_t kring_add_data_store( struct kring *obj, const char *name, long rings_per_set )
-{
-	struct kdata_ringset *r;
-	if ( rings_per_set < 1 || rings_per_set > KDATA_MAX_RINGS_PER_SET )
-		return -EINVAL;
-
-	r = kmalloc( sizeof(struct kdata_ringset), GFP_KERNEL );
-	kring_ringset_alloc( r, name, rings_per_set );
-
-	kring_add_ringset( &head_data, r );
-
-	return 0;
-}
-
-ssize_t kctrl_add_cmd_store( const char *name );
-
-ssize_t kring_add_cmd_store( struct kring *obj, const char *name )
-{
-	return kctrl_add_cmd_store( name );
-}
-
-ssize_t kring_del_store( struct kring *obj, const char *name  )
-{
-	return 0;
-}
-
-ssize_t kctrl_add_data_store( const char *name, long rings_per_set )
-{
-	struct kctrl_ringset *r;
-	if ( rings_per_set < 1 || rings_per_set > KCTRL_MAX_RINGS_PER_SET )
-		return -EINVAL;
-
-	r = kmalloc( sizeof(struct kctrl_ringset), GFP_KERNEL );
-	kctrl_ringset_alloc( r, name, rings_per_set );
-
-	kctrl_add_ringset( &head_cmd, r );
-
-	return 0;
-}
-
-ssize_t kctrl_add_cmd_store( const char *name )
-{
-	struct kctrl_ringset *r;
-
-	r = kmalloc( sizeof(struct kctrl_ringset), GFP_KERNEL );
-	kctrl_ringset_alloc( r, name, 1 );
-
-	kctrl_add_ringset( &head_cmd, r );
-
-	return 0;
-}
-
-ssize_t kctrl_del_store( const char *name  )
-{
-	return 0;
-}
-
-
-int kctrl_init(void);
-int kring_init(void)
+int kdata_init(void)
 {
 	int rc;
 
@@ -843,31 +731,15 @@ int kring_init(void)
 	if ( (rc = proto_register(&kdata_proto, 0) ) != 0 )
 		return rc;
 
-	return kctrl_init();;
+	return 0;
 }
 
-static void kring_free_ringsets( struct kdata_ringset *head )
+void kdata_exit(void)
 {
-	struct kdata_ringset *r = head;
-	while ( r != 0 ) {
-		kring_ringset_free( r );
-		r = r->next;
-	}
-}
-
-void kctrl_exit(void);
-void kring_exit(void)
-{
-	kctrl_exit();
-
 	sock_unregister( KDATA );
 
 	proto_unregister( &kdata_proto );
-
-	kring_free_ringsets( head_data );
-	kctrl_free_ringsets( head_cmd );
 }
-
 
 EXPORT_SYMBOL_GPL(kdata_kopen);
 EXPORT_SYMBOL_GPL(kdata_kclose);
