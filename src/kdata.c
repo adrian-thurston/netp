@@ -682,8 +682,6 @@ static void kring_ring_alloc( struct kdata_ring *r )
 
 	r->control.head->whead = r->control.head->wresv = kdata_one_back( 0 );
 
-	r->control.head->write_mutex = 0;
-
 	for ( i = 0; i < KDATA_READERS; i++ )
 		r->reader[i].allocated = false;
 

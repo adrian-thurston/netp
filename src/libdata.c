@@ -207,19 +207,6 @@ err_return:
 	return u->krerr;
 }
 
-void kdata_lock( int *mutex, unsigned long long *spins )
-{
-	while ( __sync_lock_test_and_set( mutex, 1 ) ) {
-		/* If builtin returns 1 we did not flip it and therefore did not acquire the lock. */
-		__sync_add_and_fetch( spins, 1 );
-	}
-}
-
-void kdata_unlock( int *mutex )
-{
-	__sync_lock_release( mutex, 0 );
-}
-
 /*
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
@@ -269,8 +256,6 @@ int kdata_write_plain( struct kdata_user *u, char *data, int len )
 	if ( len > kdata_plain_max_data()  )
 		len = kdata_plain_max_data();
 
-	kdata_lock( &u->control->head->write_mutex, &u->control->head->spins );
-
 	h = (struct kdata_plain_header*) kdata_write_FIRST( u );
 
 	h->len = len;
@@ -279,8 +264,6 @@ int kdata_write_plain( struct kdata_user *u, char *data, int len )
 	memcpy( bytes, data, len );
 
 	kdata_write_SECOND( u );
-
-	kdata_unlock( &u->control->head->write_mutex );
 
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );

@@ -102,8 +102,6 @@ struct kdata_shared_head
 	kdata_off_t whead;
 	kdata_off_t wresv;
 	unsigned long long produced;
-	int write_mutex;
-	unsigned long long spins;
 };
 
 struct kdata_shared_writer
@@ -259,11 +257,6 @@ static inline int kdata_decrypted_max_data(void)
 static inline int kdata_plain_max_data(void)
 {
 	return KDATA_PAGE_SIZE - sizeof(struct kdata_plain_header);
-}
-
-static inline unsigned long long kdata_spins( struct kdata_user *u )
-{
-	return u->control->head->spins;
 }
 
 char *kdata_error( struct kdata_user *u, int err );
