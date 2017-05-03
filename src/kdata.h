@@ -8,8 +8,6 @@ extern "C" {
 #define KDATA 25
 #define KDATA_NPAGES 2048
 
-#define KDATA_INDEX(off) ((off) & 0x7ff)
-
 #define KDATA_PGOFF_CTRL 0
 #define KDATA_PGOFF_DATA 1
 
@@ -32,18 +30,6 @@ extern "C" {
 
 /* MUST match system page size. */
 #define KDATA_PAGE_SIZE 4096
-
-/*
- * Argument for non-wrapping offsets, allowing lockless multiple writers and
- * readers.
- *
- * ( 2 ^ 64 * 4096 * 8 ) / ( 1024 * 1024 * 1024 * 1024 ) / ( 60 * 60 * 24 * 360 )
- * = 17674 years
- *
- * DATA      = ( IDX * page-size * bits )
- * 1tbit/s   = ( 1024 * 1024 * 1024 * 1024 )
- * year      = ( sec * min * hour * days ) 
- */
 
 #define KDATA_DSC_READER_SHIFT    2
 #define KDATA_DSC_WRITER_OWNED    0x01
@@ -281,14 +267,14 @@ static inline int kdata_avail_impl( struct kdata_control *control, int reader_id
 
 static inline kdata_desc_t kdata_read_desc( struct kdata_control *control, kdata_off_t off )
 {
-	return control->descriptor[KDATA_INDEX(off)].desc;
+	return control->descriptor[off].desc;
 }
 
 static inline kdata_desc_t kdata_write_back( struct kdata_control *control,
 		kdata_off_t off, kdata_desc_t oldval, kdata_desc_t newval )
 {
 	return __sync_val_compare_and_swap(
-			&control->descriptor[KDATA_INDEX(off)].desc, oldval, newval );
+			&control->descriptor[off].desc, oldval, newval );
 }
 
 static inline kdata_off_t kdata_wresv_write_back( struct kdata_control *control,
@@ -307,9 +293,9 @@ static inline kdata_off_t kdata_whead_write_back( struct kdata_control *control,
 static inline void *kdata_page_data( struct kdata_user *u, int ctrl, kdata_off_t off )
 {
 	if ( u->socket < 0 )
-		return u->pd[KDATA_INDEX(off)].m;
+		return u->pd[off].m;
 	else
-		return u->data[ctrl].page + KDATA_INDEX(off);
+		return &u->data[ctrl].page[off];
 }
 
 static inline int kdata_avail( struct kdata_user *u )
@@ -328,7 +314,17 @@ static inline int kdata_avail( struct kdata_user *u )
 
 static inline kdata_off_t kdata_next( kdata_off_t off )
 {
-	return off + 1;
+	off += 1;
+	if ( off >= KDATA_NPAGES )
+		off = 0;
+	return off;
+}
+
+static inline kdata_off_t kdata_prev( kdata_off_t off )
+{
+	if ( off == 0 )
+		return KDATA_NPAGES - 1;
+	return off - 1;
 }
 
 static inline kdata_off_t kdata_advance_rhead( struct kdata_control *control, int reader_id, kdata_off_t rhead )
@@ -457,11 +453,6 @@ static inline void kdata_next_plain( struct kdata_user *u, struct kdata_plain *p
 
 	plain->len = h->len;
 	plain->bytes = (unsigned char*)( h + 1 );
-}
-
-static inline unsigned long kdata_one_back( unsigned long pos )
-{
-	return pos == 0 ? KDATA_NPAGES - 1 : pos - 1;
 }
 
 static inline unsigned long kdata_find_write_loc( struct kdata_control *control )
