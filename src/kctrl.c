@@ -375,16 +375,11 @@ static int kctrl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
 {
-	if ( krs->ring_id != KCTRL_RING_ID_ALL )
-		return kctrl_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
-	else {
-		int ring;
-		for ( ring = 0; ring < r->nrings; ring++ ) {
-			if ( kctrl_avail_impl( &r->ring[ring].control, krs->reader_id ) )
-				return 1;
-		}
-		return 0;
-	}
+	struct kctrl_control *control = &r->ring[krs->ring_id].control;
+
+	if ( control->descriptor[ control->head->head ].next > control->head->head )
+		return 1;
+	return 0;
 }
 
 /* Waiting writers go to sleep with the recvmsg system call. */
@@ -629,11 +624,12 @@ void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb 
 
 int kctrl_kavail( struct kctrl_kern *kring )
 {
-	struct kctrl_ring *ring = &kring->ringset->ring[kring->ring_id];
-	int reader_id = 0;
+	struct kctrl_control *control = kring->user.control;
 
-	return ring->num_writers > 0 &&
-		( ring->control.reader[reader_id].rhead != ring->control.head->whead );
+	if ( control->descriptor[ control->head->head ].next > control->head->head )
+		return 1;
+
+	return 0;
 }
 
 void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
@@ -688,6 +684,13 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 	r->control.head->whead = r->control.head->wresv = kctrl_one_back( 0 );
 
 	r->control.head->write_mutex = 0;
+
+	/* Use the first page as the "last written," which is our sentinal. */
+	r->control.head->alloc = 0;
+	r->control.descriptor[0].desc = KCTRL_DSC_WRITER_OWNED;
+	r->control.descriptor[0].next = 0;
+	r->control.head->head = 0;
+	r->control.head->maybe_tail = 0;
 
 	for ( i = 0; i < KCTRL_READERS; i++ )
 		r->reader[i].allocated = false;

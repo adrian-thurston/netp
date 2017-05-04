@@ -289,7 +289,6 @@ static inline kdata_off_t kdata_whead_write_back( struct kdata_control *control,
 	return __sync_val_compare_and_swap( &control->head->whead, oldval, newval );
 }
 
-
 static inline void *kdata_page_data( struct kdata_user *u, int ctrl, kdata_off_t off )
 {
 	if ( u->socket < 0 )

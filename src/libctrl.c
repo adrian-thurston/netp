@@ -230,6 +230,7 @@ void kctrl_unlock( int *mutex )
  */
 int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len )
 {
+#if 0
 	struct kctrl_decrypted_header *h;
 	unsigned char *bytes;
 	char buf[1];
@@ -257,6 +258,7 @@ int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *
 	/* Wake up here. */
 	send( u->socket, buf, 1, 0 );
 
+#endif
 	return 0;
 }   
 
@@ -268,12 +270,9 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 {
 	struct kctrl_plain_header *h;
 	unsigned char *bytes;
-	char buf[1];
 
 	if ( len > kctrl_plain_max_data()  )
 		len = kctrl_plain_max_data();
-
-	kctrl_lock( &u->control->head->write_mutex, &u->control->head->spins );
 
 	h = (struct kctrl_plain_header*) kctrl_write_FIRST( u );
 
@@ -283,11 +282,6 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 	memcpy( bytes, data, len );
 
 	kctrl_write_SECOND( u );
-
-	kctrl_unlock( &u->control->head->write_mutex );
-
-	/* Wake up here. */
-	send( u->socket, buf, 1, 0 );
 
 	return 0;
 }   

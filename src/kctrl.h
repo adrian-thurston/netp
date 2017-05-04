@@ -1,6 +1,18 @@
 #ifndef __KCTRL_H
 #define __KCTRL_H
 
+
+/*
+ * Two Part:
+ *  1. Allocate buffers using desctriptors to claim, skipping over long-held
+ *      buffers.
+ *  2. Atomic append to linked link list of messages.
+ *
+ *  Important that we use ever-increasing (non-wrapping) indicies and mask off.
+ *  This way we can detect when a buffer is re-used.
+ */
+
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -99,6 +111,10 @@ typedef unsigned long kctrl_off_t;
 
 struct kctrl_shared_head
 {
+	kctrl_off_t alloc;
+	kctrl_off_t head;
+	kctrl_off_t maybe_tail;
+
 	kctrl_off_t whead;
 	kctrl_off_t wresv;
 	unsigned long long produced;
@@ -124,6 +140,7 @@ struct kctrl_shared_reader
 struct kctrl_shared_desc
 {
 	kctrl_desc_t desc;
+	kctrl_off_t next;
 };
 
 struct kctrl_page_desc
@@ -241,7 +258,6 @@ struct kctrl_plain_header
 	int len;
 };
 
-
 int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, int rid, enum KCTRL_MODE mode );
 int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len );
 int kctrl_write_plain( struct kctrl_user *u, char *data, int len );
@@ -339,6 +355,12 @@ static inline kctrl_off_t kctrl_next( kctrl_off_t off )
 	return off + 1;
 }
 
+static inline unsigned long kctrl_one_back( unsigned long pos )
+{
+	return pos == 0 ? KCTRL_NPAGES - 1 : pos - 1;
+}
+
+
 static inline kctrl_off_t kctrl_advance_rhead( struct kctrl_control *control, int reader_id, kctrl_off_t rhead )
 {
 	kctrl_desc_t desc;
@@ -410,20 +432,9 @@ static inline void *kctrl_next_generic( struct kctrl_user *u )
 {
 	int ctrl = kctrl_select_ctrl( u );
 
-	kctrl_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
-	kctrl_off_t rhead = prev;
-
-	rhead = kctrl_advance_rhead( &u->control[ctrl], u->reader_id, rhead );
-
-	/* Set the rhead. */
-	u->control[ctrl].reader[u->reader_id].rhead = rhead;
-
-	/* Release the previous only if we have entered with a successful read. */
-	if ( u->control[ctrl].reader[u->reader_id].entered )
-		kctrl_reader_release( u->reader_id, &u->control[ctrl], prev );
-
-	/* Indicate we have entered. */
-	u->control[ctrl].reader[u->reader_id].entered = 1;
+	kctrl_off_t rhead = u->control->descriptor[ u->control->head->head ].next;
+	
+	u->control->head->head = rhead;
 
 	return kctrl_page_data( u, ctrl, rhead );
 }
@@ -467,16 +478,11 @@ static inline void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *p
 	plain->bytes = (unsigned char*)( h + 1 );
 }
 
-static inline unsigned long kctrl_one_back( unsigned long pos )
-{
-	return pos == 0 ? KCTRL_NPAGES - 1 : pos - 1;
-}
-
 static inline unsigned long kctrl_find_write_loc( struct kctrl_control *control )
 {
 	int id;
 	kctrl_desc_t desc = 0;
-	kctrl_off_t whead = control->head->whead;
+	kctrl_off_t whead = control->head->alloc;
 	while ( 1 ) {
 		/* Move to the next slot. */
 		whead = kctrl_next( whead );
@@ -533,7 +539,9 @@ static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 	whead = kctrl_find_write_loc( u->control );
 
 	/* Reserve the space. */
-	u->control->head->wresv = whead;
+	u->control->head->alloc = whead;
+
+	u->control->writer[u->writer_id].whead = whead;
 
 	return kctrl_page_data( u, 0, whead );
 }
@@ -557,11 +565,35 @@ static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off
 
 static inline void kctrl_write_SECOND( struct kctrl_user *u )
 {
+	kctrl_off_t tail;
+
 	/* Clear the writer owned bit from the buffer. */
 	kctrl_writer_release( u->control, u->control->head->wresv );
 
-	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->head->whead = u->control->head->wresv;
+	/* Move forward to the true tail. */
+	tail = u->control->head->maybe_tail;
+
+	while ( 1 ) {
+		kctrl_off_t next = u->control->descriptor[KCTRL_INDEX(tail)].next;
+
+		/* Using every-increasing indicies, so when we go forward the index
+		 * must go up. If the block gets old that's okay. We go forward until
+		 * we are back in the active blocks. If it goes so stale that it is
+		 * reused. Well it's index will go up by num pages, but next will stay
+		 * the same, thereby becoming a null. Further along in time the next
+		 * will get rewritten to something newer, jumping ahead closer to the
+		 * real tail.*/
+		if ( next <= tail )
+			break;
+
+		tail = next;
+	}
+
+	/* Set next pointer to new item (release). */
+	u->control->descriptor[KCTRL_INDEX(tail)].next = u->control->writer[u->writer_id].whead;
+
+	/* Speed up tail finding. */
+	u->control->head->maybe_tail = u->control->writer[u->writer_id].whead;
 }
 
 static inline void kctrl_update_wresv( struct kctrl_user *u )
