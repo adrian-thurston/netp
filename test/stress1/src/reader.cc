@@ -14,11 +14,11 @@ int ReaderThread::main()
 
 	log_message("reader");
 
-	struct kring_user kring;
+	struct kctrl_user kring;
 
-	int r = kring_open( &kring, KRING_PLAIN, "stress1", KR_RING_ID_ALL, KRING_READ, 0 );
+	int r = kctrl_open( &kring, KCTRL_PLAIN, "stress1", KCTRL_RING_ID_ALL, KCTRL_READ );
 	if ( r < 0 ) {
-		log_ERROR( "decrypted data kring open failed: " << kring_error( &kring, r ) );
+		log_ERROR( "decrypted data kring open failed: " << kctrl_error( &kring, r ) );
 		return -1;
 	}
 
@@ -35,10 +35,10 @@ int ReaderThread::main()
 			break;
 
 		/* Spin. */
-		if ( kring_avail( &kring ) ) {
+		if ( kctrl_avail( &kring ) ) {
 			/* Load. */
-			struct kring_plain plain;
-			kring_next_plain( &kring, &plain );
+			struct kctrl_plain plain;
+			kctrl_next_plain( &kring, &plain );
 
 			// log_message( "plain: " << log_array( plain.bytes, plain.len ) );
 

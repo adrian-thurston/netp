@@ -5,7 +5,7 @@
 #include <kring/kring.h>
 
 #define MESSAGES 100
-#define WRITERS 8
+#define WRITERS 6
 
 struct WriterThread
 	: public WriterGen
@@ -16,7 +16,7 @@ struct WriterThread
 	{}
 
 	int writerId;
-	struct kring_user kring;
+	struct kctrl_user kring;
 
 	int main();
 };

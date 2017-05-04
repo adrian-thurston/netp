@@ -2,21 +2,21 @@
 
 int WriterThread::main()
 {
-	int res = kring_open( &kring, KRING_PLAIN, "stress1", 0, KRING_WRITE, writerId );
+	int res = kctrl_open( &kring, KCTRL_PLAIN, "stress1", 0, KCTRL_WRITE );
 	if ( res < 0 ) {
-		log_ERROR( "decrypted data kring open for write failed: " << kring_error( &kring, res ) );
+		log_ERROR( "decrypted data kring open for write failed: " << kctrl_error( &kring, res ) );
 		return -1;
 	}
 
-	char buf[kring_plain_max_data()];
+	char buf[kctrl_plain_max_data()];
 
 	for ( int i = 0; i < MESSAGES; i++ ) {
 		sprintf( buf, "w: %d", i );
-		kring_write_plain( &kring, buf, strlen(buf) );
+		kctrl_write_plain( &kring, buf, strlen(buf) );
 		// log_message( "message sent: " << buf );
 	}
 
-	log_message( "writer finished, spins: " << kring_spins( &kring ) );
+	log_message( "writer finished, spins: " << kctrl_spins( &kring ) );
 
 	return 0;
 }
