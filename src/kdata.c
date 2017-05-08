@@ -165,6 +165,9 @@ static int validate_ring_name( const char *name )
 static int kdata_allocate_reader_on_ring( struct kdata_ring *ring )
 {
 	int reader_id;
+	bool orig;
+
+again:
 
 	/* Search for a reader id that is free on the ring requested. */
 	for ( reader_id = 0; reader_id < KDATA_READERS; reader_id++ ) {
@@ -178,7 +181,10 @@ static int kdata_allocate_reader_on_ring( struct kdata_ring *ring )
 	}
 
 	/* All okay. */
-	ring->reader[reader_id].allocated = true;
+	orig = __sync_val_compare_and_swap( &ring->reader[reader_id].allocated, 0, 1 );
+	if ( orig != 0 )
+		goto again;
+
 	ring->num_readers += 1;
 
 	return reader_id;

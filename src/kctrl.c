@@ -224,6 +224,9 @@ static int kctrl_allocate_reader_all_rings( struct kctrl_ringset *ringset )
 static int kctrl_allocate_writer_on_ring( struct kctrl_ring *ring )
 {
 	int writer_id;
+	bool orig;
+
+again:
 
 	/* Search for a writer id that is free on the ring requested. */
 	for ( writer_id = 0; writer_id < KCTRL_WRITERS; writer_id++ ) {
@@ -237,7 +240,10 @@ static int kctrl_allocate_writer_on_ring( struct kctrl_ring *ring )
 	}
 
 	/* All okay. */
-	ring->writer[writer_id].allocated = true;
+	orig = __sync_val_compare_and_swap( &ring->writer[writer_id].allocated, 0, 1 );
+	if ( orig != 0 )
+		goto again;
+
 	ring->num_writers += 1;
 
 	return writer_id;
