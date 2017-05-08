@@ -26,6 +26,8 @@ int MainThread::main()
 	system( "insmod $HOME/devel/kring/src/kring.ko" );
 	system( "echo stress1 4 8 > /sys/kring/add_cmd" );
 
+	log_message( "starting reader threads" );
+
 	for ( int i = 0; i < READERS; i++ )
 		readers[i] = new ReaderThread();
 
@@ -37,9 +39,13 @@ int MainThread::main()
 	for ( int i = 0; i < READERS; i++ )
 		create( readers[i] );
 
+	log_message( "waiting for readers" );
+
 	/* Wait for all the reader threads to indicate they have entered. */
 	while ( entered < READERS )
 		recvSingle();
+
+	log_message( "starting writers" );
 
 	for ( int i = 0; i < WRITERS; i++ )
 		writers[i] = new WriterThread( i );

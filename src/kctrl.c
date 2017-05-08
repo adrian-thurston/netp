@@ -383,12 +383,12 @@ static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
 {
 	struct kctrl_control *control = &r->ring[krs->ring_id].control;
 
-	if ( control->descriptor[ control->head->head ].next > control->head->head )
+	if ( control->descriptor[ control->head->head ].next != 0 )
 		return 1;
 	return 0;
 }
 
-/* Waiting writers go to sleep with the recvmsg system call. */
+/* Waiting readers go to sleep with the recvmsg system call. */
 static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kctrl_sock *krs = kctrl_sk( sock->sk );
@@ -632,7 +632,7 @@ int kctrl_kavail( struct kctrl_kern *kring )
 {
 	struct kctrl_control *control = kring->user.control;
 
-	if ( control->descriptor[ control->head->head ].next > control->head->head )
+	if ( control->descriptor[ control->head->head ].next != 0 )
 		return 1;
 
 	return 0;

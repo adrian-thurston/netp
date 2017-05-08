@@ -6,10 +6,8 @@
  * Two Part:
  *  1. Allocate buffers using desctriptors to claim, skipping over long-held
  *      buffers.
- *  2. Atomic append to linked link list of messages.
  *
- *  Important that we use ever-increasing (non-wrapping) indicies and mask off.
- *  This way we can detect when a buffer is re-used.
+ *  2. Atomic append to linked link list of messages.
  */
 
 
@@ -338,16 +336,13 @@ static inline void *kctrl_page_data( struct kctrl_user *u, int ctrl, kctrl_off_t
 
 static inline int kctrl_avail( struct kctrl_user *u )
 {
-	if ( u->ring_id != KCTRL_RING_ID_ALL )
-		return kctrl_avail_impl( u->control, u->reader_id );
-	else {
-		int ctrl;
-		for ( ctrl = 0; ctrl < u->nrings; ctrl++ ) {
-			if ( kctrl_avail_impl( &u->control[ctrl], u->reader_id ) )
-				return 1;
-		}
-		return 0;
-	}
+	struct kctrl_control *control = u->control;
+
+	if ( control->descriptor[ control->head->head ].next != 0 )
+		return 1;
+
+	return 0;
+
 }
 
 static inline kctrl_off_t kctrl_next( kctrl_off_t off )
@@ -543,6 +538,8 @@ static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 
 	u->control->writer[u->writer_id].whead = whead;
 
+	u->control->descriptor[KCTRL_INDEX(whead)].next = 0;
+
 	return kctrl_page_data( u, 0, whead );
 }
 
@@ -565,32 +562,32 @@ static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off
 
 static inline void kctrl_write_SECOND( struct kctrl_user *u )
 {
-	kctrl_off_t tail;
+	kctrl_off_t tail, before;
 
 	/* Clear the writer owned bit from the buffer. */
 	kctrl_writer_release( u->control, u->control->head->wresv );
 
+again:
 	/* Move forward to the true tail. */
-	tail = u->control->head->maybe_tail;
+	tail = u->control->head->head; //maybe_tail;
 
 	while ( 1 ) {
 		kctrl_off_t next = u->control->descriptor[KCTRL_INDEX(tail)].next;
-
-		/* Using every-increasing indicies, so when we go forward the index
-		 * must go up. If the block gets old that's okay. We go forward until
-		 * we are back in the active blocks. If it goes so stale that it is
-		 * reused. Well it's index will go up by num pages, but next will stay
-		 * the same, thereby becoming a null. Further along in time the next
-		 * will get rewritten to something newer, jumping ahead closer to the
-		 * real tail.*/
-		if ( next <= tail )
+		if ( next == 0 )
 			break;
 
 		tail = next;
 	}
 
 	/* Set next pointer to new item (release). */
-	u->control->descriptor[KCTRL_INDEX(tail)].next = u->control->writer[u->writer_id].whead;
+	before = __sync_val_compare_and_swap(
+			&u->control->descriptor[KCTRL_INDEX(tail)].next,
+			0,
+			u->control->writer[u->writer_id].whead );
+	
+	if ( before != 0 )
+		goto again;
+		
 
 	/* Speed up tail finding. */
 	u->control->head->maybe_tail = u->control->writer[u->writer_id].whead;

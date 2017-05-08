@@ -16,7 +16,7 @@ int ReaderThread::main()
 
 	struct kctrl_user kring;
 
-	int r = kctrl_open( &kring, KCTRL_PLAIN, "stress1", KCTRL_RING_ID_ALL, KCTRL_READ );
+	int r = kctrl_open( &kring, KCTRL_PLAIN, "stress1", 0, KCTRL_READ );
 	if ( r < 0 ) {
 		log_ERROR( "decrypted data kring open failed: " << kctrl_error( &kring, r ) );
 		return -1;
@@ -40,13 +40,15 @@ int ReaderThread::main()
 			struct kctrl_plain plain;
 			kctrl_next_plain( &kring, &plain );
 
-			// log_message( "plain: " << log_array( plain.bytes, plain.len ) );
+			log_message( "plain: " << log_array( plain.bytes, plain.len ) );
 
 			received += 1;
 		}
 
-		if ( received == ( WRITERS * MESSAGES ) )
+		if ( received == ( WRITERS * MESSAGES ) ) {
+			log_message( "breaking" );
 			break;
+		}
 
 		int r = recv( kring.socket, buf, 1, 1 );
 		if ( r < 0 )

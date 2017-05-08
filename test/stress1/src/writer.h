@@ -4,7 +4,7 @@
 #include "writer_gen.h"
 #include <kring/kring.h>
 
-#define MESSAGES 100
+#define MESSAGES 20
 #define WRITERS 6
 
 struct WriterThread

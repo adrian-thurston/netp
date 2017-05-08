@@ -388,7 +388,7 @@ static int kdata_kern_avail( struct kdata_ringset *r, struct kdata_sock *krs )
 	}
 }
 
-/* Waiting writers go to sleep with the recvmsg system call. */
+/* Waiting readers go to sleep with the recvmsg system call. */
 static int kdata_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kdata_sock *krs = kdata_sk( sock->sk );
