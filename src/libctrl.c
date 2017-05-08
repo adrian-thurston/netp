@@ -270,6 +270,7 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 {
 	struct kctrl_plain_header *h;
 	unsigned char *bytes;
+	char buf[1];
 
 	if ( len > kctrl_plain_max_data()  )
 		len = kctrl_plain_max_data();
@@ -282,6 +283,8 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 	memcpy( bytes, data, len );
 
 	kctrl_write_SECOND( u );
+
+	send( u->socket, buf, 1, 0 );
 
 	return 0;
 }   
