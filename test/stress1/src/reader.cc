@@ -11,8 +11,12 @@ int ReaderThread::main()
 {
 	char buf[1];
 	int received = 0;
+	long expected[WRITERS];
 
-	log_message("reader");
+	for ( int w = 0; w < WRITERS; w++ )
+		expected[w] = 0;
+
+	log_message( "reader" );
 
 	struct kctrl_user kring;
 
@@ -40,7 +44,15 @@ int ReaderThread::main()
 			struct kctrl_plain plain;
 			kctrl_next_plain( &kring, &plain );
 
-			log_message( "plain: " << log_array( plain.bytes, plain.len ) );
+			// log_message( "plain: " << log_array( plain.bytes, plain.len ) );
+
+			unsigned char w = plain.bytes[0];
+			long l = *( (long*)(plain.bytes+1) );
+
+			if ( expected[w] != l )
+				log_FATAL( "failure at w: " << (int)w << " l: " << l << " expected: " << expected[w] << " received: " << received );
+
+			expected[w] += 1;
 
 			received += 1;
 		}

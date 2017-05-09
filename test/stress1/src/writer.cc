@@ -10,9 +10,15 @@ int WriterThread::main()
 
 	char buf[kctrl_plain_max_data()];
 
+	long next = 0;
+
 	for ( int i = 0; i < MESSAGES; i++ ) {
 		sprintf( buf, "w: %d", i );
-		kctrl_write_plain( &kring, buf, strlen(buf) );
+		buf[0] = (unsigned char)writerId;
+		*( (long*)(buf+1) ) = next;
+		next += 1;
+
+		kctrl_write_plain( &kring, buf, 1 + sizeof(long) );
 		// log_message( "message sent: " << buf );
 	}
 
