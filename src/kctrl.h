@@ -466,14 +466,14 @@ static inline void *kctrl_next_generic( struct kctrl_user *u )
 
 	head = u->control->head->head;
 
+	/* Clear the writer-owned bit of the current head, allowing the buffer to be re-used. */
+	kctrl_writer_release( u->control, head );
+
 	/* Advance the generation of the item we are about to skip over. This will
 	 * invalidate any held pointers on the write side. */
 	u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].generation += 1;
 
 	u->control->head->head = u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].next;
-
-	/* clear the writer-owned bit, allowing the buffer to be re-used. */
-	kctrl_writer_release( u->control, head );
 
 	return kctrl_page_data( u, ctrl, u->control->head->head );
 }
