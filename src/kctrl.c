@@ -588,7 +588,7 @@ static void kctrl_write_single( struct kctrl_kern *kring, int dir,
 	kctrl_write_SECOND( &kring->user );
 
 	/* track the number of packets produced. Note we don't account for overflow. */
-	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
+//	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
 
 	#if 0
 	for ( id = 0; id < KCTRL_READERS; id++ ) {
@@ -687,16 +687,20 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 		}
 	}
 
-	r->control.head->whead = r->control.head->wresv = kctrl_one_back( 0 );
+//	r->control.head->whead = r->control.head->wresv = kctrl_one_back( 0 );
 
 	r->control.head->write_mutex = 0;
 
 	/* Use the first page as the "last written," which is our sentinal. */
 	r->control.head->alloc = 0;
 	r->control.descriptor[0].desc = KCTRL_DSC_WRITER_OWNED;
-	r->control.descriptor[0].next = 0;
-	r->control.head->head = 0;
+	r->control.head->head = 1;
 	r->control.head->maybe_tail = 0;
+	r->control.head->tail = 1;
+
+	for ( i = 3; i < KCTRL_NPAGES; i++ )
+		r->control.descriptor[i].next = i - 1;
+	r->control.head->free = KCTRL_NPAGES - 1;
 
 	for ( i = 0; i < KCTRL_READERS; i++ )
 		r->reader[i].allocated = false;

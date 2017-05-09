@@ -112,12 +112,9 @@ struct kctrl_shared_head
 	kctrl_off_t alloc;
 	kctrl_off_t head;
 	kctrl_off_t maybe_tail;
-
-	kctrl_off_t whead;
-	kctrl_off_t wresv;
-	unsigned long long produced;
+	kctrl_off_t tail;
+	kctrl_off_t free;
 	int write_mutex;
-	unsigned long long spins;
 };
 
 struct kctrl_shared_writer
@@ -277,11 +274,6 @@ static inline int kctrl_plain_max_data(void)
 	return KCTRL_PAGE_SIZE - sizeof(struct kctrl_plain_header);
 }
 
-static inline unsigned long long kctrl_spins( struct kctrl_user *u )
-{
-	return u->control->head->spins;
-}
-
 char *kctrl_error( struct kctrl_user *u, int err );
 
 static inline unsigned long kctrl_skips( struct kctrl_user *u )
@@ -297,11 +289,6 @@ static inline unsigned long kctrl_skips( struct kctrl_user *u )
 	return skips;
 }
 
-static inline int kctrl_avail_impl( struct kctrl_control *control, int reader_id )
-{
-	return ( control->reader[reader_id].rhead != control->head->whead );
-}
-
 static inline kctrl_desc_t kctrl_read_desc( struct kctrl_control *control, kctrl_off_t off )
 {
 	return control->descriptor[KCTRL_INDEX(off)].desc;
@@ -312,18 +299,6 @@ static inline kctrl_desc_t kctrl_write_back( struct kctrl_control *control,
 {
 	return __sync_val_compare_and_swap(
 			&control->descriptor[KCTRL_INDEX(off)].desc, oldval, newval );
-}
-
-static inline kctrl_off_t kctrl_wresv_write_back( struct kctrl_control *control,
-		kctrl_off_t oldval, kctrl_off_t newval )
-{
-	return __sync_val_compare_and_swap( &control->head->wresv, oldval, newval );
-}
-
-static inline kctrl_off_t kctrl_whead_write_back( struct kctrl_control *control,
-		kctrl_off_t oldval, kctrl_off_t newval )
-{
-	return __sync_val_compare_and_swap( &control->head->whead, oldval, newval );
 }
 
 
@@ -355,7 +330,6 @@ static inline unsigned long kctrl_one_back( unsigned long pos )
 {
 	return pos == 0 ? KCTRL_NPAGES - 1 : pos - 1;
 }
-
 
 static inline kctrl_off_t kctrl_advance_rhead( struct kctrl_control *control, int reader_id, kctrl_off_t rhead )
 {
@@ -412,16 +386,7 @@ again:
 
 static inline int kctrl_select_ctrl( struct kctrl_user *u )
 {
-	if ( u->ring_id != KCTRL_RING_ID_ALL )
-		return 0;
-	else {
-		int ctrl;
-		for ( ctrl = 0; ctrl < u->nrings; ctrl++ ) {
-			if ( kctrl_avail_impl( &u->control[ctrl], u->reader_id ) )
-				return ctrl;
-		}
-		return -1;
-	}
+	return 0;
 }
 
 static inline void kctrl_advance_tail( struct kctrl_user *u )
@@ -456,23 +421,37 @@ static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off
 	return 0;
 }
 
+/* Return the block to the free list. */
+static inline void kctrl_push_to_free_list( struct kctrl_user *u, kctrl_off_t head )
+{
+	kctrl_off_t before, free;
+
+again:
+	free = u->control->head->free;
+
+	u->control->descriptor[KCTRL_INDEX(head)].next = free;
+
+	before = __sync_val_compare_and_swap(
+			&u->control->head->free, free, head );
+
+	if ( before != free )
+		goto again;
+}
+
 static inline void *kctrl_next_generic( struct kctrl_user *u )
 {
 	int ctrl = kctrl_select_ctrl( u );
 	kctrl_off_t head;
 
-	kctrl_advance_tail( u );
-
 	head = u->control->head->head;
-
-	/* Clear the writer-owned bit of the current head, allowing the buffer to be re-used. */
-	kctrl_writer_release( u->control, head );
 
 	/* Advance the generation of the item we are about to skip over. This will
 	 * invalidate any held pointers on the write side. */
 	u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].generation += 1;
 
 	u->control->head->head = u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].next;
+
+	kctrl_push_to_free_list( u, head );
 
 	return kctrl_page_data( u, ctrl, u->control->head->head );
 }
@@ -570,66 +549,61 @@ retry:
 
 static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 {
-	kctrl_off_t whead;
+	volatile kctrl_off_t before, next, free;
 
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = kctrl_find_write_loc( u->control );
+again:
+	free = u->control->head->free;
 
-	/* Reserve the space. */
-	u->control->head->alloc = whead;
+	if ( free == 0 )
+		goto again;
 
-	u->control->writer[u->writer_id].whead = whead;
+	next = u->control->descriptor[free].next;
+	
+	before = __sync_val_compare_and_swap(
+			&u->control->head->free, free, next );
+	
+	if ( before != free ) 
+		goto again;
 
-	u->control->descriptor[KCTRL_INDEX(whead)].next = 0;
+	u->control->writer[u->writer_id].whead = free;
 
-	return kctrl_page_data( u, 0, whead );
+	u->control->descriptor[KCTRL_INDEX(free)].next = 0;
+
+	return kctrl_page_data( u, 0, free );
 }
 
 static inline void kctrl_write_SECOND( struct kctrl_user *u )
 {
-	kctrl_off_t tail, before;
+	volatile kctrl_off_t tail, before;
+
 
 again:
 	/* Move forward to the true tail. */
-	tail = u->control->head->maybe_tail;
+	tail = u->control->head->tail;
 
-	while ( 1 ) {
-		kctrl_off_t generation = u->control->descriptor[KCTRL_INDEX(tail)].generation;
-
-		kctrl_off_t next = u->control->descriptor[KCTRL_INDEX(tail)].next;
-		if ( next == 0 )
-			break;
-
-		if ( generation != u->control->descriptor[KCTRL_INDEX(tail)].generation )
-			goto again;
-
-		tail = next;
-	}
-
-	/* Set next pointer to new item (release). */
 	before = __sync_val_compare_and_swap(
-			&u->control->descriptor[KCTRL_INDEX(tail)].next,
-			0,
+			&u->control->head->tail, tail,
 			u->control->writer[u->writer_id].whead );
 	
-	if ( before != 0 )
+	if ( before != tail )
 		goto again;
-		
+	
+	u->control->descriptor[KCTRL_INDEX(tail)].next = u->control->writer[u->writer_id].whead;
 
-	/* Speed up tail finding. */
-	u->control->head->maybe_tail = u->control->writer[u->writer_id].whead;
+//	/* Speed up tail finding. */
+//	u->control->head->maybe_tail = u->control->writer[u->writer_id].whead;
 }
 
 static inline int kctrl_prep_enter( struct kctrl_control *control, int reader_id )
 {
 	/* Init the read head. */
-	kctrl_off_t rhead = control->head->whead;
+//	kctrl_off_t rhead = control->head->whead;
 
 	/* Okay good. */
-	control->reader[reader_id].rhead = rhead; 
+//	control->reader[reader_id].rhead = rhead; 
 	control->reader[reader_id].skips = 0;
 	control->reader[reader_id].entered = 0;
-	control->reader[reader_id].consumed = control->head->produced;
+//	control->reader[reader_id].consumed = control->head->produced;
 
 	return 0;
 }

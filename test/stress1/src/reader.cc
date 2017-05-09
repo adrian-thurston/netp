@@ -44,13 +44,12 @@ int ReaderThread::main()
 			struct kctrl_plain plain;
 			kctrl_next_plain( &kring, &plain );
 
-			// log_message( "plain: " << log_array( plain.bytes, plain.len ) );
-
 			unsigned char w = plain.bytes[0];
 			long l = *( (long*)(plain.bytes+1) );
 
-			if ( expected[w] != l )
+			if ( expected[w] != l ) {
 				log_FATAL( "failure at w: " << (int)w << " l: " << l << " expected: " << expected[w] << " received: " << received );
+			}
 
 			expected[w] += 1;
 
@@ -58,7 +57,7 @@ int ReaderThread::main()
 		}
 
 		if ( received == ( WRITERS * MESSAGES ) ) {
-			log_message( "breaking" );
+			log_message( "reader finished" );
 			break;
 		}
 
