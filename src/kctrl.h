@@ -139,6 +139,7 @@ struct kctrl_shared_desc
 {
 	kctrl_desc_t desc;
 	kctrl_off_t next;
+	kctrl_off_t generation;
 };
 
 struct kctrl_page_desc
@@ -338,7 +339,7 @@ static inline int kctrl_avail( struct kctrl_user *u )
 {
 	struct kctrl_control *control = u->control;
 
-	if ( control->descriptor[ control->head->head ].next != 0 )
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 )
 		return 1;
 
 	return 0;
@@ -423,17 +424,59 @@ static inline int kctrl_select_ctrl( struct kctrl_user *u )
 	}
 }
 
+static inline void kctrl_advance_tail( struct kctrl_user *u )
+{
+	/* Advance the tail as much as we can. Don't need to worry about any
+	 * pointer invalidation (since only process that does this is also in the
+	 * read and serialized WRT us). */
+	kctrl_off_t tail = u->control->head->maybe_tail;
+	while ( 1 ) {
+		kctrl_off_t next = u->control->descriptor[KCTRL_INDEX(tail)].next;
+		if ( next == 0 )
+			break;
+		tail = next;
+	}
+	u->control->head->maybe_tail = tail;
+}
+
+static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off_t whead )
+{
+	/* orig value. */
+	kctrl_desc_t desc = kctrl_read_desc( control, whead );
+
+	/* Unrelease writer. */
+	kctrl_desc_t newval = desc & ~KCTRL_DSC_WRITER_OWNED;
+
+	/* Write back with check. No other reader or writer should have altered the
+	 * descriptor. */
+	kctrl_desc_t before = kctrl_write_back( control, whead, desc, newval );
+	if ( before != desc )
+		return -1;
+
+	return 0;
+}
+
+
 static inline void *kctrl_next_generic( struct kctrl_user *u )
 {
 	int ctrl = kctrl_select_ctrl( u );
+	kctrl_off_t head;
 
-	kctrl_off_t rhead = u->control->descriptor[ u->control->head->head ].next;
-	
-	u->control->head->head = rhead;
+	kctrl_advance_tail( u );
 
-	return kctrl_page_data( u, ctrl, rhead );
+	head = u->control->head->head;
+
+	/* Advance the generation of the item we are about to skip over. This will
+	 * invalidate any held pointers on the write side. */
+	u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].generation += 1;
+
+	u->control->head->head = u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].next;
+
+	/* clear the writer-owned bit, allowing the buffer to be re-used. */
+	kctrl_writer_release( u->control, head );
+
+	return kctrl_page_data( u, ctrl, u->control->head->head );
 }
-
 
 static inline void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
 {
@@ -543,38 +586,23 @@ static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 	return kctrl_page_data( u, 0, whead );
 }
 
-static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off_t whead )
-{
-	/* orig value. */
-	kctrl_desc_t desc = kctrl_read_desc( control, whead );
-
-	/* Unrelease writer. */
-	kctrl_desc_t newval = desc & ~KCTRL_DSC_WRITER_OWNED;
-
-	/* Write back with check. No other reader or writer should have altered the
-	 * descriptor. */
-	kctrl_desc_t before = kctrl_write_back( control, whead, desc, newval );
-	if ( before != desc )
-		return -1;
-
-	return 0;
-}
-
 static inline void kctrl_write_SECOND( struct kctrl_user *u )
 {
 	kctrl_off_t tail, before;
 
-	/* Clear the writer owned bit from the buffer. */
-	kctrl_writer_release( u->control, u->control->head->wresv );
-
 again:
 	/* Move forward to the true tail. */
-	tail = u->control->head->head; //maybe_tail;
+	tail = u->control->head->maybe_tail;
 
 	while ( 1 ) {
+		kctrl_off_t generation = u->control->descriptor[KCTRL_INDEX(tail)].generation;
+
 		kctrl_off_t next = u->control->descriptor[KCTRL_INDEX(tail)].next;
 		if ( next == 0 )
 			break;
+
+		if ( generation != u->control->descriptor[KCTRL_INDEX(tail)].generation )
+			goto again;
 
 		tail = next;
 	}

@@ -383,7 +383,7 @@ static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
 {
 	struct kctrl_control *control = &r->ring[krs->ring_id].control;
 
-	if ( control->descriptor[ control->head->head ].next != 0 )
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 )
 		return 1;
 	return 0;
 }
@@ -632,7 +632,7 @@ int kctrl_kavail( struct kctrl_kern *kring )
 {
 	struct kctrl_control *control = kring->user.control;
 
-	if ( control->descriptor[ control->head->head ].next != 0 )
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 )
 		return 1;
 
 	return 0;
