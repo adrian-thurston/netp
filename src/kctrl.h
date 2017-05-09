@@ -456,7 +456,6 @@ static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off
 	return 0;
 }
 
-
 static inline void *kctrl_next_generic( struct kctrl_user *u )
 {
 	int ctrl = kctrl_select_ctrl( u );
@@ -620,109 +619,6 @@ again:
 	/* Speed up tail finding. */
 	u->control->head->maybe_tail = u->control->writer[u->writer_id].whead;
 }
-
-static inline void kctrl_update_wresv( struct kctrl_user *u )
-{
-	int w;
-	kctrl_off_t wresv, before, highest;
-
-again:
-	wresv = u->control->head->wresv;
-
-	/* we are setting wresv to the highest amongst the writers. If a writer is
-	 * inactive then it's resv will be left behind and not affect this
-	 * compuation. */
-	highest = 0;
-	for ( w = 0; w < KCTRL_WRITERS; w++ ) {
-		if ( u->control->writer[w].wresv > highest )
-			highest = u->control->writer[w].wresv;
-	}
-
-	before = kctrl_wresv_write_back( u->control, wresv, highest );
-	if ( before != wresv )
-		goto again;
-}
-
-static inline void kctrl_update_whead( struct kctrl_user *u )
-{
-	int w;
-	kctrl_off_t orig, before, whead = 0, wbar = ~((kctrl_off_t)0);
-
-retry:
-	orig = u->control->head->whead;
-
-	/* Situations a writer can be in: 
-	 *
-	 * wbar = 0 (not trying to write)
-	 *   can release to local head, if > shared head.
-	 * wbar != 0 trying to write, canot release past this value
-	 */
-	
-	/* Order of these two matters. Cannot look for the limit first. */
-
-	/* First pass, find the highest write head. */
-	for ( w = 0; w < KCTRL_WRITERS; w++ ) {
-		if ( u->control->writer[w].whead > whead )
-			whead = u->control->writer[w].whead;
-	}
-
-	/* Second pass. Find the lowest barrier. */
-	for ( w = 0; w < KCTRL_WRITERS; w++ ) {
-		if ( u->control->writer[w].wbar != 0 ) {
-			if ( u->control->writer[w].wbar < wbar )
-				wbar = u->control->writer[w].wbar;
-		}
-	}
-
-	if ( wbar < whead )
-		whead = wbar;
-	
-	/* Write back. */
-
-	before = kctrl_whead_write_back( u->control, orig, whead );
-	if ( before != orig )
-		goto retry;
-}
-
-static inline void *kctrl_write_FIRST_2( struct kctrl_user *u )
-{
-	/* Start at wresv. There is nothing free before this value. We cannot start
-	 * at whead because other writers may have written and release (not showing
-	 * writer owned bits, but we cannot take.*/
-	kctrl_off_t whead = u->control->head->wresv;
-
-	/* Set the release barrier to the place where we start looking. We cannot
-	 * release past this point. */
-	u->control->writer[u->writer_id].wbar = whead;
-
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = kctrl_find_write_loc( u->control );
-
-	/* Private reserve. */
-	u->control->writer[u->writer_id].wresv = whead;
-
-	/* Update the common wreserve. */
-	kctrl_update_wresv( u );
-
-	return kctrl_page_data( u, 0, whead );
-}
-
-static inline void kctrl_write_SECOND_2( struct kctrl_user *u )
-{
-	/* Clear the writer owned bit from the buffer. */
-	kctrl_writer_release( u->control, u->control->head->wresv );
-
-	/* Write back to the writer's private write head, which releases the buffer
-	 * for this writer. */
-	u->control->writer[u->writer_id].whead = u->control->writer[u->writer_id].wresv;
-
-	/* Remove our release barrier. */
-	u->control->writer[u->writer_id].wbar = 0;
-
-	/* Maybe release to the readers. */
-	kctrl_update_whead( u );
-}
-
 
 static inline int kctrl_prep_enter( struct kctrl_control *control, int reader_id )
 {
