@@ -109,34 +109,24 @@ typedef unsigned long kctrl_off_t;
 
 struct kctrl_shared_head
 {
-	kctrl_off_t alloc;
 	kctrl_off_t head;
-	kctrl_off_t maybe_tail;
 	kctrl_off_t tail;
 	kctrl_off_t free;
-	int write_mutex;
 };
 
 struct kctrl_shared_writer
 {
 	kctrl_off_t whead;
-	kctrl_off_t wresv;
-	kctrl_off_t wbar;
 };
 
 struct kctrl_shared_reader
 {
-	kctrl_off_t rhead;
-	unsigned long skips;
-	unsigned char entered;
-	unsigned long long consumed;
+	char unused;
 };
 
 struct kctrl_shared_desc
 {
-	kctrl_desc_t desc;
 	kctrl_off_t next;
-	kctrl_off_t generation;
 };
 
 struct kctrl_page_desc
@@ -276,32 +266,6 @@ static inline int kctrl_plain_max_data(void)
 
 char *kctrl_error( struct kctrl_user *u, int err );
 
-static inline unsigned long kctrl_skips( struct kctrl_user *u )
-{
-	unsigned long skips = 0;
-	if ( u->ring_id != KCTRL_RING_ID_ALL )
-		skips = u->control->reader[u->reader_id].skips;
-	else {
-		int ring;
-		for ( ring = 0; ring < u->nrings; ring++ )
-			skips += u->control[ring].reader[u->reader_id].skips;
-	}
-	return skips;
-}
-
-static inline kctrl_desc_t kctrl_read_desc( struct kctrl_control *control, kctrl_off_t off )
-{
-	return control->descriptor[KCTRL_INDEX(off)].desc;
-}
-
-static inline kctrl_desc_t kctrl_write_back( struct kctrl_control *control,
-		kctrl_off_t off, kctrl_desc_t oldval, kctrl_desc_t newval )
-{
-	return __sync_val_compare_and_swap(
-			&control->descriptor[KCTRL_INDEX(off)].desc, oldval, newval );
-}
-
-
 static inline void *kctrl_page_data( struct kctrl_user *u, int ctrl, kctrl_off_t off )
 {
 	if ( u->socket < 0 )
@@ -319,106 +283,6 @@ static inline int kctrl_avail( struct kctrl_user *u )
 
 	return 0;
 
-}
-
-static inline kctrl_off_t kctrl_next( kctrl_off_t off )
-{
-	return off + 1;
-}
-
-static inline unsigned long kctrl_one_back( unsigned long pos )
-{
-	return pos == 0 ? KCTRL_NPAGES - 1 : pos - 1;
-}
-
-static inline kctrl_off_t kctrl_advance_rhead( struct kctrl_control *control, int reader_id, kctrl_off_t rhead )
-{
-	kctrl_desc_t desc;
-	while ( 1 ) {
-		rhead = kctrl_next( rhead );
-
-		/* reserve next. */
-		desc = kctrl_read_desc( control, rhead );
-		if ( ! ( desc & KCTRL_DSC_WRITER_OWNED ) ) {
-			/* Okay we can take it. */
-			kctrl_desc_t newval = desc | KCTRL_DSC_READER_BIT( reader_id );
-		
-			/* Attemp write back. */
-			kctrl_desc_t before = kctrl_write_back( control, rhead, desc, newval );
-			if ( before == desc ) {
-				/* Write back okay. We can use. */
-				break;
-			}
-		}
-
-		/* Todo: limit the number of skips. If we get to whead then we skipped
-		 * over invalid buffers until we got to the write head. There is
-		 * nothing to read. Not a normal situation because whead should not
-		 * advance unless a successful write was made. */
-	}
-
-	return rhead;
-}
-
-/* Unreserve prev. */
-static inline void kctrl_reader_release( int reader_id, struct kctrl_control *control, kctrl_off_t prev )
-{
-	kctrl_desc_t before, desc, newval;
-again:
-	/* Take a copy, modify, then try to write back. */
-	desc = kctrl_read_desc( control, prev );
-	
-	newval = desc & ~( KCTRL_DSC_READER_BIT( reader_id ) );
-
-	/* Was it skipped? */
-	if ( desc & KCTRL_DSC_SKIPPED ) {
-		/* If we are the last to release it, then reset the skipped bit. */
-		if ( ! ( newval & KCTRL_DSC_READER_OWNED ) )
-			newval &= ~KCTRL_DSC_SKIPPED;
-	}
-
-	before = kctrl_write_back( control, prev, desc, newval );
-	if ( before != desc )
-		goto again;
-	
-	__sync_add_and_fetch( &control->reader->consumed, 1 );
-}
-
-static inline int kctrl_select_ctrl( struct kctrl_user *u )
-{
-	return 0;
-}
-
-static inline void kctrl_advance_tail( struct kctrl_user *u )
-{
-	/* Advance the tail as much as we can. Don't need to worry about any
-	 * pointer invalidation (since only process that does this is also in the
-	 * read and serialized WRT us). */
-	kctrl_off_t tail = u->control->head->maybe_tail;
-	while ( 1 ) {
-		kctrl_off_t next = u->control->descriptor[KCTRL_INDEX(tail)].next;
-		if ( next == 0 )
-			break;
-		tail = next;
-	}
-	u->control->head->maybe_tail = tail;
-}
-
-static inline int kctrl_writer_release( struct kctrl_control *control, kctrl_off_t whead )
-{
-	/* orig value. */
-	kctrl_desc_t desc = kctrl_read_desc( control, whead );
-
-	/* Unrelease writer. */
-	kctrl_desc_t newval = desc & ~KCTRL_DSC_WRITER_OWNED;
-
-	/* Write back with check. No other reader or writer should have altered the
-	 * descriptor. */
-	kctrl_desc_t before = kctrl_write_back( control, whead, desc, newval );
-	if ( before != desc )
-		return -1;
-
-	return 0;
 }
 
 /* Return the block to the free list. */
@@ -440,14 +304,10 @@ again:
 
 static inline void *kctrl_next_generic( struct kctrl_user *u )
 {
-	int ctrl = kctrl_select_ctrl( u );
+	int ctrl = 0;
 	kctrl_off_t head;
 
 	head = u->control->head->head;
-
-	/* Advance the generation of the item we are about to skip over. This will
-	 * invalidate any held pointers on the write side. */
-	u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].generation += 1;
 
 	u->control->head->head = u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].next;
 
@@ -494,59 +354,6 @@ static inline void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *p
 	plain->bytes = (unsigned char*)( h + 1 );
 }
 
-static inline unsigned long kctrl_find_write_loc( struct kctrl_control *control )
-{
-	int id;
-	kctrl_desc_t desc = 0;
-	kctrl_off_t whead = control->head->alloc;
-	while ( 1 ) {
-		/* Move to the next slot. */
-		whead = kctrl_next( whead );
-
-retry:
-		/* Read the descriptor. */
-		desc = kctrl_read_desc( control, whead );
-
-		/* Check, if not okay, go on to next. */
-		if ( desc & KCTRL_DSC_READER_OWNED || desc & KCTRL_DSC_SKIPPED ) {
-			kctrl_desc_t before;
-
-			/* register skips. */
-			for ( id = 0; id < KCTRL_READERS; id++ ) {
-				if ( desc & KCTRL_DSC_READER_BIT( id ) ) {
-					/* reader id present. */
-					control->reader[id].skips += 1;
-				}
-			}
-
-			/* Mark as skipped. If a reader got in before us, retry. */
-			before = kctrl_write_back( control, whead, desc, desc | KCTRL_DSC_SKIPPED );
-			if ( before != desc )
-				goto retry;
-
-			/* After registering the skip, go on to look for another block. */
-		}
-		else if ( desc & KCTRL_DSC_WRITER_OWNED ) {
-			/* A different writer has the block. Go forward to find another
-			 * block. */
-		}
-		else {
-			/* Available. */
-			kctrl_desc_t newval = desc | KCTRL_DSC_WRITER_OWNED;
-
-			/* Okay. Attempt to claim with an atomic write back. */
-			kctrl_desc_t before = kctrl_write_back( control, whead, desc, newval );
-			if ( before != desc )
-				goto retry;
-
-			/* Write back okay. No reader claimed. We can use. */
-			return whead;
-		}
-
-		/* FIXME: if we get back to where we started then bail */
-	}
-}
-
 static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 {
 	volatile kctrl_off_t before, next, free;
@@ -576,7 +383,6 @@ static inline void kctrl_write_SECOND( struct kctrl_user *u )
 {
 	volatile kctrl_off_t tail, before;
 
-
 again:
 	/* Move forward to the true tail. */
 	tail = u->control->head->tail;
@@ -589,22 +395,10 @@ again:
 		goto again;
 	
 	u->control->descriptor[KCTRL_INDEX(tail)].next = u->control->writer[u->writer_id].whead;
-
-//	/* Speed up tail finding. */
-//	u->control->head->maybe_tail = u->control->writer[u->writer_id].whead;
 }
 
 static inline int kctrl_prep_enter( struct kctrl_control *control, int reader_id )
 {
-	/* Init the read head. */
-//	kctrl_off_t rhead = control->head->whead;
-
-	/* Okay good. */
-//	control->reader[reader_id].rhead = rhead; 
-	control->reader[reader_id].skips = 0;
-	control->reader[reader_id].entered = 0;
-//	control->reader[reader_id].consumed = control->head->produced;
-
 	return 0;
 }
 

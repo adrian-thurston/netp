@@ -457,10 +457,10 @@ static void kctrl_sock_destruct( struct sock *sk )
 
 				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
 
-				if ( control->reader[krs->reader_id].entered ) {
-					kctrl_off_t prev = control->reader[krs->reader_id].rhead;
-					kctrl_reader_release( krs->reader_id, &control[0], prev );
-				}
+				// if ( control->reader[krs->reader_id].entered ) {
+				//	kctrl_off_t prev = control->reader[krs->reader_id].rhead;
+				//	kctrl_reader_release( krs->reader_id, &control[0], prev );
+				// }
 			}
 			else {
 				for ( i = 0; i < krs->ringset->nrings; i++ ) {
@@ -468,10 +468,10 @@ static void kctrl_sock_destruct( struct sock *sk )
 
 					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
 
-					if ( control->reader[krs->reader_id].entered ) {
-						kctrl_off_t prev = control->reader[krs->reader_id].rhead;
-						kctrl_reader_release( krs->reader_id, &control[0], prev );
-					}
+					// if ( control->reader[krs->reader_id].entered ) {
+					//	kctrl_off_t prev = control->reader[krs->reader_id].rhead;
+					//	kctrl_reader_release( krs->reader_id, &control[0], prev );
+					// }
 				}
 			}
 		}
@@ -687,15 +687,8 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 		}
 	}
 
-//	r->control.head->whead = r->control.head->wresv = kctrl_one_back( 0 );
-
-	r->control.head->write_mutex = 0;
-
 	/* Use the first page as the "last written," which is our sentinal. */
-	r->control.head->alloc = 0;
-	r->control.descriptor[0].desc = KCTRL_DSC_WRITER_OWNED;
 	r->control.head->head = 1;
-	r->control.head->maybe_tail = 0;
 	r->control.head->tail = 1;
 
 	for ( i = 3; i < KCTRL_NPAGES; i++ )
