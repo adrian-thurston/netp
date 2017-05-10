@@ -275,16 +275,18 @@ static inline void *kctrl_page_data( struct kctrl_user *u, int ctrl, kctrl_off_t
 		return u->data[ctrl].page + KCTRL_INDEX(off);
 }
 
-static inline int kctrl_avail( struct kctrl_user *u )
+static inline int kctrl_avail_impl( struct kctrl_control *control )
 {
-	struct kctrl_control *control = u->control;
-
 	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
 			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
 		return 1;
 
 	return 0;
+}
 
+static inline int kctrl_avail( struct kctrl_user *u )
+{
+	return kctrl_avail_impl( u->control );
 }
 
 /* Return the block to the free list. */

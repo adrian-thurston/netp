@@ -381,25 +381,13 @@ static int kctrl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
 {
-	struct kctrl_control *control = &r->ring[krs->ring_id].control;
-
-	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
-			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
-		return 1;
-	return 0;
+	return kctrl_avail_impl( &r->ring[krs->ring_id].control );
 }
 
 int kctrl_kavail( struct kctrl_kern *kring )
 {
-	struct kctrl_control *control = kring->user.control;
-
-	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
-			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
-		return 1;
-
-	return 0;
+	return kctrl_avail_impl( kring->user.control );
 }
-
 
 /* Waiting readers go to sleep with the recvmsg system call. */
 static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
