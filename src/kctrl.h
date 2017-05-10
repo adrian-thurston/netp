@@ -117,7 +117,7 @@ struct kctrl_shared_head
 
 struct kctrl_shared_writer
 {
-	kctrl_off_t whead;
+	kctrl_off_t wloc;
 };
 
 struct kctrl_shared_reader
@@ -377,32 +377,42 @@ static inline void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *p
 	plain->bytes = (unsigned char*)( h + 1 );
 }
 
-static inline void *kctrl_write_FIRST( struct kctrl_user *u )
+static inline kctrl_off_t kctrl_allocate( struct kctrl_user *u )
 {
 	volatile kctrl_off_t before, next, free;
 
 again:
+	/* Read the free pointer. If nothing avail then spin. */
 	free = u->control->head->free;
-
 	if ( free == 0 )
 		goto again;
 
 	next = u->control->descriptor[free].next;
 	
+	/* Attempt to rewrite the pointer to next. */
 	before = __sync_val_compare_and_swap(
 			&u->control->head->free, free, next );
 	
+	/* Try again if some other thread wrote first. */
 	if ( before != free ) 
 		goto again;
 
-	u->control->writer[u->writer_id].whead = free;
+	/* Success. Record where we are writing to. Clear the item's next pointer. */
+	u->control->writer[u->writer_id].wloc = free;
 
 	u->control->descriptor[KCTRL_INDEX(free)].next = 0;
+
+	return free;
+}
+
+static inline void *kctrl_write_FIRST( struct kctrl_user *u )
+{
+	kctrl_off_t free = kctrl_allocate( u );
 
 	return kctrl_page_data( u, 0, free );
 }
 
-static inline void kctrl_write_SECOND( struct kctrl_user *u )
+static inline void kctrl_push_new( struct kctrl_user *u )
 {
 	volatile kctrl_off_t stack, before;
 
@@ -410,14 +420,19 @@ again:
 	/* Move forward to the true tail. */
 	stack = u->control->head->stack;
 
-	u->control->descriptor[KCTRL_INDEX(u->control->writer[u->writer_id].whead)].next = stack;
+	u->control->descriptor[KCTRL_INDEX(u->control->writer[u->writer_id].wloc)].next = stack;
 
 	before = __sync_val_compare_and_swap(
 			&u->control->head->stack, stack,
-			u->control->writer[u->writer_id].whead );
+			u->control->writer[u->writer_id].wloc );
 	
 	if ( before != stack )
 		goto again;
+}
+
+static inline void kctrl_write_SECOND( struct kctrl_user *u )
+{
+	kctrl_push_new( u );
 }
 
 static inline int kctrl_prep_enter( struct kctrl_control *control, int reader_id )
