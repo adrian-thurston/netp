@@ -3,7 +3,6 @@
 
 #include <linux/kobject.h>
 #include <kring/krkern.h>
-#include <kring/kckern.h>
 
 /* Root object. */
 struct shuttle

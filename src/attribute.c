@@ -11,7 +11,6 @@
 #include <linux/etherdevice.h>
 
 #include <kring/krkern.h>
-#include <kring/kckern.h>
 
 #include "module.h"
 #include "attribute.h"
@@ -163,7 +162,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 					skb->pkt_type = PACKET_HOST;
 					
 					skb_push( skb, ETH_HLEN );
-					kdata_kwrite( &link->kring, KRING_DIR_INSIDE, skb );
+					kdata_kwrite( &link->kring, KDATA_DIR_INSIDE, skb );
 					skb_pull( skb, ETH_HLEN );
 
 					netif_receive_skb( skb );
@@ -174,7 +173,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 
 		skb->dev = link->outside;
 		skb_push( skb, ETH_HLEN );
-		kdata_kwrite( &link->kring, KRING_DIR_INSIDE, skb );
+		kdata_kwrite( &link->kring, KDATA_DIR_INSIDE, skb );
 		dev_queue_xmit( skb );
 	}
 	else if ( skb->dev == link->outside ) {
@@ -189,7 +188,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 
 		skb->dev = link->inside;
 		skb_push( skb, ETH_HLEN );
-		kdata_kwrite( &link->kring, KRING_DIR_OUTSIDE, skb );
+		kdata_kwrite( &link->kring, KDATA_DIR_OUTSIDE, skb );
 		dev_queue_xmit( skb );
 	}
 	else {
@@ -405,7 +404,7 @@ netdev_tx_t shuttle_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Probably need to find the right mac address now. */
 	skb->dev = priv->link->inside;
-	kdata_kwrite( &priv->link->kring, KRING_DIR_OUTSIDE, skb );
+	kdata_kwrite( &priv->link->kring, KDATA_DIR_OUTSIDE, skb );
 	dev_queue_xmit( skb );
 
 	return NETDEV_TX_OK;
