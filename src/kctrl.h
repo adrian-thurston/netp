@@ -304,10 +304,9 @@ again:
 		goto again;
 }
 
-static inline void *kctrl_next_generic( struct kctrl_user *u )
+static inline void kctrl_reverse_stack( struct kctrl_user *u )
 {
-	int ctrl = 0;
-	kctrl_off_t prev = 0, next, head, stack;
+	kctrl_off_t prev = 0, next, stack;
 
 	/* Go forward from stack, reversing. */
 	prev = 0;
@@ -320,14 +319,24 @@ static inline void *kctrl_next_generic( struct kctrl_user *u )
 		prev = stack;
 		stack = next;
 	}
+}
 
+static inline void *kctrl_next_generic( struct kctrl_user *u )
+{
+	kctrl_off_t head;
+
+	kctrl_reverse_stack( u );
+
+	/* Pull one off the head. */
 	head = u->control->head->head;
 
 	u->control->head->head = u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].next;
 
+	/* Free the node we pulled off. */
 	kctrl_push_to_free_list( u, head );
 
-	return kctrl_page_data( u, ctrl, u->control->head->head );
+	/* Return the new head. */
+	return kctrl_page_data( u, 0, u->control->head->head );
 }
 
 static inline void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
