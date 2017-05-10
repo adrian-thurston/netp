@@ -112,6 +112,7 @@ struct kctrl_shared_head
 	kctrl_off_t head;
 	kctrl_off_t tail;
 	kctrl_off_t free;
+	kctrl_off_t stack;
 };
 
 struct kctrl_shared_writer
@@ -278,7 +279,8 @@ static inline int kctrl_avail( struct kctrl_user *u )
 {
 	struct kctrl_control *control = u->control;
 
-	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 )
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
+			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
 		return 1;
 
 	return 0;
@@ -305,7 +307,19 @@ again:
 static inline void *kctrl_next_generic( struct kctrl_user *u )
 {
 	int ctrl = 0;
-	kctrl_off_t head;
+	kctrl_off_t prev = 0, next, head, stack;
+
+	/* Go forward from stack, reversing. */
+	prev = 0;
+	stack = u->control->head->stack;
+	while ( stack != 0 ) {
+		next = u->control->descriptor[ KCTRL_INDEX(stack) ].next;
+
+		u->control->descriptor[ KCTRL_INDEX(stack) ].next = prev;
+
+		prev = stack;
+		stack = next;
+	}
 
 	head = u->control->head->head;
 
@@ -381,20 +395,20 @@ again:
 
 static inline void kctrl_write_SECOND( struct kctrl_user *u )
 {
-	volatile kctrl_off_t tail, before;
+	volatile kctrl_off_t stack, before;
 
 again:
 	/* Move forward to the true tail. */
-	tail = u->control->head->tail;
+	stack = u->control->head->stack;
+
+	u->control->descriptor[KCTRL_INDEX(u->control->writer[u->writer_id].whead)].next = stack;
 
 	before = __sync_val_compare_and_swap(
-			&u->control->head->tail, tail,
+			&u->control->head->stack, stack,
 			u->control->writer[u->writer_id].whead );
 	
-	if ( before != tail )
+	if ( before != stack )
 		goto again;
-	
-	u->control->descriptor[KCTRL_INDEX(tail)].next = u->control->writer[u->writer_id].whead;
 }
 
 static inline int kctrl_prep_enter( struct kctrl_control *control, int reader_id )

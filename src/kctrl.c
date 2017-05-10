@@ -383,10 +383,23 @@ static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
 {
 	struct kctrl_control *control = &r->ring[krs->ring_id].control;
 
-	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 )
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
+			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
 		return 1;
 	return 0;
 }
+
+int kctrl_kavail( struct kctrl_kern *kring )
+{
+	struct kctrl_control *control = kring->user.control;
+
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
+			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
+		return 1;
+
+	return 0;
+}
+
 
 /* Waiting readers go to sleep with the recvmsg system call. */
 static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
@@ -453,7 +466,7 @@ static void kctrl_sock_destruct( struct sock *sk )
 
 			/* One ring or all? */
 			if ( krs->ring_id != KCTRL_RING_ID_ALL ) {
-				struct kctrl_control *control = &krs->ringset->ring[krs->ring_id].control;
+				// struct kctrl_control *control = &krs->ringset->ring[krs->ring_id].control;
 
 				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
 
@@ -464,7 +477,7 @@ static void kctrl_sock_destruct( struct sock *sk )
 			}
 			else {
 				for ( i = 0; i < krs->ringset->nrings; i++ ) {
-					struct kctrl_control *control = &krs->ringset->ring[i].control;
+					// struct kctrl_control *control = &krs->ringset->ring[i].control;
 
 					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
 
@@ -628,16 +641,6 @@ void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb 
 	}
 }
 
-int kctrl_kavail( struct kctrl_kern *kring )
-{
-	struct kctrl_control *control = kring->user.control;
-
-	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 )
-		return 1;
-
-	return 0;
-}
-
 void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
 {
 	struct kctrl_plain_header *h;
@@ -690,6 +693,7 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 	/* Use the first page as the "last written," which is our sentinal. */
 	r->control.head->head = 1;
 	r->control.head->tail = 1;
+	r->control.head->stack = 1;
 
 	for ( i = 3; i < KCTRL_NPAGES; i++ )
 		r->control.descriptor[i].next = i - 1;
