@@ -9,7 +9,6 @@ void ReaderThread::recvShutdown( Shutdown * )
 
 int ReaderThread::main()
 {
-	char buf[1];
 	int received = 0;
 	long expected[WRITERS];
 
@@ -47,6 +46,8 @@ int ReaderThread::main()
 			unsigned char w = plain.bytes[0];
 			long l = *( (long*)(plain.bytes+1) );
 
+			// log_message( "read " << (int)w << " l: " << l << " received: " << received );
+
 			if ( expected[w] != l ) {
 				log_FATAL( "failure at w: " << (int)w << " l: " << l << " expected: " << expected[w] << " received: " << received );
 			}
@@ -60,11 +61,6 @@ int ReaderThread::main()
 			log_message( "reader finished" );
 			break;
 		}
-
-		int r = recv( kring.socket, buf, 1, 1 );
-		if ( r < 0 )
-			log_ERROR( "kring recv failed: " << strerror( r ) );
-
 	}
 
 	return 0;

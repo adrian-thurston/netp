@@ -635,6 +635,8 @@ void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
 
 	h = (struct kctrl_plain_header*) kctrl_next_generic( &kring->user );
 
+	wake_up_interruptible_all( &kring->ringset->ring[kring->ring_id].reader_waitqueue );
+
 	plain->len = h->len;
 	plain->bytes = (unsigned char*)(h + 1);
 }

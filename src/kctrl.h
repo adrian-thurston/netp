@@ -250,6 +250,9 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len );
 int kctrl_write_plain( struct kctrl_user *u, char *data, int len );
 int kctrl_read_wait( struct kctrl_user *u );
+void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet );
+void kctrl_next_decrypted( struct kctrl_user *u, struct kctrl_decrypted *decrypted );
+void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *plain );
 
 static inline int kctrl_packet_max_data(void)
 {
@@ -342,44 +345,6 @@ static inline void *kctrl_next_generic( struct kctrl_user *u )
 	return kctrl_page_data( u, u->control->head->head );
 }
 
-static inline void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
-{
-	struct kctrl_packet_header *h;
-
-	h = (struct kctrl_packet_header*) kctrl_next_generic( u );
-
-	packet->len = h->len;
-	packet->caplen = 
-			( h->len <= kctrl_packet_max_data() ) ?
-			h->len :
-			kctrl_packet_max_data();
-	packet->dir = h->dir;
-	packet->bytes = (unsigned char*)( h + 1 );
-}
-
-static inline void kctrl_next_decrypted( struct kctrl_user *u, struct kctrl_decrypted *decrypted )
-{
-	struct kctrl_decrypted_header *h;
-
-	h = (struct kctrl_decrypted_header*) kctrl_next_generic( u );
-
-	decrypted->len = h->len;
-	decrypted->id = h->id;
-	decrypted->type = h->type;
-	decrypted->host = h->host;
-	decrypted->bytes = (unsigned char*)( h + 1 );
-}
-
-static inline void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *plain )
-{
-	struct kctrl_plain_header *h;
-
-	h = (struct kctrl_plain_header*) kctrl_next_generic( u );
-
-	plain->len = h->len;
-	plain->bytes = (unsigned char*)( h + 1 );
-}
-
 static inline kctrl_off_t kctrl_allocate( struct kctrl_user *u )
 {
 	volatile kctrl_off_t before, next, free;
@@ -388,7 +353,7 @@ again:
 	/* Read the free pointer. If nothing avail then spin. */
 	free = u->control->head->free;
 	if ( free == KCTRL_NULL )
-		goto again;
+		return KCTRL_NULL;
 
 	next = u->control->descriptor[free].next;
 	
@@ -412,9 +377,13 @@ again:
 	return free;
 }
 
+/* Returns NULL if there are no free buffers in the ring. */
 static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 {
 	kctrl_off_t free = kctrl_allocate( u );
+
+	if ( free == KCTRL_NULL )
+		return 0;
 
 	return kctrl_page_data( u, free );
 }

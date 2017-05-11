@@ -264,7 +264,13 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 	if ( len > kctrl_plain_max_data()  )
 		len = kctrl_plain_max_data();
 
-	h = (struct kctrl_plain_header*) kctrl_write_FIRST( u );
+	while ( 1 ) {
+		h = (struct kctrl_plain_header*) kctrl_write_FIRST( u );
+		if ( h != 0 )
+			break;
+
+		recv( u->socket, buf, 1, 1 );
+	}
 
 	h->len = len;
 
@@ -272,8 +278,6 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 	memcpy( bytes, data, len );
 
 	kctrl_write_SECOND( u );
-
-	send( u->socket, buf, 1, 0 );
 
 	return 0;
 }   
@@ -286,4 +290,52 @@ int kctrl_read_wait( struct kctrl_user *u )
 		ret = 0;
 	return ret;
 }
+
+void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
+{
+	struct kctrl_packet_header *h;
+	char buf[1];
+
+	h = (struct kctrl_packet_header*) kctrl_next_generic( u );
+
+	send( u->socket, buf, 1, 0 );
+
+	packet->len = h->len;
+	packet->caplen = 
+			( h->len <= kctrl_packet_max_data() ) ?
+			h->len :
+			kctrl_packet_max_data();
+	packet->dir = h->dir;
+	packet->bytes = (unsigned char*)( h + 1 );
+}
+
+void kctrl_next_decrypted( struct kctrl_user *u, struct kctrl_decrypted *decrypted )
+{
+	struct kctrl_decrypted_header *h;
+	char buf[1];
+
+	h = (struct kctrl_decrypted_header*) kctrl_next_generic( u );
+
+	send( u->socket, buf, 1, 0 );
+
+	decrypted->len = h->len;
+	decrypted->id = h->id;
+	decrypted->type = h->type;
+	decrypted->host = h->host;
+	decrypted->bytes = (unsigned char*)( h + 1 );
+}
+
+void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *plain )
+{
+	struct kctrl_plain_header *h;
+	char buf[1];
+
+	h = (struct kctrl_plain_header*) kctrl_next_generic( u );
+
+	send( u->socket, buf, 1, 0 );
+
+	plain->len = h->len;
+	plain->bytes = (unsigned char*)( h + 1 );
+}
+
 
