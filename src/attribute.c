@@ -320,7 +320,7 @@ ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ct
 	if ( err < 0 )
 		printk( "shuttle: failed to open data ring %s\n", ring );
 
-	err = kctrl_kopen( &link->cmd, ctrl, 0, KRING_READ );
+	err = kctrl_kopen( &link->cmd, ctrl, KRING_READ );
 	if ( err < 0 )
 		printk( "shuttle: failed to open control ring %s\n", ctrl );
 
