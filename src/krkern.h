@@ -111,7 +111,7 @@ struct kctrl_kern
 	struct kctrl_user user;
 };
 
-int kctrl_kopen( struct kctrl_kern *kring, const char *ringset, int ring_id, enum KCTRL_MODE mode );
+int kctrl_kopen( struct kctrl_kern *kring, const char *ringset, enum KCTRL_MODE mode );
 int kctrl_kclose( struct kctrl_kern *kring );
 
 void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb );

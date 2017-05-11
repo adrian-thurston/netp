@@ -245,7 +245,7 @@ struct kctrl_plain_header
 	int len;
 };
 
-int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, int rid, enum KCTRL_MODE mode );
+int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, enum KCTRL_MODE mode );
 int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len );
 int kctrl_write_plain( struct kctrl_user *u, char *data, int len );
 int kctrl_read_wait( struct kctrl_user *u );

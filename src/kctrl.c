@@ -507,20 +507,18 @@ int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, int ring_id, enum KCTRL_MODE mode )
+int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KCTRL_MODE mode )
 {
 	int reader_id = -1, writer_id = -1;
+	int ring_id = 0;
 
 	struct kctrl_ringset *ringset = kctrl_find_ring( rsname );
 	if ( ringset == 0 )
 		return -1;
 	
-	if ( ring_id < 0 || ring_id >= ringset->nrings )
-		return -1;
-
 	kctrl_copy_name( kring->name, rsname );
 	kring->ringset = ringset;
-	kring->ring_id = ring_id;
+	kring->ring_id = 0;
 
 	if ( mode == KCTRL_WRITE ) {
 		/* Find a writer ID. */

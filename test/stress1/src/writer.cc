@@ -10,7 +10,7 @@ int kctrl_write_plain2( struct kctrl_user *u, char *data, int len )
 
 int WriterThread::main()
 {
-	int res = kctrl_open( &kring, KCTRL_PLAIN, "stress1", 0, KCTRL_WRITE );
+	int res = kctrl_open( &kring, KCTRL_PLAIN, "stress1", KCTRL_WRITE );
 	if ( res < 0 ) {
 		log_ERROR( "decrypted data kring open for write failed: " << kctrl_error( &kring, res ) );
 		return -1;

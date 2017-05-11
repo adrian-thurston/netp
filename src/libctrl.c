@@ -95,10 +95,10 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 		return -1;
 	}
 
-	u->control[ctrl].head = r + KCTRL_CTRL_OFF_HEAD;
-	u->control[ctrl].writer = r + KCTRL_CTRL_OFF_WRITER;
-	u->control[ctrl].reader = r + KCTRL_CTRL_OFF_READER;
-	u->control[ctrl].descriptor = r + KCTRL_CTRL_OFF_DESC;
+	u->control->head = r + KCTRL_CTRL_OFF_HEAD;
+	u->control->writer = r + KCTRL_CTRL_OFF_WRITER;
+	u->control->reader = r + KCTRL_CTRL_OFF_READER;
+	u->control->descriptor = r + KCTRL_CTRL_OFF_DESC;
 
 	r = mmap( 0, KCTRL_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
@@ -122,9 +122,9 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, int ring_id, enum KCTRL_MODE mode )
+int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, enum KCTRL_MODE mode )
 {
-	int ctrl, to_alloc, res, ring_N, writer_id, reader_id;
+	int to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
 	struct kctrl_addr addr;
@@ -137,11 +137,11 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 		goto err_return;
 	}
 
-	u->ring_id = ring_id;
+	u->ring_id = 0;
 	u->mode = mode;
 
 	copy_name( addr.name, ringset );
-	addr.ring_id = ring_id;
+	addr.ring_id = 0;
 	addr.mode = mode;
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
@@ -178,8 +178,6 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 	 * Allocate ring-specific structs. May not use them all.
 	 */
 	to_alloc = 1;
-	if ( ring_id == KCTRL_RING_ID_ALL )
-		to_alloc = ring_N;
 
 	u->control = (struct kctrl_control*)malloc( sizeof( struct kctrl_control ) * to_alloc );
 	memset( u->control, 0, sizeof( struct kctrl_control ) * to_alloc );
@@ -190,18 +188,9 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 	u->pd = 0;
 
 	/* Which rings to map. */
-	if ( ring_id != KCTRL_RING_ID_ALL ) {
-		res = kctrl_map_enter( u, ring_id, 0 );
-		if ( res < 0 )
-			goto err_close;
-	}
-	else {
-		for ( ctrl = 0; ctrl < ring_N; ctrl++ ) {
-			res = kctrl_map_enter( u, ctrl, ctrl );
-			if ( res < 0 )
-				goto err_close;
-		}
-	}
+	res = kctrl_map_enter( u, 0, 0 );
+	if ( res < 0 )
+		goto err_close;
 
 	return 0;
 
