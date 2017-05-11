@@ -1,3 +1,5 @@
+#define KERN
+
 #include "attribute.h"
 #include <linux/kobject.h>
 #include <linux/mm.h>
@@ -676,14 +678,20 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 		}
 	}
 
-	/* Use the first page as the "last written," which is our sentinal. */
-	r->control.head->head = 1;
-	r->control.head->tail = 1;
-	r->control.head->stack = 1;
+	/* Use the first page as the stack sential. */
+	r->control.head->head = 0;
+	r->control.head->tail = 0;
+	r->control.head->stack = 0;
 
-	for ( i = 3; i < KCTRL_NPAGES; i++ )
-		r->control.descriptor[i].next = i - 1;
-	r->control.head->free = KCTRL_NPAGES - 1;
+	r->control.descriptor[0].next = KCTRL_NULL;
+
+	/* Link item 1 through to the last into the free list. */
+	r->control.head->free = 1;
+	for ( i = 1; i < KCTRL_NPAGES - 1; i++ )
+		r->control.descriptor[i].next = i + 1;
+
+	/* Terminate the free list. */
+	r->control.descriptor[KCTRL_NPAGES-1].next = KCTRL_NULL;
 
 	for ( i = 0; i < KCTRL_READERS; i++ )
 		r->reader[i].allocated = false;

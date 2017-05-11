@@ -1,15 +1,14 @@
 #ifndef __KCTRL_H
 #define __KCTRL_H
 
-
 /*
- * Two Part:
- *  1. Allocate buffers using desctriptors to claim, skipping over long-held
- *      buffers.
+ * Three Part:
+ *  1. Writer allocates buffers using a free list.
  *
- *  2. Atomic append to linked link list of messages.
+ *  2. Writer atomically pushes to stack of messages.
+ *
+ *  3. Reader reverses stack before reading
  */
-
 
 #if defined(__cplusplus)
 extern "C" {
@@ -22,6 +21,8 @@ extern "C" {
 
 #define KCTRL_PGOFF_CTRL 0
 #define KCTRL_PGOFF_DATA 1
+
+#define KCTRL_NULL KCTRL_NPAGES
 
 /*
  * Memap identity information. 
@@ -267,18 +268,18 @@ static inline int kctrl_plain_max_data(void)
 
 char *kctrl_error( struct kctrl_user *u, int err );
 
-static inline void *kctrl_page_data( struct kctrl_user *u, int ctrl, kctrl_off_t off )
+static inline void *kctrl_page_data( struct kctrl_user *u, kctrl_off_t off )
 {
 	if ( u->socket < 0 )
 		return u->pd[KCTRL_INDEX(off)].m;
 	else
-		return u->data[ctrl].page + KCTRL_INDEX(off);
+		return u->data->page + KCTRL_INDEX(off);
 }
 
 static inline int kctrl_avail_impl( struct kctrl_control *control )
 {
-	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != 0 ||
-			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != 0 )
+	if ( control->descriptor[ KCTRL_INDEX(control->head->head) ].next != KCTRL_NULL ||
+			control->descriptor[ KCTRL_INDEX(control->head->stack) ].next != KCTRL_NULL )
 		return 1;
 
 	return 0;
@@ -308,12 +309,12 @@ again:
 
 static inline void kctrl_reverse_stack( struct kctrl_user *u )
 {
-	kctrl_off_t prev = 0, next, stack;
+	kctrl_off_t prev, next, stack;
 
 	/* Go forward from stack, reversing. */
-	prev = 0;
+	prev = KCTRL_NULL;
 	stack = u->control->head->stack;
-	while ( stack != 0 ) {
+	while ( stack != KCTRL_NULL ) {
 		next = u->control->descriptor[ KCTRL_INDEX(stack) ].next;
 
 		u->control->descriptor[ KCTRL_INDEX(stack) ].next = prev;
@@ -338,7 +339,7 @@ static inline void *kctrl_next_generic( struct kctrl_user *u )
 	kctrl_push_to_free_list( u, head );
 
 	/* Return the new head. */
-	return kctrl_page_data( u, 0, u->control->head->head );
+	return kctrl_page_data( u, u->control->head->head );
 }
 
 static inline void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
@@ -386,7 +387,7 @@ static inline kctrl_off_t kctrl_allocate( struct kctrl_user *u )
 again:
 	/* Read the free pointer. If nothing avail then spin. */
 	free = u->control->head->free;
-	if ( free == 0 )
+	if ( free == KCTRL_NULL )
 		goto again;
 
 	next = u->control->descriptor[free].next;
@@ -402,7 +403,11 @@ again:
 	/* Success. Record where we are writing to. Clear the item's next pointer. */
 	u->control->writer[u->writer_id].wloc = free;
 
-	u->control->descriptor[KCTRL_INDEX(free)].next = 0;
+	u->control->descriptor[KCTRL_INDEX(free)].next = KCTRL_NULL;
+
+#ifndef KERN
+	// printf("allocated: %lu\n", free );
+#endif
 
 	return free;
 }
@@ -411,7 +416,7 @@ static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 {
 	kctrl_off_t free = kctrl_allocate( u );
 
-	return kctrl_page_data( u, 0, free );
+	return kctrl_page_data( u, free );
 }
 
 static inline void kctrl_push_new( struct kctrl_user *u )

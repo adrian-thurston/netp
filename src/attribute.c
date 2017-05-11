@@ -1,3 +1,5 @@
+#define KERN
+
 #include "krkern.h"
 
 struct kring

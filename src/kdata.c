@@ -1,3 +1,4 @@
+#define KERN
 #include "attribute.h"
 #include <linux/kobject.h>
 #include <linux/mm.h>
