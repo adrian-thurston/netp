@@ -412,7 +412,7 @@ static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 
 	wq = &r->reader_waitqueue;
 
-	ret = wait_event_interruptible( *wq, kctrl_kern_avail( r, krs ) );
+	ret = wait_event_interruptible( *wq, r->ring[krs->ring_id].control.head->free != KCTRL_NULL );
 
 	if ( ret == -ERESTARTSYS ) {
 		/* Interrupted by a signal. */
