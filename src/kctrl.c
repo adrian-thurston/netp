@@ -449,10 +449,12 @@ static void kctrl_sock_destruct( struct sock *sk )
 
 	switch ( krs->mode ) {
 		case KCTRL_WRITE: {
+			krs->ringset->ring[krs->ring_id].writer[krs->writer_id].allocated = false;
 			krs->ringset->ring[krs->ring_id].num_writers -= 1;
 			break;
 		}
 		case KCTRL_READ: {
+			krs->ringset->ring[krs->ring_id].num_readers -= 1;
 
 			/* One ring or all? */
 			if ( krs->ring_id != KCTRL_RING_ID_ALL ) {
