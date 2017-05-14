@@ -5,6 +5,12 @@
 #include "kctrl.h"
 
 #include <linux/skbuff.h>
+#include <linux/kobject.h>
+#include <linux/mm.h>
+#include <linux/socket.h>
+#include <linux/skbuff.h>
+#include <net/sock.h>
+#include <asm/cacheflush.h>
 
 /*
  * Data.
@@ -129,6 +135,18 @@ void kctrl_ring_free( struct kctrl_ring *r );
 
 struct kctrl_ringset *kctrl_find_ring( const char *name );
 struct kdata_ringset *kdata_find_ring( const char *name );
+
+/*
+ * Common.
+ */
+
+/* General. */
+void kring_copy_name( char *dest, const char *src );
+
+/* Sockets. */
+int kring_ioctl( struct socket *sock, unsigned int cmd, unsigned long arg );
+unsigned int kring_poll( struct file *file, struct socket *sock, poll_table *wait );
+int kring_setsockopt( struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen );
 
 
 #endif

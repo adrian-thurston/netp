@@ -13,8 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.c"
-
 char *kdata_error( struct kdata_user *u, int err )
 {
 	int len;
@@ -136,7 +134,7 @@ int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset,
 	u->ring_id = ring_id;
 	u->mode = mode;
 
-	kdata_copy_name( addr.name, ringset );
+	kring_copy_name( addr.name, ringset );
 	addr.ring_id = ring_id;
 	addr.mode = mode;
 

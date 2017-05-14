@@ -1,6 +1,8 @@
 #define KERN
 
 #include "attribute.h"
+#include "krkern.h"
+
 #include <linux/kobject.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -8,16 +10,12 @@
 #include <net/sock.h>
 #include <asm/cacheflush.h>
 
-#include "krkern.h"
 
 static int kctrl_sock_release( struct socket *sock );
 static int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
 static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma );
 static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len);
-static unsigned int kctrl_poll(struct file *file, struct socket *sock, poll_table * wait);
-static int kctrl_setsockopt( struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen);
 static int kctrl_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen);
-static int kctrl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags );
 static int kctrl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len );
 
@@ -28,10 +26,10 @@ static struct proto_ops kctrl_ops = {
 	.release = kctrl_sock_release,
 	.bind = kctrl_bind,
 	.mmap = kctrl_sock_mmap,
-	.poll = kctrl_poll,
-	.setsockopt = kctrl_setsockopt,
+	.poll = kring_poll,
+	.setsockopt = kring_setsockopt,
 	.getsockopt = kctrl_getsockopt,
-	.ioctl = kctrl_ioctl,
+	.ioctl = kring_ioctl,
 	.recvmsg = kctrl_recvmsg,
 	.sendmsg = kctrl_sendmsg,
 
@@ -325,18 +323,6 @@ static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	return 0;
 }
 
-unsigned int kctrl_poll(struct file *file, struct socket *sock, poll_table * wait)
-{
-	printk( "kctrl_poll\n" );
-	return 0;
-}
-
-static int kctrl_setsockopt(struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen)
-{
-	printk( "kctrl_setsockopt\n" );
-	return 0;
-}
-
 static int kctrl_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen )
 {
 	int len;
@@ -373,17 +359,6 @@ static int kctrl_getsockopt( struct socket *sock, int level, int optname, char _
 	if ( copy_to_user( optval, data, len) )
 		return -EFAULT;
 	return 0;
-}
-
-static int kctrl_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
-{
-	printk( "kctrl_ioctl\n" );
-	return 0;
-}
-
-static int kctrl_kern_avail( struct kctrl_ringset *r, struct kctrl_sock *krs )
-{
-	return kctrl_avail_impl( &r->ring[krs->ring_id].control );
 }
 
 int kctrl_kavail( struct kctrl_kern *kring )

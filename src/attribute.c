@@ -16,6 +16,30 @@ void kctrl_exit(void);
 static struct kdata_ringset *head_data = 0;
 static struct kctrl_ringset *head_cmd = 0;
 
+int kring_ioctl( struct socket *sock, unsigned int cmd, unsigned long arg )
+{
+	printk( "kring_ioctl\n" );
+	return 0;
+}
+
+unsigned int kring_poll( struct file *file, struct socket *sock, poll_table *wait )
+{
+	printk( "kring_poll\n" );
+	return 0;
+}
+
+int kring_setsockopt( struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen )
+{
+	printk( "kring_setsockopt\n" );
+	return 0;
+}
+
+void kring_copy_name( char *dest, const char *src )
+{
+	strncpy( dest, src, KRING_NLEN );
+	dest[KRING_NLEN-1] = 0;
+}
+
 struct kctrl_ringset *kctrl_find_ring( const char *name )
 {
 	struct kctrl_ringset *r = head_cmd;

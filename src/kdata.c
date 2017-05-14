@@ -8,16 +8,12 @@
 #include <asm/cacheflush.h>
 
 #include "krkern.h"
-#include "common.c"
 
 static int kdata_sock_release( struct socket *sock );
 static int kdata_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
 static int kdata_sock_mmap(struct file *file, struct socket *sock, struct vm_area_struct *vma );
 static int kdata_bind(struct socket *sock, struct sockaddr *sa, int addr_len);
-static unsigned int kdata_poll(struct file *file, struct socket *sock, poll_table * wait);
-static int kdata_setsockopt(struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen);
 static int kdata_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen);
-static int kdata_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 static int kdata_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags );
 static int kdata_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len );
 
@@ -28,10 +24,10 @@ static struct proto_ops kdata_ops = {
 	.release = kdata_sock_release,
 	.bind = kdata_bind,
 	.mmap = kdata_sock_mmap,
-	.poll = kdata_poll,
-	.setsockopt = kdata_setsockopt,
+	.poll = kring_poll,
+	.setsockopt = kring_setsockopt,
 	.getsockopt = kdata_getsockopt,
-	.ioctl = kdata_ioctl,
+	.ioctl = kring_ioctl,
 	.recvmsg = kdata_recvmsg,
 	.sendmsg = kdata_sendmsg,
 
@@ -319,18 +315,6 @@ static int kdata_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	return 0;
 }
 
-unsigned int kdata_poll(struct file *file, struct socket *sock, poll_table * wait)
-{
-	printk( "kdata_poll\n" );
-	return 0;
-}
-
-static int kdata_setsockopt(struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen)
-{
-	printk( "kdata_setsockopt\n" );
-	return 0;
-}
-
 static int kdata_getsockopt( struct socket *sock, int level, int optname, char __user *optval, int __user *optlen )
 {
 	int len;
@@ -366,12 +350,6 @@ static int kdata_getsockopt( struct socket *sock, int level, int optname, char _
 
 	if ( copy_to_user( optval, data, len) )
 		return -EFAULT;
-	return 0;
-}
-
-static int kdata_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
-{
-	printk( "kdata_ioctl\n" );
 	return 0;
 }
 
@@ -518,7 +496,7 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
-	kdata_copy_name( kring->name, rsname );
+	kring_copy_name( kring->name, rsname );
 	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 

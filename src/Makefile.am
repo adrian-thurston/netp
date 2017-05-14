@@ -4,7 +4,7 @@ lib_LTLIBRARIES = libkring.la
 
 kmod_DATA = kring.ko
 
-libkring_la_SOURCES = libdata.c libctrl.c
+libkring_la_SOURCES = libkring.c libdata.c libctrl.c
 
 pkgdata_DATA = Module.symvers
 
