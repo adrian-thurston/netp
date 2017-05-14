@@ -1,4 +1,5 @@
-#include "kctrl.h"
+#include "kring.h"
+#include "libkring.h"
 
 #include <string.h>
 #include <sys/types.h>
@@ -26,25 +27,25 @@ char *kctrl_error( struct kctrl_user *u, int err )
 
 	prefix = "<unknown>";
 	switch ( err ) {
-		case KCTRL_ERR_SOCK:
+		case KRING_ERR_SOCK:
 			prefix = "socket call failed";
 			break;
-		case KCTRL_ERR_MMAP:
+		case KRING_ERR_MMAP:
 			prefix = "mmap call failed";
 			break;
-		case KCTRL_ERR_BIND:
+		case KRING_ERR_BIND:
 			prefix = "bind call failed";
 			break;
-		case KCTRL_ERR_READER_ID:
+		case KRING_ERR_READER_ID:
 			prefix = "getsockopt(reader_id) call failed";
 			break;
-		case KCTRL_ERR_WRITER_ID:
+		case KRING_ERR_WRITER_ID:
 			prefix = "getsockopt(writer_id) call failed";
 			break;
-		case KCTRL_ERR_RING_N:
+		case KRING_ERR_RING_N:
 			prefix = "getsockopt(ring_n) call failed";
 			break;
-		case KCTRL_ERR_ENTER:
+		case KRING_ERR_ENTER:
 			prefix = "exception in ring entry";
 			break;
 	}
@@ -78,7 +79,7 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 	return (
 		( ( ring_id << KCTRL_PGOFF_ID_SHIFT )    & KCTRL_PGOFF_ID_MASK ) |
 		( ( region << KCTRL_PGOFF_REGION_SHIFT ) & KCTRL_PGOFF_REGION_MASK )
-	) * KCTRL_PAGE_SIZE;
+	) * KRING_PAGE_SIZE;
 }
 
 static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
@@ -91,7 +92,7 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 			cons_pgoff( ring_id, KCTRL_PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
-		kctrl_func_error( KCTRL_ERR_MMAP, errno );
+		kctrl_func_error( KRING_ERR_MMAP, errno );
 		return -1;
 	}
 
@@ -105,16 +106,16 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 			cons_pgoff( ring_id, KCTRL_PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
-		kctrl_func_error( KCTRL_ERR_MMAP, errno );
+		kctrl_func_error( KRING_ERR_MMAP, errno );
 		return -1;
 	}
 
-	u->data[ctrl].page = (struct kctrl_page*)r;
+	u->data[ctrl].page = (struct kring_page*)r;
 
 	if ( u->mode == KCTRL_READ ) {
 		res = kctrl_prep_enter( &u->control[ctrl], u->reader_id );
 		if ( res < 0 ) {
-			kctrl_func_error( KCTRL_ERR_ENTER, 0 );
+			kctrl_func_error( KRING_ERR_ENTER, 0 );
 			return -1;
 		}
 	}
@@ -133,7 +134,7 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 
 	u->socket = socket( KCTRL, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( u->socket < 0 ) {
-		kctrl_func_error( KCTRL_ERR_SOCK, errno );
+		kctrl_func_error( KRING_ERR_SOCK, errno );
 		goto err_return;
 	}
 
@@ -146,14 +147,14 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 
 	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
 	if ( res < 0 ) {
-		kctrl_func_error( KCTRL_ERR_BIND, errno );
+		kctrl_func_error( KRING_ERR_BIND, errno );
 		goto err_close;
 	}
 
 	/* Get the number of rings in the ringset. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RING_N, &ring_N, &nlen );
 	if ( res < 0 ) {
-		kctrl_func_error( KCTRL_ERR_RING_N, errno );
+		kctrl_func_error( KRING_ERR_RING_N, errno );
 		goto err_close;
 	}
 	u->nrings = ring_N;
@@ -161,7 +162,7 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 	/* Get the writer_id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_WRITER_ID, &writer_id, &idlen );
 	if ( res < 0 ) {
-		kctrl_func_error( KCTRL_ERR_WRITER_ID, errno );
+		kctrl_func_error( KRING_ERR_WRITER_ID, errno );
 		goto err_close;
 	}
 	u->writer_id = writer_id;
@@ -169,7 +170,7 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 	/* Get the reader id we were assigned. */
 	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );
 	if ( res < 0 ) {
-		kctrl_func_error( KCTRL_ERR_READER_ID, errno );
+		kctrl_func_error( KRING_ERR_READER_ID, errno );
 		goto err_close;
 	}
 	u->reader_id = reader_id;
@@ -182,8 +183,8 @@ int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset,
 	u->control = (struct kctrl_control*)malloc( sizeof( struct kctrl_control ) * to_alloc );
 	memset( u->control, 0, sizeof( struct kctrl_control ) * to_alloc );
 
-	u->data = (struct kctrl_data*)malloc( sizeof( struct kctrl_data ) * to_alloc );
-	memset( u->data, 0, sizeof( struct kctrl_data ) * to_alloc );
+	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
+	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
 
 	u->pd = 0;
 

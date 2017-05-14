@@ -1,5 +1,5 @@
-#include "kdata.h"
-#include <string.h>
+#include "kring.h"
+#include "libkring.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -72,7 +72,7 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 	return (
 		( ( ring_id << KDATA_PGOFF_ID_SHIFT )    & KDATA_PGOFF_ID_MASK ) |
 		( ( region << KDATA_PGOFF_REGION_SHIFT ) & KDATA_PGOFF_REGION_MASK )
-	) * KDATA_PAGE_SIZE;
+	) * KRING_PAGE_SIZE;
 }
 
 static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
@@ -103,7 +103,7 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 		return -1;
 	}
 
-	u->data[ctrl].page = (struct kdata_page*)r;
+	u->data[ctrl].page = (struct kring_page*)r;
 
 	if ( u->mode == KRING_READ ) {
 		res = kdata_prep_enter( &u->control[ctrl], u->reader_id );
@@ -178,8 +178,8 @@ int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset,
 	u->control = (struct kdata_control*)malloc( sizeof( struct kdata_control ) * to_alloc );
 	memset( u->control, 0, sizeof( struct kdata_control ) * to_alloc );
 
-	u->data = (struct kdata_data*)malloc( sizeof( struct kdata_data ) * to_alloc );
-	memset( u->data, 0, sizeof( struct kdata_data ) * to_alloc );
+	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
+	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
 
 	u->pd = 0;
 

@@ -14,6 +14,8 @@
 extern "C" {
 #endif
 
+#include "krdep.h"
+
 #define KCTRL 20
 #define KCTRL_NPAGES 2048
 
@@ -28,8 +30,6 @@ extern "C" {
  * Memap identity information. 
  */
 
-/* Ring id (5), region to map (1) */
-
 /* Must match region shift below. */
 #define KCTRL_MAX_RINGS_PER_SET 32
 
@@ -41,35 +41,6 @@ extern "C" {
 
 #define KCTRL_RING_ID_ALL -1
 
-/* MUST match system page size. */
-#define KCTRL_PAGE_SIZE 4096
-
-/*
- * Argument for non-wrapping offsets, allowing lockless multiple writers and
- * readers.
- *
- * ( 2 ^ 64 * 4096 * 8 ) / ( 1024 * 1024 * 1024 * 1024 ) / ( 60 * 60 * 24 * 360 )
- * = 17674 years
- *
- * DATA      = ( IDX * page-size * bits )
- * 1tbit/s   = ( 1024 * 1024 * 1024 * 1024 )
- * year      = ( sec * min * hour * days ) 
- */
-
-#define KCTRL_DSC_READER_SHIFT    2
-#define KCTRL_DSC_WRITER_OWNED    0x01
-#define KCTRL_DSC_SKIPPED         0x02
-#define KCTRL_DSC_READER_OWNED    0xfc
-#define KCTRL_DSC_READER_BIT(id)  ( 0x1 << ( KCTRL_DSC_READER_SHIFT + (id) ) )
-
-#define KCTRL_ERR_SOCK       -1
-#define KCTRL_ERR_MMAP       -2
-#define KCTRL_ERR_BIND       -3
-#define KCTRL_ERR_READER_ID  -4
-#define KCTRL_ERR_WRITER_ID  -5
-#define KCTRL_ERR_RING_N     -6
-#define KCTRL_ERR_ENTER      -7
-
 /* Direction: from client, or from server. */
 #define KCTRL_DIR_CLIENT 1
 #define KCTRL_DIR_SERVER 2
@@ -78,11 +49,8 @@ extern "C" {
 #define KCTRL_DIR_OUTSIDE 2
 
 #define KCTRL_NLEN 32
-#define KCTRL_READERS 6
 #define KCTRL_WRITERS 6
-
-/* Configurable at allocation time. This specifies the maximum. */
-#define KCTRL_MAX_WRITERS_PER_RING 32
+#define KCTRL_READERS 1
 
 #define KR_OPT_WRITER_ID 1
 #define KR_OPT_READER_ID 2
@@ -131,17 +99,6 @@ struct kctrl_shared_desc
 	kctrl_off_t next;
 };
 
-struct kctrl_page_desc
-{
-	struct page *p;
-	void *m;
-};
-
-struct kctrl_page
-{
-	char d[KCTRL_PAGE_SIZE];
-};
-
 #define KCTRL_CTRL_SZ ( \
 	sizeof(struct kctrl_shared_head) + \
 	sizeof(struct kctrl_shared_writer) * KCTRL_WRITERS + \
@@ -154,7 +111,8 @@ struct kctrl_page
 #define KCTRL_CTRL_OFF_READER KCTRL_CTRL_OFF_WRITER + sizeof(struct kctrl_shared_writer) * KCTRL_WRITERS
 #define KCTRL_CTRL_OFF_DESC   KCTRL_CTRL_OFF_READER + sizeof(struct kctrl_shared_reader) * KCTRL_READERS
 
-#define KCTRL_DATA_SZ KCTRL_PAGE_SIZE * KCTRL_NPAGES
+#define KCTRL_DATA_SZ \
+	( KRING_PAGE_SIZE * KCTRL_NPAGES )
 
 struct kctrl_control
 {
@@ -162,11 +120,6 @@ struct kctrl_control
 	struct kctrl_shared_writer *writer;
 	struct kctrl_shared_reader *reader;
 	struct kctrl_shared_desc *descriptor;
-};
-
-struct kctrl_data
-{
-	struct kctrl_page *page;
 };
 
 struct kctrl_shared
@@ -184,13 +137,15 @@ struct kctrl_user
 	int reader_id;
 	enum KCTRL_MODE mode;
 
+	/* If reading from multiple rings then this can be an array. */
 	struct kctrl_control *control;
 
 	/* When used in user space we use the data pointer, which points to the
 	 * mmapped region. In the kernel we use pd, which points to the array of
-	 * pages+memory pointers. Must be interpreted according to socket value. */
-	struct kctrl_data *data;
-	struct kctrl_page_desc *pd;
+	 * (pages + memory pointers. Must be interpreted according to socket value. */
+	struct kring_data *data;
+
+	struct kring_page_desc *pd;
 
 	int krerr;
 	int _errno;
@@ -256,17 +211,17 @@ void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *plain );
 
 static inline int kctrl_packet_max_data(void)
 {
-	return KCTRL_PAGE_SIZE - sizeof(struct kctrl_packet_header);
+	return KRING_PAGE_SIZE - sizeof(struct kctrl_packet_header);
 }
 
 static inline int kctrl_decrypted_max_data(void)
 {
-	return KCTRL_PAGE_SIZE - sizeof(struct kctrl_decrypted_header);
+	return KRING_PAGE_SIZE - sizeof(struct kctrl_decrypted_header);
 }
 
 static inline int kctrl_plain_max_data(void)
 {
-	return KCTRL_PAGE_SIZE - sizeof(struct kctrl_plain_header);
+	return KRING_PAGE_SIZE - sizeof(struct kctrl_plain_header);
 }
 
 char *kctrl_error( struct kctrl_user *u, int err );

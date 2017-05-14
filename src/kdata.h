@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "krdep.h"
+
 #define KDATA 25
 #define KDATA_NPAGES 2048
 
@@ -28,22 +30,12 @@ extern "C" {
 
 #define KDATA_RING_ID_ALL -1
 
-/* MUST match system page size. */
-#define KDATA_PAGE_SIZE 4096
 
 #define KDATA_DSC_READER_SHIFT    2
 #define KDATA_DSC_WRITER_OWNED    0x01
 #define KDATA_DSC_SKIPPED         0x02
 #define KDATA_DSC_READER_OWNED    0xfc
 #define KDATA_DSC_READER_BIT(id)  ( 0x1 << ( KDATA_DSC_READER_SHIFT + (id) ) )
-
-#define KRING_ERR_SOCK       -1
-#define KRING_ERR_MMAP       -2
-#define KRING_ERR_BIND       -3
-#define KRING_ERR_READER_ID  -4
-#define KRING_ERR_WRITER_ID  -5
-#define KRING_ERR_RING_N     -6
-#define KRING_ERR_ENTER      -7
 
 /* Direction: from client, or from server. */
 #define KDATA_DIR_CLIENT 1
@@ -110,17 +102,6 @@ struct kdata_shared_desc
 	kdata_desc_t desc;
 };
 
-struct kdata_page_desc
-{
-	struct page *p;
-	void *m;
-};
-
-struct kdata_page
-{
-	char d[KDATA_PAGE_SIZE];
-};
-
 #define KRING_CTRL_SZ ( \
 	sizeof(struct kdata_shared_head) + \
 	sizeof(struct kdata_shared_writer) * KDATA_WRITERS + \
@@ -133,7 +114,7 @@ struct kdata_page
 #define KRING_CTRL_OFF_READER KRING_CTRL_OFF_WRITER + sizeof(struct kdata_shared_writer) * KDATA_WRITERS
 #define KRING_CTRL_OFF_DESC   KRING_CTRL_OFF_READER + sizeof(struct kdata_shared_reader) * KDATA_READERS
 
-#define KRING_DATA_SZ KDATA_PAGE_SIZE * KDATA_NPAGES
+#define KRING_DATA_SZ KRING_PAGE_SIZE * KDATA_NPAGES
 
 struct kdata_control
 {
@@ -143,10 +124,6 @@ struct kdata_control
 	struct kdata_shared_desc *descriptor;
 };
 
-struct kdata_data
-{
-	struct kdata_page *page;
-};
 
 struct kdata_shared
 {
@@ -168,8 +145,8 @@ struct kdata_user
 	/* When used in user space we use the data pointer, which points to the
 	 * mmapped region. In the kernel we use pd, which points to the array of
 	 * pages+memory pointers. Must be interpreted according to socket value. */
-	struct kdata_data *data;
-	struct kdata_page_desc *pd;
+	struct kring_data *data;
+	struct kring_page_desc *pd;
 
 	int krerr;
 	int _errno;
@@ -232,17 +209,17 @@ int kdata_read_wait( struct kdata_user *u );
 
 static inline int kdata_packet_max_data(void)
 {
-	return KDATA_PAGE_SIZE - sizeof(struct kdata_packet_header);
+	return KRING_PAGE_SIZE - sizeof(struct kdata_packet_header);
 }
 
 static inline int kdata_decrypted_max_data(void)
 {
-	return KDATA_PAGE_SIZE - sizeof(struct kdata_decrypted_header);
+	return KRING_PAGE_SIZE - sizeof(struct kdata_decrypted_header);
 }
 
 static inline int kdata_plain_max_data(void)
 {
-	return KDATA_PAGE_SIZE - sizeof(struct kdata_plain_header);
+	return KRING_PAGE_SIZE - sizeof(struct kdata_plain_header);
 }
 
 char *kdata_error( struct kdata_user *u, int err );

@@ -4,4 +4,13 @@
 #include "kdata.h"
 #include "kctrl.h"
 
+#define KRING_ERR_SOCK       -1
+#define KRING_ERR_MMAP       -2
+#define KRING_ERR_BIND       -3
+#define KRING_ERR_READER_ID  -4
+#define KRING_ERR_WRITER_ID  -5
+#define KRING_ERR_RING_N     -6
+#define KRING_ERR_ENTER      -7
+
+
 #endif

@@ -8,7 +8,7 @@ libkring_la_SOURCES = libkring.c libdata.c libctrl.c
 
 pkgdata_DATA = Module.symvers
 
-pkginclude_HEADERS = kring.h krkern.h kdata.h kctrl.h
+pkginclude_HEADERS = kring.h krdep.h krkern.h kdata.h kctrl.h
 
 EXTRA_DIST = kring.gf attribute.c attribute.h kring.h kdata.c kdata.h kctrl.c kctrl.h
 

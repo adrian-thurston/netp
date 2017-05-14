@@ -10,7 +10,6 @@
 #include <net/sock.h>
 #include <asm/cacheflush.h>
 
-
 static int kctrl_sock_release( struct socket *sock );
 static int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
 static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma );
@@ -118,8 +117,8 @@ static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 
 	switch ( region  ) {
 		case KCTRL_PGOFF_CTRL: {
-			printk( "mapping control region %p of ring %p-%lu\n", r->ring[ring_id].ctrl, r, ring_id );
-			remap_vmalloc_range( vma, r->ring[ring_id].ctrl, 0 );
+			printk( "mapping control region %p of ring %p-%lu\n", r->ring[ring_id].ring.ctrl, r, ring_id );
+			remap_vmalloc_range( vma, r->ring[ring_id].ring.ctrl, 0 );
 			break;
 		}
 
@@ -128,7 +127,7 @@ static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 			unsigned long uaddr = vma->vm_start;
 			printk( "mapping data region %lu of ring %p-%lu\n", uaddr, r, ring_id );
 			for ( i = 0; i < KCTRL_NPAGES; i++ ) {
-				vm_insert_page( vma, uaddr, r->ring[ring_id].pd[i].p );
+				vm_insert_page( vma, uaddr, r->ring[ring_id].ring.pd[i].p );
 				uaddr += PAGE_SIZE;
 			}
 
@@ -173,7 +172,7 @@ static int kctrl_allocate_reader_on_ring( struct kctrl_ring *ring )
 
 	/* Search for a reader id that is free on the ring requested. */
 	for ( reader_id = 0; reader_id < KCTRL_READERS; reader_id++ ) {
-		if ( !ring->reader[reader_id].allocated )
+		if ( !ring->ring.reader[reader_id].allocated )
 			break;
 	}
 
@@ -183,8 +182,8 @@ static int kctrl_allocate_reader_on_ring( struct kctrl_ring *ring )
 	}
 
 	/* All okay. */
-	ring->reader[reader_id].allocated = true;
-	ring->num_readers += 1;
+	ring->ring.reader[reader_id].allocated = true;
+	ring->ring.num_readers += 1;
 
 	return reader_id;
 }
@@ -196,7 +195,7 @@ static int kctrl_allocate_reader_all_rings( struct kctrl_ringset *ringset )
 	/* Search for a single reader id that is free across all the rings requested. */
 	for ( reader_id = 0; reader_id < KCTRL_READERS; reader_id++ ) {
 		for ( i = 0; i < ringset->nrings; i++ ) {
-			if ( ringset->ring[i].reader[reader_id].allocated )
+			if ( ringset->ring[i].ring.reader[reader_id].allocated )
 				goto next_id;
 		}
 
@@ -214,8 +213,8 @@ static int kctrl_allocate_reader_all_rings( struct kctrl_ringset *ringset )
 	
 	/* Allocate reader ids, increas reader count. */
 	for ( i = 0; i < ringset->nrings; i++ ) {
-		ringset->ring[i].reader[reader_id].allocated = true;
-		ringset->ring[i].num_readers += 1;
+		ringset->ring[i].ring.reader[reader_id].allocated = true;
+		ringset->ring[i].ring.num_readers += 1;
 	}
 	
 	return reader_id;
@@ -230,7 +229,7 @@ again:
 
 	/* Search for a writer id that is free on the ring requested. */
 	for ( writer_id = 0; writer_id < KCTRL_WRITERS; writer_id++ ) {
-		if ( !ring->writer[writer_id].allocated )
+		if ( !ring->ring.writer[writer_id].allocated )
 			break;
 	}
 
@@ -240,11 +239,11 @@ again:
 	}
 
 	/* All okay. */
-	orig = __sync_val_compare_and_swap( &ring->writer[writer_id].allocated, 0, 1 );
+	orig = __sync_val_compare_and_swap( &ring->ring.writer[writer_id].allocated, 0, 1 );
 	if ( orig != 0 )
 		goto again;
 
-	ring->num_writers += 1;
+	ring->ring.num_writers += 1;
 
 	return writer_id;
 }
@@ -424,18 +423,18 @@ static void kctrl_sock_destruct( struct sock *sk )
 
 	switch ( krs->mode ) {
 		case KCTRL_WRITE: {
-			krs->ringset->ring[krs->ring_id].writer[krs->writer_id].allocated = false;
-			krs->ringset->ring[krs->ring_id].num_writers -= 1;
+			krs->ringset->ring[krs->ring_id].ring.writer[krs->writer_id].allocated = false;
+			krs->ringset->ring[krs->ring_id].ring.num_writers -= 1;
 			break;
 		}
 		case KCTRL_READ: {
-			krs->ringset->ring[krs->ring_id].num_readers -= 1;
+			krs->ringset->ring[krs->ring_id].ring.num_readers -= 1;
 
 			/* One ring or all? */
 			if ( krs->ring_id != KCTRL_RING_ID_ALL ) {
 				// struct kctrl_control *control = &krs->ringset->ring[krs->ring_id].control;
 
-				krs->ringset->ring[krs->ring_id].reader[krs->reader_id].allocated = false;
+				krs->ringset->ring[krs->ring_id].ring.reader[krs->reader_id].allocated = false;
 
 				// if ( control->reader[krs->reader_id].entered ) {
 				//	kctrl_off_t prev = control->reader[krs->reader_id].rhead;
@@ -446,7 +445,7 @@ static void kctrl_sock_destruct( struct sock *sk )
 				for ( i = 0; i < krs->ringset->nrings; i++ ) {
 					// struct kctrl_control *control = &krs->ringset->ring[i].control;
 
-					krs->ringset->ring[i].reader[krs->reader_id].allocated = false;
+					krs->ringset->ring[i].ring.reader[krs->reader_id].allocated = false;
 
 					// if ( control->reader[krs->reader_id].entered ) {
 					//	kctrl_off_t prev = control->reader[krs->reader_id].rhead;
@@ -530,7 +529,7 @@ int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KCTRL_MODE m
 	kring->user.socket = -1;
 	kring->user.control = &ringset->ring[ring_id].control;
 	kring->user.data = 0;
-	kring->user.pd = ringset->ring[ring_id].pd;
+	kring->user.pd = ringset->ring[ring_id].ring.pd;
 	kring->user.mode = mode;
 	kring->user.ring_id = ring_id;
 	kring->user.reader_id = reader_id;
@@ -542,7 +541,7 @@ int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KCTRL_MODE m
 
 int kctrl_kclose( struct kctrl_kern *kring )
 {
-	kring->ringset->ring[kring->ring_id].num_writers -= 1;
+	kring->ringset->ring[kring->ring_id].ring.num_writers -= 1;
 	return 0;
 }
 
@@ -612,7 +611,7 @@ void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
 
 	h = (struct kctrl_plain_header*) kctrl_next_generic( &kring->user );
 
-	wake_up_interruptible_all( &kring->ringset->ring[kring->ring_id].reader_waitqueue );
+	wake_up_interruptible_all( &kring->ringset->ring[kring->ring_id].ring.waitqueue );
 
 	plain->len = h->len;
 	plain->bytes = (unsigned char*)(h + 1);
@@ -636,21 +635,21 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 {
 	int i;
 
-	r->ctrl = kctrl_alloc_shared_memory( KCTRL_CTRL_SZ );
+	r->ring.ctrl = kctrl_alloc_shared_memory( KCTRL_CTRL_SZ );
 
-	r->control.head = r->ctrl + KCTRL_CTRL_OFF_HEAD;
-	r->control.writer = r->ctrl + KCTRL_CTRL_OFF_WRITER;
-	r->control.reader = r->ctrl + KCTRL_CTRL_OFF_READER;
-	r->control.descriptor = r->ctrl + KCTRL_CTRL_OFF_DESC;
+	r->control.head = r->ring.ctrl + KCTRL_CTRL_OFF_HEAD;
+	r->control.writer = r->ring.ctrl + KCTRL_CTRL_OFF_WRITER;
+	r->control.reader = r->ring.ctrl + KCTRL_CTRL_OFF_READER;
+	r->control.descriptor = r->ring.ctrl + KCTRL_CTRL_OFF_DESC;
 
-	r->num_writers = 0;
-	r->num_readers = 0;
+	r->ring.num_writers = 0;
+	r->ring.num_readers = 0;
 
-	r->pd = kmalloc( sizeof(struct kctrl_page_desc) * KCTRL_NPAGES, GFP_KERNEL );
+	r->ring.pd = kmalloc( sizeof(struct kring_page_desc) * KCTRL_NPAGES, GFP_KERNEL );
 	for ( i = 0; i < KCTRL_NPAGES; i++ ) {
-		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
-		if ( r->pd[i].p ) {
-			r->pd[i].m = page_address(r->pd[i].p);
+		r->ring.pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
+		if ( r->ring.pd[i].p ) {
+			r->ring.pd[i].m = page_address(r->ring.pd[i].p);
 		}
 		else {
 			printk( "alloc_page for ring allocation failed\n" );
@@ -673,9 +672,9 @@ static void kctrl_ring_alloc( struct kctrl_ring *r )
 	r->control.descriptor[KCTRL_NPAGES-1].next = KCTRL_NULL;
 
 	for ( i = 0; i < KCTRL_READERS; i++ )
-		r->reader[i].allocated = false;
+		r->ring.reader[i].allocated = false;
 
-	init_waitqueue_head( &r->reader_waitqueue );
+	init_waitqueue_head( &r->ring.waitqueue );
 }
 
 void kctrl_ringset_alloc( struct kctrl_ringset *r, const char *name, long nrings )
@@ -702,10 +701,10 @@ void kctrl_ring_free( struct kctrl_ring *r )
 {
 	int i;
 	for ( i = 0; i < KCTRL_NPAGES; i++ )
-		__free_page( r->pd[i].p );
+		__free_page( r->ring.pd[i].p );
 
-	kctrl_free_shared_memory( r->ctrl );
-	kfree( r->pd );
+	kctrl_free_shared_memory( r->ring.ctrl );
+	kfree( r->ring.pd );
 }
 
 

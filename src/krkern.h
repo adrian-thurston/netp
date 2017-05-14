@@ -13,36 +13,54 @@
 #include <asm/cacheflush.h>
 
 /*
- * Data.
+ * Common
  */
 
-struct kdata_ring_reader
+struct kring_ring_reader
 {
 	bool allocated;
 };
 
-struct kdata_ring_writer
+struct kring_ring_writer
 {
 	bool allocated;
 };
 
-struct kdata_ring
+struct kring_ring
 {
-	void *ctrl;
-	struct kdata_control control;
-	struct kdata_page_desc *pd;
-	
 	int num_readers;
 	int num_writers;
 
-	struct kdata_ring_reader reader[KDATA_READERS];
-	struct kdata_ring_writer writer[KDATA_WRITERS];
+	struct kring_ring_reader reader[KDATA_READERS];
+	struct kring_ring_writer writer[KDATA_WRITERS];
 
-	wait_queue_head_t reader_waitqueue;
+	void *ctrl;
+	struct kring_page_desc *pd;
+
+	wait_queue_head_t waitqueue;
+};
+
+struct kring_ringset
+{
+
+};
+
+/*
+ * Data.
+ */
+
+struct kdata_ring
+{
+	struct kring_ring ring;
+
+	struct kdata_control control;
+
 };
 
 struct kdata_ringset
 {
+	struct kring_ring ringset;
+
 	char name[KRING_NLEN];
 	wait_queue_head_t reader_waitqueue;
 
@@ -72,33 +90,18 @@ void kring_ring_free( struct kdata_ring *r );
  * Command.
  */
 
-struct kctrl_ring_reader
-{
-	bool allocated;
-};
-
-struct kctrl_ring_writer
-{
-	bool allocated;
-};
-
 struct kctrl_ring
 {
-	void *ctrl;
+	struct kring_ring ring;
+
 	struct kctrl_control control;
-	struct kctrl_page_desc *pd;
-	
-	int num_readers;
-	int num_writers;
 
-	struct kctrl_ring_reader reader[KCTRL_READERS];
-	struct kctrl_ring_writer writer[KCTRL_WRITERS];
-
-	wait_queue_head_t reader_waitqueue;
 };
 
 struct kctrl_ringset
 {
+	struct kring_ring ringset;
+
 	char name[KCTRL_NLEN];
 	wait_queue_head_t reader_waitqueue;
 
