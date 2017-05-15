@@ -20,4 +20,12 @@ struct kring_data
 	struct kring_page *page;
 };
 
+struct kring_control
+{
+	void *head;
+	void *writer;
+	void *reader;
+	void *descriptor;
+};
+
 #endif

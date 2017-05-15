@@ -124,13 +124,6 @@ struct kdata_control
 	struct kdata_shared_desc *descriptor;
 };
 
-
-struct kdata_shared
-{
-	struct kdata_control *control;
-	struct kdata_data *data;
-};
-
 struct kdata_user
 {
 	int socket;

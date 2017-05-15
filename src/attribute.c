@@ -44,7 +44,7 @@ struct kctrl_ringset *kctrl_find_ring( const char *name )
 {
 	struct kctrl_ringset *r = head_cmd;
 	while ( r != 0 ) {
-		if ( strcmp( r->name, name ) == 0 )
+		if ( strcmp( r->ringset.name, name ) == 0 )
 			return r;
 
 		r = r->next;
@@ -57,7 +57,7 @@ struct kdata_ringset *kdata_find_ring( const char *name )
 {
 	struct kdata_ringset *r = head_data;
 	while ( r != 0 ) {
-		if ( strcmp( r->name, name ) == 0 )
+		if ( strcmp( r->ringset.name, name ) == 0 )
 			return r;
 
 		r = r->next;
@@ -70,7 +70,7 @@ struct kdata_ringset *kdata_find_ring( const char *name )
 static void kring_ringset_free( struct kdata_ringset *r )
 {
 	int i;
-	for ( i = 0; i < r->nrings; i++ )
+	for ( i = 0; i < r->ringset.nrings; i++ )
 		kring_ring_free( &r->ring[i] );
 	kfree( r->ring );
 }
@@ -87,7 +87,7 @@ static void kring_free_ringsets( struct kdata_ringset *head )
 static void kctrl_ringset_free( struct kctrl_ringset *r )
 {
 	int i;
-	for ( i = 0; i < r->nrings; i++ )
+	for ( i = 0; i < r->ringset.nrings; i++ )
 		kctrl_ring_free( &r->ring[i] );
 	kfree( r->ring );
 }

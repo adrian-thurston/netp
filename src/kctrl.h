@@ -122,12 +122,6 @@ struct kctrl_control
 	struct kctrl_shared_desc *descriptor;
 };
 
-struct kctrl_shared
-{
-	struct kctrl_control *control;
-	struct kctrl_data *data;
-};
-
 struct kctrl_user
 {
 	int socket;

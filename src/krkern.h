@@ -38,34 +38,33 @@ struct kring_ring
 	struct kring_page_desc *pd;
 
 	wait_queue_head_t waitqueue;
+
+	struct kring_control control_;
 };
 
 struct kring_ringset
 {
-
+	char name[KRING_NLEN];
+	wait_queue_head_t waitqueue;
+	int nrings;
 };
 
 /*
  * Data.
  */
 
+#define KDATA_CONTROL(p) ( (struct kdata_control*) &((p).ring.control_) )
+
 struct kdata_ring
 {
 	struct kring_ring ring;
-
-	struct kdata_control control;
-
 };
 
 struct kdata_ringset
 {
-	struct kring_ring ringset;
-
-	char name[KRING_NLEN];
-	wait_queue_head_t reader_waitqueue;
+	struct kring_ringset ringset;
 
 	struct kdata_ring *ring;
-	int nrings;
 
 	struct kdata_ringset *next;
 };
@@ -90,23 +89,18 @@ void kring_ring_free( struct kdata_ring *r );
  * Command.
  */
 
+#define KCTRL_CONTROL(p) ((struct kctrl_control*) &((p).ring.control_))
+
 struct kctrl_ring
 {
 	struct kring_ring ring;
-
-	struct kctrl_control control;
-
 };
 
 struct kctrl_ringset
 {
-	struct kring_ring ringset;
-
-	char name[KCTRL_NLEN];
-	wait_queue_head_t reader_waitqueue;
+	struct kring_ringset ringset;
 
 	struct kctrl_ring *ring;
-	int nrings;
 
 	struct kctrl_ringset *next;
 };

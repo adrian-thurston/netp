@@ -103,7 +103,7 @@ static int kdata_sock_mmap( struct file *file, struct socket *sock, struct vm_ar
 	
 	decon_pgoff( vma->vm_pgoff, &ring_id, &region );
 
-	if ( ring_id > r->nrings ) {
+	if ( ring_id > r->ringset.nrings ) {
 		printk( "kdata mmap: error: rid > r->nrings\n" );
 		return -EINVAL;
 	}
@@ -193,7 +193,7 @@ static int kdata_allocate_reader_all_rings( struct kdata_ringset *ringset )
 
 	/* Search for a single reader id that is free across all the rings requested. */
 	for ( reader_id = 0; reader_id < KDATA_READERS; reader_id++ ) {
-		for ( i = 0; i < ringset->nrings; i++ ) {
+		for ( i = 0; i < ringset->ringset.nrings; i++ ) {
 			if ( ringset->ring[i].ring.reader[reader_id].allocated )
 				goto next_id;
 		}
@@ -211,7 +211,7 @@ static int kdata_allocate_reader_all_rings( struct kdata_ringset *ringset )
 	good: {}
 	
 	/* Allocate reader ids, increas reader count. */
-	for ( i = 0; i < ringset->nrings; i++ ) {
+	for ( i = 0; i < ringset->ringset.nrings; i++ ) {
 		ringset->ring[i].ring.reader[reader_id].allocated = true;
 		ringset->ring[i].ring.num_readers += 1;
 	}
@@ -270,7 +270,7 @@ static int kdata_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	}
 
 	if ( addr->ring_id != KDATA_RING_ID_ALL &&
-			( addr->ring_id < 0 || addr->ring_id >= ringset->nrings ) )
+			( addr->ring_id < 0 || addr->ring_id >= ringset->ringset.nrings ) )
 	{
 		printk( "kdata_bind: bad ring id %d\n", addr->ring_id );
 		return -EINVAL;
@@ -335,7 +335,7 @@ static int kdata_getsockopt( struct socket *sock, int level, int optname, char _
 
 	switch ( optname ) {
 		case KR_OPT_RING_N:
-			val = krs->ringset->nrings;
+			val = krs->ringset->ringset.nrings;
 			break;
 		case KR_OPT_READER_ID:
 			val = krs->reader_id;
@@ -356,11 +356,11 @@ static int kdata_getsockopt( struct socket *sock, int level, int optname, char _
 static int kdata_kern_avail( struct kdata_ringset *r, struct kdata_sock *krs )
 {
 	if ( krs->ring_id != KDATA_RING_ID_ALL )
-		return kdata_avail_impl( &r->ring[krs->ring_id].control, krs->reader_id );
+		return kdata_avail_impl( KDATA_CONTROL(r->ring[krs->ring_id]), krs->reader_id );
 	else {
 		int ring;
-		for ( ring = 0; ring < r->nrings; ring++ ) {
-			if ( kdata_avail_impl( &r->ring[ring].control, krs->reader_id ) )
+		for ( ring = 0; ring < r->ringset.nrings; ring++ ) {
+			if ( kdata_avail_impl( KDATA_CONTROL(r->ring[ring]), krs->reader_id ) )
 				return 1;
 		}
 		return 0;
@@ -386,7 +386,7 @@ static int kdata_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 	// wq = krs->ring_id == KRING_RING_ID_ALL ? &r->reader_waitqueue 
 	// : &r->ring[krs->ring_id].reader_waitqueue;
 
-	wq = &r->reader_waitqueue;
+	wq = &r->ringset.waitqueue;
 
 	ret = wait_event_interruptible( *wq, kdata_kern_avail( r, krs ) );
 
@@ -406,7 +406,7 @@ static int kdata_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 {
 	struct kdata_sock *krs = kdata_sk( sock->sk );
 	struct kdata_ringset *r = krs->ringset;
-	wake_up_interruptible_all( &r->reader_waitqueue );
+	wake_up_interruptible_all( &r->ringset.waitqueue );
 	return 0;
 }
 
@@ -432,7 +432,7 @@ static void kdata_sock_destruct( struct sock *sk )
 
 			/* One ring or all? */
 			if ( krs->ring_id != KDATA_RING_ID_ALL ) {
-				struct kdata_control *control = &krs->ringset->ring[krs->ring_id].control;
+				struct kdata_control *control = KDATA_CONTROL(krs->ringset->ring[krs->ring_id]);
 
 				krs->ringset->ring[krs->ring_id].ring.reader[krs->reader_id].allocated = false;
 
@@ -442,8 +442,8 @@ static void kdata_sock_destruct( struct sock *sk )
 				}
 			}
 			else {
-				for ( i = 0; i < krs->ringset->nrings; i++ ) {
-					struct kdata_control *control = &krs->ringset->ring[i].control;
+				for ( i = 0; i < krs->ringset->ringset.nrings; i++ ) {
+					struct kdata_control *control = KDATA_CONTROL(krs->ringset->ring[i]);
 
 					krs->ringset->ring[i].ring.reader[krs->reader_id].allocated = false;
 
@@ -493,7 +493,7 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 	if ( ringset == 0 )
 		return -1;
 	
-	if ( ring_id < 0 || ring_id >= ringset->nrings )
+	if ( ring_id < 0 || ring_id >= ringset->ringset.nrings )
 		return -1;
 
 	kring_copy_name( kring->name, rsname );
@@ -520,7 +520,7 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 		if ( reader_id < 0 )
 			return reader_id;
 
-		/*res = */kdata_prep_enter( &ringset->ring[ring_id].control, 0 );
+		/*res = */kdata_prep_enter( KDATA_CONTROL(ringset->ring[ring_id]), 0 );
 		//if ( res < 0 ) {
 		//	kdata_func_error( KRING_ERR_ENTER, 0 );
 		//	return -1;
@@ -529,14 +529,14 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 
 	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
 	kring->user.socket = -1;
-	kring->user.control = &ringset->ring[ring_id].control;
+	kring->user.control = KDATA_CONTROL(ringset->ring[ring_id]);
 	kring->user.data = 0;
 	kring->user.pd = ringset->ring[ring_id].ring.pd;
 	kring->user.mode = mode;
 	kring->user.ring_id = ring_id;
 	kring->user.reader_id = reader_id;
 	kring->user.writer_id = writer_id;
-	kring->user.nrings = ringset->nrings;
+	kring->user.nrings = ringset->ringset.nrings;
 
 	return 0;
 }
@@ -567,7 +567,7 @@ static void kdata_write_single( struct kdata_kern *kring, int dir,
 	kdata_write_SECOND( &kring->user );
 
 	/* track the number of packets produced. Note we don't account for overflow. */
-	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
+	__sync_add_and_fetch( &KDATA_CONTROL( r->ring[kring->ring_id] )->head->produced, 1 );
 
 	#if 0
 	for ( id = 0; id < KRING_READERS; id++ ) {
@@ -583,7 +583,7 @@ static void kdata_write_single( struct kdata_kern *kring, int dir,
 	}
 	#endif
 
-	wake_up_interruptible_all( &r->reader_waitqueue );
+	wake_up_interruptible_all( &r->ringset.waitqueue );
 }
 
 void kdata_kwrite( struct kdata_kern *kring, int dir, const struct sk_buff *skb )
@@ -610,10 +610,11 @@ void kdata_kwrite( struct kdata_kern *kring, int dir, const struct sk_buff *skb 
 int kdata_kavail( struct kdata_kern *kring )
 {
 	struct kdata_ring *ring = &kring->ringset->ring[kring->ring_id];
+	struct kdata_control *control = KDATA_CONTROL( *ring );
 	int reader_id = 0;
 
 	return ring->ring.num_writers > 0 &&
-		( ring->control.reader[reader_id].rhead != ring->control.head->whead );
+		( control->reader[reader_id].rhead != control->head->whead );
 }
 
 void kdata_knext_plain( struct kdata_kern *kring, struct kdata_plain *plain )
@@ -646,10 +647,10 @@ static void kring_ring_alloc( struct kdata_ring *r )
 
 	r->ring.ctrl = kdata_alloc_shared_memory( KRING_CTRL_SZ );
 
-	r->control.head = r->ring.ctrl + KRING_CTRL_OFF_HEAD;
-	r->control.writer = r->ring.ctrl + KRING_CTRL_OFF_WRITER;
-	r->control.reader = r->ring.ctrl + KRING_CTRL_OFF_READER;
-	r->control.descriptor = r->ring.ctrl + KRING_CTRL_OFF_DESC;
+	KDATA_CONTROL(*r)->head = r->ring.ctrl + KRING_CTRL_OFF_HEAD;
+	KDATA_CONTROL(*r)->writer = r->ring.ctrl + KRING_CTRL_OFF_WRITER;
+	KDATA_CONTROL(*r)->reader = r->ring.ctrl + KRING_CTRL_OFF_READER;
+	KDATA_CONTROL(*r)->descriptor = r->ring.ctrl + KRING_CTRL_OFF_DESC;
 
 	r->ring.num_writers = 0;
 	r->ring.num_readers = 0;
@@ -665,7 +666,7 @@ static void kring_ring_alloc( struct kdata_ring *r )
 		}
 	}
 
-	r->control.head->whead = r->control.head->wresv = kdata_prev( 0 );
+	KDATA_CONTROL(*r)->head->whead = KDATA_CONTROL(*r)->head->wresv = kdata_prev( 0 );
 
 	for ( i = 0; i < KDATA_READERS; i++ )
 		r->ring.reader[i].allocated = false;
@@ -679,10 +680,10 @@ void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long nrings
 
 	printk( "allocating %ld rings\n", nrings );
 
-	strncpy( r->name, name, KRING_NLEN );
-	r->name[KRING_NLEN-1] = 0;
+	strncpy( r->ringset.name, name, KRING_NLEN );
+	r->ringset.name[KRING_NLEN-1] = 0;
 
-	r->nrings = nrings;
+	r->ringset.nrings = nrings;
 
 	r->ring = kmalloc( sizeof(struct kdata_ring) * nrings, GFP_KERNEL );
 	memset( r->ring, 0, sizeof(struct kdata_ring) * nrings  );
@@ -690,7 +691,7 @@ void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long nrings
 	for ( i = 0; i < nrings; i++ )
 		kring_ring_alloc( &r->ring[i] );
 
-	init_waitqueue_head( &r->reader_waitqueue );
+	init_waitqueue_head( &r->ringset.waitqueue );
 }
 
 
