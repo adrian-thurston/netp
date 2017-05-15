@@ -45,34 +45,23 @@ struct kring_ring
 struct kring_ringset
 {
 	char name[KRING_NLEN];
+	struct kring_ring *ring;
 	wait_queue_head_t waitqueue;
 	int nrings;
+
+	struct kring_ringset *next;
 };
 
 /*
  * Data.
  */
 
-#define KDATA_CONTROL(p) ( (struct kdata_control*) &((p).ring.control_) )
-
-struct kdata_ring
-{
-	struct kring_ring ring;
-};
-
-struct kdata_ringset
-{
-	struct kring_ringset ringset;
-
-	struct kdata_ring *ring;
-
-	struct kdata_ringset *next;
-};
+#define KDATA_CONTROL(p) ( (struct kdata_control*) &((p).control_) )
 
 struct kdata_kern
 {
 	char name[KRING_NLEN];
-	struct kdata_ringset *ringset;
+	struct kring_ringset *ringset;
 	int ring_id;
 	int writer_id;
 	struct kdata_user user;
@@ -83,32 +72,18 @@ int kdata_kclose( struct kdata_kern *kdata );
 void kdata_kwrite( struct kdata_kern *kdata, int dir, const struct sk_buff *skb );
 int kdata_kavail( struct kdata_kern *kdata );
 void kdata_knext_plain( struct kdata_kern *kdata, struct kdata_plain *plain );
-void kring_ring_free( struct kdata_ring *r );
+void kring_ring_free( struct kring_ring *r );
 
 /*
  * Command.
  */
 
-#define KCTRL_CONTROL(p) ((struct kctrl_control*) &((p).ring.control_))
-
-struct kctrl_ring
-{
-	struct kring_ring ring;
-};
-
-struct kctrl_ringset
-{
-	struct kring_ringset ringset;
-
-	struct kctrl_ring *ring;
-
-	struct kctrl_ringset *next;
-};
+#define KCTRL_CONTROL(p) ((struct kctrl_control*) &((p).control_))
 
 struct kctrl_kern
 {
 	char name[KCTRL_NLEN];
-	struct kctrl_ringset *ringset;
+	struct kring_ringset *ringset;
 	int ring_id;
 	int writer_id;
 	struct kctrl_user user;
@@ -122,16 +97,16 @@ int kctrl_kavail( struct kctrl_kern *kring );
 
 void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain );
 
-void kctrl_ringset_alloc( struct kctrl_ringset *r, const char *name, long nrings );
-void kring_ringset_alloc( struct kdata_ringset *r, const char *name, long nrings );
+void kctrl_ringset_alloc( struct kring_ringset *r, const char *name, long nrings );
+void kring_ringset_alloc( struct kring_ringset *r, const char *name, long nrings );
 
-void kctrl_add_ringset( struct kctrl_ringset **phead, struct kctrl_ringset *set );
-void kctrl_free_ringsets( struct kctrl_ringset *head );
+void kctrl_add_ringset( struct kring_ringset **phead, struct kring_ringset *set );
+void kctrl_free_ringsets( struct kring_ringset *head );
 
-void kctrl_ring_free( struct kctrl_ring *r );
+void kctrl_ring_free( struct kring_ring *r );
 
-struct kctrl_ringset *kctrl_find_ring( const char *name );
-struct kdata_ringset *kdata_find_ring( const char *name );
+struct kring_ringset *kctrl_find_ring( const char *name );
+struct kring_ringset *kdata_find_ring( const char *name );
 
 /*
  * Common.
