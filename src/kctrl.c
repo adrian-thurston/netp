@@ -18,6 +18,8 @@ static int kctrl_getsockopt( struct socket *sock, int level, int optname, char _
 static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags );
 static int kctrl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len );
 
+static void kctrl_init_control( struct kring_ring *ring );
+
 static struct proto_ops kctrl_ops = {
 	.family = KCTRL,
 	.owner = THIS_MODULE,
@@ -40,6 +42,24 @@ static struct proto_ops kctrl_ops = {
 	.listen = sock_no_listen,
 	.shutdown = sock_no_shutdown,
 	.sendpage = sock_no_sendpage,
+};
+
+struct kring_params kctrl_params =
+{
+	KCTRL_NPAGES,
+
+	KCTRL_CTRL_SZ,
+
+	KCTRL_CTRL_OFF_HEAD,
+	KCTRL_CTRL_OFF_WRITER,
+	KCTRL_CTRL_OFF_READER,
+	KCTRL_CTRL_OFF_DESC,
+
+	KCTRL_DATA_SZ,
+
+	KCTRL_READERS,
+
+	&kctrl_init_control,
 };
 
 struct kctrl_sock
@@ -617,47 +637,10 @@ void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
 	plain->bytes = (unsigned char*)(h + 1);
 }
 
-static void *kctrl_alloc_shared_memory( int size )
+static void kctrl_init_control( struct kring_ring *ring )
 {
-	void *mem;
-	size = PAGE_ALIGN(size);
-	mem = vmalloc_user(size);
-	memset( mem, 0, size );
-	return mem;
-}
-
-static void kctrl_free_shared_memory( void *m )
-{
-	vfree(m);
-}
-
-static void kctrl_ring_alloc( struct kring_ring *r )
-{
-	struct kctrl_control *control;
+	struct kctrl_control *control = KCTRL_CONTROL( *ring );
 	int i;
-
-	r->ctrl = kctrl_alloc_shared_memory( KCTRL_CTRL_SZ );
-
-	control = KCTRL_CONTROL( *r );
-
-	control->head = r->ctrl + KCTRL_CTRL_OFF_HEAD;
-	control->writer = r->ctrl + KCTRL_CTRL_OFF_WRITER;
-	control->reader = r->ctrl + KCTRL_CTRL_OFF_READER;
-	control->descriptor = r->ctrl + KCTRL_CTRL_OFF_DESC;
-
-	r->num_writers = 0;
-	r->num_readers = 0;
-
-	r->pd = kmalloc( sizeof(struct kring_page_desc) * KCTRL_NPAGES, GFP_KERNEL );
-	for ( i = 0; i < KCTRL_NPAGES; i++ ) {
-		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
-		if ( r->pd[i].p ) {
-			r->pd[i].m = page_address(r->pd[i].p);
-		}
-		else {
-			printk( "alloc_page for ring allocation failed\n" );
-		}
-	}
 
 	/* Use the first page as the stack sential. */
 	control->head->head = 0;
@@ -673,55 +656,8 @@ static void kctrl_ring_alloc( struct kring_ring *r )
 
 	/* Terminate the free list. */
 	control->descriptor[KCTRL_NPAGES-1].next = KCTRL_NULL;
-
-	for ( i = 0; i < KCTRL_READERS; i++ )
-		r->reader[i].allocated = false;
-
-	init_waitqueue_head( &r->waitqueue );
 }
 
-void kctrl_ringset_alloc( struct kring_ringset *r, const char *name, long nrings )
-{
-	int i;
-
-	printk( "allocating %ld rings\n", nrings );
-
-	strncpy( r->name, name, KCTRL_NLEN );
-	r->name[KCTRL_NLEN-1] = 0;
-
-	r->nrings = nrings;
-
-	r->ring = kmalloc( sizeof(struct kring_ring) * nrings, GFP_KERNEL );
-	memset( r->ring, 0, sizeof(struct kring_ring) * nrings  );
-
-	for ( i = 0; i < nrings; i++ )
-		kctrl_ring_alloc( &r->ring[i] );
-
-	init_waitqueue_head( &r->waitqueue );
-}
-
-void kctrl_ring_free( struct kring_ring *r )
-{
-	int i;
-	for ( i = 0; i < KCTRL_NPAGES; i++ )
-		__free_page( r->pd[i].p );
-
-	kctrl_free_shared_memory( r->ctrl );
-	kfree( r->pd );
-}
-
-void kctrl_add_ringset( struct kring_ringset **phead, struct kring_ringset *set )
-{
-	if ( *phead == 0 )
-		*phead = set;
-	else {
-		struct kring_ringset *tail = *phead;
-		while ( tail->next != 0 )
-			tail = tail->next;
-		tail->next = set;
-	}
-	set->next = 0;
-}
 
 int kctrl_init(void)
 {

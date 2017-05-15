@@ -102,19 +102,19 @@ struct kdata_shared_desc
 	kdata_desc_t desc;
 };
 
-#define KRING_CTRL_SZ ( \
+#define KDATA_CTRL_SZ ( \
 	sizeof(struct kdata_shared_head) + \
 	sizeof(struct kdata_shared_writer) * KDATA_WRITERS + \
 	sizeof(struct kdata_shared_reader) * KDATA_READERS + \
 	sizeof(struct kdata_shared_desc) * KDATA_NPAGES \
 )
 	
-#define KRING_CTRL_OFF_HEAD   0
-#define KRING_CTRL_OFF_WRITER KRING_CTRL_OFF_HEAD + sizeof(struct kdata_shared_head)
-#define KRING_CTRL_OFF_READER KRING_CTRL_OFF_WRITER + sizeof(struct kdata_shared_writer) * KDATA_WRITERS
-#define KRING_CTRL_OFF_DESC   KRING_CTRL_OFF_READER + sizeof(struct kdata_shared_reader) * KDATA_READERS
+#define KDATA_CTRL_OFF_HEAD   0
+#define KDATA_CTRL_OFF_WRITER KDATA_CTRL_OFF_HEAD + sizeof(struct kdata_shared_head)
+#define KDATA_CTRL_OFF_READER KDATA_CTRL_OFF_WRITER + sizeof(struct kdata_shared_writer) * KDATA_WRITERS
+#define KDATA_CTRL_OFF_DESC   KDATA_CTRL_OFF_READER + sizeof(struct kdata_shared_reader) * KDATA_READERS
 
-#define KRING_DATA_SZ KRING_PAGE_SIZE * KDATA_NPAGES
+#define KDATA_DATA_SZ KRING_PAGE_SIZE * KDATA_NPAGES
 
 struct kdata_control
 {

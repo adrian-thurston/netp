@@ -39,7 +39,25 @@ struct kring_ring
 
 	wait_queue_head_t waitqueue;
 
-	struct kring_control control_;
+	struct kring_control _control_;
+};
+
+struct kring_params
+{
+	const int npages;
+
+	const int ctrl_sz;
+
+	const int ctrl_off_head;
+	const int ctrl_off_writer;
+	const int ctrl_off_reader;
+	const int ctrl_off_desc;
+
+	const int data_sz;
+
+	const int readers;
+
+	void (*init_control)( struct kring_ring *ring );
 };
 
 struct kring_ringset
@@ -48,6 +66,7 @@ struct kring_ringset
 	struct kring_ring *ring;
 	wait_queue_head_t waitqueue;
 	int nrings;
+	struct kring_params *params;
 
 	struct kring_ringset *next;
 };
@@ -56,7 +75,7 @@ struct kring_ringset
  * Data.
  */
 
-#define KDATA_CONTROL(p) ( (struct kdata_control*) &((p).control_) )
+#define KDATA_CONTROL(p) ( (struct kdata_control*) &((p)._control_) )
 
 struct kdata_kern
 {
@@ -72,13 +91,12 @@ int kdata_kclose( struct kdata_kern *kdata );
 void kdata_kwrite( struct kdata_kern *kdata, int dir, const struct sk_buff *skb );
 int kdata_kavail( struct kdata_kern *kdata );
 void kdata_knext_plain( struct kdata_kern *kdata, struct kdata_plain *plain );
-void kring_ring_free( struct kring_ring *r );
 
 /*
  * Command.
  */
 
-#define KCTRL_CONTROL(p) ((struct kctrl_control*) &((p).control_))
+#define KCTRL_CONTROL(p) ((struct kctrl_control*) &((p)._control_))
 
 struct kctrl_kern
 {
@@ -97,13 +115,6 @@ int kctrl_kavail( struct kctrl_kern *kring );
 
 void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain );
 
-void kctrl_ringset_alloc( struct kring_ringset *r, const char *name, long nrings );
-void kring_ringset_alloc( struct kring_ringset *r, const char *name, long nrings );
-
-void kctrl_add_ringset( struct kring_ringset **phead, struct kring_ringset *set );
-void kctrl_free_ringsets( struct kring_ringset *head );
-
-void kctrl_ring_free( struct kring_ring *r );
 
 struct kring_ringset *kctrl_find_ring( const char *name );
 struct kring_ringset *kdata_find_ring( const char *name );

@@ -80,7 +80,7 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 	int res;
 	void *r;
 
-	r = mmap( 0, KRING_CTRL_SZ, PROT_READ | PROT_WRITE,
+	r = mmap( 0, KDATA_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
 			cons_pgoff( ring_id, KDATA_PGOFF_CTRL ) );
 
@@ -89,12 +89,12 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 		return -1;
 	}
 
-	u->control[ctrl].head = r + KRING_CTRL_OFF_HEAD;
-	u->control[ctrl].writer = r + KRING_CTRL_OFF_WRITER;
-	u->control[ctrl].reader = r + KRING_CTRL_OFF_READER;
-	u->control[ctrl].descriptor = r + KRING_CTRL_OFF_DESC;
+	u->control[ctrl].head = r + KDATA_CTRL_OFF_HEAD;
+	u->control[ctrl].writer = r + KDATA_CTRL_OFF_WRITER;
+	u->control[ctrl].reader = r + KDATA_CTRL_OFF_READER;
+	u->control[ctrl].descriptor = r + KDATA_CTRL_OFF_DESC;
 
-	r = mmap( 0, KRING_DATA_SZ, PROT_READ | PROT_WRITE,
+	r = mmap( 0, KDATA_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
 			cons_pgoff( ring_id, KDATA_PGOFF_DATA ) );
 

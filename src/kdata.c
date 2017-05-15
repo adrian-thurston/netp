@@ -17,6 +17,8 @@ static int kdata_getsockopt(struct socket *sock, int level, int optname, char __
 static int kdata_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags );
 static int kdata_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len );
 
+static void kdata_init_control( struct kring_ring *ring );
+
 static struct proto_ops kdata_ops = {
 	.family = KDATA,
 	.owner = THIS_MODULE,
@@ -39,6 +41,24 @@ static struct proto_ops kdata_ops = {
 	.listen = sock_no_listen,
 	.shutdown = sock_no_shutdown,
 	.sendpage = sock_no_sendpage,
+};
+
+struct kring_params kdata_params =
+{
+	KDATA_NPAGES,
+
+	KDATA_CTRL_SZ,
+
+	KDATA_CTRL_OFF_HEAD,
+	KDATA_CTRL_OFF_WRITER,
+	KDATA_CTRL_OFF_READER,
+	KDATA_CTRL_OFF_DESC,
+
+	KDATA_DATA_SZ,
+
+	KDATA_READERS,
+
+	&kdata_init_control,
 };
 
 struct kdata_sock
@@ -627,84 +647,11 @@ void kdata_knext_plain( struct kdata_kern *kring, struct kdata_plain *plain )
 	plain->bytes = (unsigned char*)(h + 1);
 }
 
-static void *kdata_alloc_shared_memory( int size )
+
+static void kdata_init_control( struct kring_ring *r )
 {
-	void *mem;
-	size = PAGE_ALIGN(size);
-	mem = vmalloc_user(size);
-	memset( mem, 0, size );
-	return mem;
-}
-
-static void kring_free_shared_memory( void *m )
-{
-	vfree( m );
-}
-
-static void kring_ring_alloc( struct kring_ring *r )
-{
-	int i;
-
-	r->ctrl = kdata_alloc_shared_memory( KRING_CTRL_SZ );
-
-	KDATA_CONTROL(*r)->head = r->ctrl + KRING_CTRL_OFF_HEAD;
-	KDATA_CONTROL(*r)->writer = r->ctrl + KRING_CTRL_OFF_WRITER;
-	KDATA_CONTROL(*r)->reader = r->ctrl + KRING_CTRL_OFF_READER;
-	KDATA_CONTROL(*r)->descriptor = r->ctrl + KRING_CTRL_OFF_DESC;
-
-	r->num_writers = 0;
-	r->num_readers = 0;
-
-	r->pd = kmalloc( sizeof(struct kring_page_desc) * KDATA_NPAGES, GFP_KERNEL );
-	for ( i = 0; i < KDATA_NPAGES; i++ ) {
-		r->pd[i].p = alloc_page( GFP_KERNEL | __GFP_ZERO );
-		if ( r->pd[i].p ) {
-			r->pd[i].m = page_address(r->pd[i].p);
-		}
-		else {
-			printk( "alloc_page for ring allocation failed\n" );
-		}
-	}
-
 	KDATA_CONTROL(*r)->head->whead = KDATA_CONTROL(*r)->head->wresv = kdata_prev( 0 );
-
-	for ( i = 0; i < KDATA_READERS; i++ )
-		r->reader[i].allocated = false;
-
-	init_waitqueue_head( &r->waitqueue );
 }
-
-void kring_ringset_alloc( struct kring_ringset *r, const char *name, long nrings )
-{
-	int i;
-
-	printk( "allocating %ld rings\n", nrings );
-
-	strncpy( r->name, name, KRING_NLEN );
-	r->name[KRING_NLEN-1] = 0;
-
-	r->nrings = nrings;
-
-	r->ring = kmalloc( sizeof(struct kring_ring) * nrings, GFP_KERNEL );
-	memset( r->ring, 0, sizeof(struct kring_ring) * nrings  );
-
-	for ( i = 0; i < nrings; i++ )
-		kring_ring_alloc( &r->ring[i] );
-
-	init_waitqueue_head( &r->waitqueue );
-}
-
-
-void kring_ring_free( struct kring_ring *r )
-{
-	int i;
-	for ( i = 0; i < KDATA_NPAGES; i++ )
-		__free_page( r->pd[i].p );
-
-	kring_free_shared_memory( r->ctrl );
-	kfree( r->pd );
-}
-
 
 int kdata_init(void)
 {
