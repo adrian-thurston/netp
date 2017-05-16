@@ -112,7 +112,7 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 
 	u->data[ctrl].page = (struct kring_page*)r;
 
-	if ( u->mode == KCTRL_READ ) {
+	if ( u->mode == KRING_READ ) {
 		res = kctrl_prep_enter( &u->control[ctrl], u->reader_id );
 		if ( res < 0 ) {
 			kctrl_func_error( KRING_ERR_ENTER, 0 );
@@ -123,7 +123,7 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, enum KCTRL_MODE mode )
+int kctrl_open( struct kctrl_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode )
 {
 	int to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);

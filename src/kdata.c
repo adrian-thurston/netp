@@ -61,25 +61,15 @@ struct kring_params kdata_params =
 	&kdata_init_control,
 };
 
-struct kdata_sock
+static inline struct kring_sock *kring_sk( const struct sock *sk )
 {
-	struct sock sk;
-	struct kring_ringset *ringset;
-	int ring_id;
-	enum KRING_MODE mode;
-	int writer_id;
-	int reader_id;
-};
-
-static inline struct kdata_sock *kdata_sk( const struct sock *sk )
-{
-	return container_of( sk, struct kdata_sock, sk );
+	return container_of( sk, struct kring_sock, sk );
 }
 
 static struct proto kdata_proto = {
 	.name = "KDATA",
 	.owner = THIS_MODULE,
-	.obj_size = sizeof(struct kdata_sock),
+	.obj_size = sizeof(struct kring_sock),
 };
 
 static struct net_proto_family kdata_family_ops = {
@@ -111,7 +101,7 @@ static void decon_pgoff( unsigned long pgoff, unsigned long *rid, unsigned long 
 
 static int kdata_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
-	struct kdata_sock *krs = kdata_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
 	unsigned long ring_id, region;
 
@@ -265,7 +255,7 @@ static int kdata_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
 	int reader_id = -1, writer_id = -1;
 	struct kdata_addr *addr = (struct kdata_addr*)sa;
-	struct kdata_sock *krs;
+	struct kring_sock *krs;
 	struct kring_ringset *ringset;
 
 	if ( addr_len != sizeof(struct kdata_addr) ) {
@@ -302,7 +292,7 @@ static int kdata_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 
-	krs = kdata_sk( sock->sk );
+	krs = kring_sk( sock->sk );
 
 	if ( addr->mode == KRING_WRITE ) {
 		/* Find a writer ID. */
@@ -340,7 +330,7 @@ static int kdata_getsockopt( struct socket *sock, int level, int optname, char _
 	int len;
 	int val, lv = sizeof(val);
 	void *data = &val;
-	struct kdata_sock *krs = kdata_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 
 	if ( level != SOL_PACKET )
 		return -ENOPROTOOPT;
@@ -373,7 +363,7 @@ static int kdata_getsockopt( struct socket *sock, int level, int optname, char _
 	return 0;
 }
 
-static int kdata_kern_avail( struct kring_ringset *r, struct kdata_sock *krs )
+static int kdata_kern_avail( struct kring_ringset *r, struct kring_sock *krs )
 {
 	if ( krs->ring_id != KDATA_RING_ID_ALL )
 		return kdata_avail_impl( KDATA_CONTROL(r->ring[krs->ring_id]), krs->reader_id );
@@ -390,7 +380,7 @@ static int kdata_kern_avail( struct kring_ringset *r, struct kdata_sock *krs )
 /* Waiting readers go to sleep with the recvmsg system call. */
 static int kdata_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
-	struct kdata_sock *krs = kdata_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
 	sigset_t blocked, oldset;
 	int ret;
@@ -424,7 +414,7 @@ static int kdata_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 /* The sendmsg system call is used for waking up waiting readers. */
 static int kdata_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
-	struct kdata_sock *krs = kdata_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
 	wake_up_interruptible_all( &r->waitqueue );
 	return 0;
@@ -432,7 +422,7 @@ static int kdata_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 
 static void kdata_sock_destruct( struct sock *sk )
 {
-	struct kdata_sock *krs = kdata_sk( sk );
+	struct kring_sock *krs = kring_sk( sk );
 	int i;
 
 	if ( krs == 0 ) {

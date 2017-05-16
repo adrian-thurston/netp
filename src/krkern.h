@@ -71,6 +71,16 @@ struct kring_ringset
 	struct kring_ringset *next;
 };
 
+struct kring_sock
+{
+	struct sock sk;
+	struct kring_ringset *ringset;
+	int ring_id;
+	enum KRING_MODE mode;
+	int writer_id;
+	int reader_id;
+};
+
 /*
  * Data.
  */
@@ -107,7 +117,7 @@ struct kctrl_kern
 	struct kctrl_user user;
 };
 
-int kctrl_kopen( struct kctrl_kern *kring, const char *ringset, enum KCTRL_MODE mode );
+int kctrl_kopen( struct kctrl_kern *kring, const char *ringset, enum KRING_MODE mode );
 int kctrl_kclose( struct kctrl_kern *kring );
 
 void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb );

@@ -60,19 +60,6 @@ extern "C" {
 #define kctrl_func_error( _ke, _ee ) \
 	do { u->krerr = _ke; u->_errno = _ee; } while (0)
 
-enum KCTRL_TYPE
-{
-	KCTRL_PACKETS = 1,
-	KCTRL_DECRYPTED,
-	KCTRL_PLAIN
-};
-
-enum KCTRL_MODE
-{
-	KCTRL_READ = 1,
-	KCTRL_WRITE
-};
-
 typedef unsigned short kctrl_desc_t;
 typedef unsigned long kctrl_off_t;
 
@@ -129,7 +116,7 @@ struct kctrl_user
 	int nrings;
 	int writer_id;
 	int reader_id;
-	enum KCTRL_MODE mode;
+	enum KRING_MODE mode;
 
 	/* If reading from multiple rings then this can be an array. */
 	struct kctrl_control *control;
@@ -150,7 +137,7 @@ struct kctrl_addr
 {
 	char name[KCTRL_NLEN];
 	int ring_id;
-	enum KCTRL_MODE mode;
+	enum KRING_MODE mode;
 };
 
 struct kctrl_packet
@@ -195,7 +182,7 @@ struct kctrl_plain_header
 	int len;
 };
 
-int kctrl_open( struct kctrl_user *u, enum KCTRL_TYPE type, const char *ringset, enum KCTRL_MODE mode );
+int kctrl_open( struct kctrl_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode );
 int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len );
 int kctrl_write_plain( struct kctrl_user *u, char *data, int len );
 int kctrl_read_wait( struct kctrl_user *u );

@@ -19,7 +19,7 @@ int ReaderThread::main()
 
 	struct kctrl_user kring;
 
-	int r = kctrl_open( &kring, KCTRL_PLAIN, "stress1", KCTRL_READ );
+	int r = kctrl_open( &kring, KRING_PLAIN, "stress1", KRING_READ );
 	if ( r < 0 ) {
 		log_ERROR( "decrypted data kring open failed: " << kctrl_error( &kring, r ) );
 		return -1;

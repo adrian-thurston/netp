@@ -62,15 +62,6 @@ struct kring_params kctrl_params =
 	&kctrl_init_control,
 };
 
-struct kctrl_sock
-{
-	struct sock sk;
-	struct kring_ringset *ringset;
-	int ring_id;
-	enum KCTRL_MODE mode;
-	int writer_id;
-	int reader_id;
-};
 
 static void kctrl_copy_name( char *dest, const char *src )
 {
@@ -78,15 +69,15 @@ static void kctrl_copy_name( char *dest, const char *src )
 	dest[KCTRL_NLEN-1] = 0;
 }
 
-static inline struct kctrl_sock *kctrl_sk( const struct sock *sk )
+static inline struct kring_sock *kring_sk( const struct sock *sk )
 {
-	return container_of( sk, struct kctrl_sock, sk );
+	return container_of( sk, struct kring_sock, sk );
 }
 
 static struct proto kctrl_proto = {
 	.name = "KCTRL",
 	.owner = THIS_MODULE,
-	.obj_size = sizeof(struct kctrl_sock),
+	.obj_size = sizeof(struct kring_sock),
 };
 
 static struct net_proto_family kctrl_family_ops = {
@@ -118,7 +109,7 @@ static void decon_pgoff( unsigned long pgoff, unsigned long *rid, unsigned long 
 
 static int kctrl_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma )
 {
-	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
 	unsigned long ring_id, region;
 
@@ -272,7 +263,7 @@ static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 {
 	int reader_id = -1, writer_id = -1;
 	struct kctrl_addr *addr = (struct kctrl_addr*)sa;
-	struct kctrl_sock *krs;
+	struct kring_sock *krs;
 	struct kring_ringset *ringset;
 
 	if ( addr_len != sizeof(struct kctrl_addr) ) {
@@ -285,7 +276,7 @@ static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 		return -EINVAL;
 	}
 	
-	if ( addr->mode != KCTRL_READ && addr->mode != KCTRL_WRITE ) {
+	if ( addr->mode != KRING_READ && addr->mode != KRING_WRITE ) {
 		printk( "kctrl_bind: bad mode, not read or write\n" );
 		return -EINVAL;
 	}
@@ -304,20 +295,20 @@ static int kctrl_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	}
 
 	/* Cannot write to all rings. */
-	if ( addr->mode == KCTRL_WRITE && addr->ring_id == KCTRL_RING_ID_ALL ) {
+	if ( addr->mode == KRING_WRITE && addr->ring_id == KCTRL_RING_ID_ALL ) {
 		printk( "kctrl_bind: cannot write to ring id ALL\n" );
 		return -EINVAL;
 	}
 
-	krs = kctrl_sk( sock->sk );
+	krs = kring_sk( sock->sk );
 
-	if ( addr->mode == KCTRL_WRITE ) {
+	if ( addr->mode == KRING_WRITE ) {
 		/* Find a writer ID. */
 		writer_id = kctrl_allocate_writer_on_ring( &ringset->ring[addr->ring_id] );
 		if ( writer_id < 0 )
 			return writer_id;
 	}
-	else if ( addr->mode == KCTRL_READ ) {
+	else if ( addr->mode == KRING_READ ) {
 		/* Find a reader ID. */
 		if ( addr->ring_id != KCTRL_RING_ID_ALL ) {
 			/* Reader ID for ring specified. */
@@ -347,7 +338,7 @@ static int kctrl_getsockopt( struct socket *sock, int level, int optname, char _
 	int len;
 	int val, lv = sizeof(val);
 	void *data = &val;
-	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 
 	if ( level != SOL_PACKET )
 		return -ENOPROTOOPT;
@@ -388,7 +379,7 @@ int kctrl_kavail( struct kctrl_kern *kring )
 /* Waiting readers go to sleep with the recvmsg system call. */
 static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
-	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
 	sigset_t blocked, oldset;
 	int ret;
@@ -422,7 +413,7 @@ static int kctrl_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 /* The sendmsg system call is used for waking up waiting readers. */
 static int kctrl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
 {
-	struct kctrl_sock *krs = kctrl_sk( sock->sk );
+	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
 	wake_up_interruptible_all( &r->waitqueue );
 	return 0;
@@ -430,7 +421,7 @@ static int kctrl_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr
 
 static void kctrl_sock_destruct( struct sock *sk )
 {
-	struct kctrl_sock *krs = kctrl_sk( sk );
+	struct kring_sock *krs = kring_sk( sk );
 	int i;
 
 	if ( krs == 0 ) {
@@ -442,12 +433,12 @@ static void kctrl_sock_destruct( struct sock *sk )
 			krs->mode, krs->ring_id, krs->reader_id );
 
 	switch ( krs->mode ) {
-		case KCTRL_WRITE: {
+		case KRING_WRITE: {
 			krs->ringset->ring[krs->ring_id].writer[krs->writer_id].allocated = false;
 			krs->ringset->ring[krs->ring_id].num_writers -= 1;
 			break;
 		}
-		case KCTRL_READ: {
+		case KRING_READ: {
 			krs->ringset->ring[krs->ring_id].num_readers -= 1;
 
 			/* One ring or all? */
@@ -505,7 +496,7 @@ int kctrl_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	return 0;
 }
 
-int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KCTRL_MODE mode )
+int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KRING_MODE mode )
 {
 	int reader_id = -1, writer_id = -1;
 	int ring_id = 0;
@@ -518,13 +509,13 @@ int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KCTRL_MODE m
 	kring->ringset = ringset;
 	kring->ring_id = 0;
 
-	if ( mode == KCTRL_WRITE ) {
+	if ( mode == KRING_WRITE ) {
 		/* Find a writer ID. */
 		writer_id = kctrl_allocate_writer_on_ring( &ringset->ring[ring_id] );
 		if ( writer_id < 0 )
 			return writer_id;
 	}
-	else if ( mode == KCTRL_READ ) {
+	else if ( mode == KRING_READ ) {
 		/* Find a reader ID. */
 		if ( ring_id != KCTRL_RING_ID_ALL ) {
 			/* Reader ID for ring specified. */
