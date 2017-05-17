@@ -152,7 +152,7 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 
 	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
 	kring->user.socket = -1;
-	kring->user.control = KDATA_CONTROL(ringset->ring[ring_id]);
+	kring->user.control = &ringset->ring[ring_id]._control_;
 	kring->user.data = 0;
 	kring->user.pd = ringset->ring[ring_id].pd;
 	kring->user.mode = mode;

@@ -97,7 +97,7 @@ struct kdata_kern
 	struct kring_ringset *ringset;
 	int ring_id;
 	int writer_id;
-	struct kdata_user user;
+	struct kring_user user;
 };
 
 int kdata_kopen( struct kdata_kern *kdata, const char *ringset, int ring_id, enum KRING_MODE mode );
@@ -118,7 +118,7 @@ struct kctrl_kern
 	struct kring_ringset *ringset;
 	int ring_id;
 	int writer_id;
-	struct kctrl_user user;
+	struct kring_user user;
 };
 
 int kctrl_kopen( struct kctrl_kern *kring, const char *ringset, enum KRING_MODE mode );

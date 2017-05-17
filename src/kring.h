@@ -19,4 +19,5 @@ struct kring_addr
 	enum KRING_MODE mode;
 };
 
+
 #endif

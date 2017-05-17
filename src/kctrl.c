@@ -48,7 +48,7 @@ static void kctrl_copy_name( char *dest, const char *src )
 
 int kctrl_kavail( struct kctrl_kern *kring )
 {
-	return kctrl_avail_impl( kring->user.control );
+	return kctrl_avail_impl( kctrl_control(kring->user.control) );
 }
 
 static int kctrl_wait( struct kring_sock *krs )
@@ -153,7 +153,7 @@ int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KRING_MODE m
 
 	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
 	kring->user.socket = -1;
-	kring->user.control = KCTRL_CONTROL(ringset->ring[ring_id]);
+	kring->user.control = &ringset->ring[ring_id]._control_;
 	kring->user.data = 0;
 	kring->user.pd = ringset->ring[ring_id].pd;
 	kring->user.mode = mode;

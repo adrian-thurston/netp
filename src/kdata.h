@@ -59,19 +59,6 @@ extern "C" {
 #define kdata_func_error( _ke, _ee ) \
 	do { u->krerr = _ke; u->_errno = _ee; } while (0)
 
-enum KRING_TYPE
-{
-	KRING_PACKETS = 1,
-	KRING_DECRYPTED,
-	KRING_PLAIN
-};
-
-enum KRING_MODE
-{
-	KRING_READ = 1,
-	KRING_WRITE
-};
-
 typedef unsigned short kdata_desc_t;
 typedef unsigned long kdata_off_t;
 
@@ -124,28 +111,6 @@ struct kdata_control
 	struct kdata_shared_desc *descriptor;
 };
 
-struct kdata_user
-{
-	int socket;
-	int ring_id;
-	int nrings;
-	int writer_id;
-	int reader_id;
-	enum KRING_MODE mode;
-
-	struct kdata_control *control;
-
-	/* When used in user space we use the data pointer, which points to the
-	 * mmapped region. In the kernel we use pd, which points to the array of
-	 * pages+memory pointers. Must be interpreted according to socket value. */
-	struct kring_data *data;
-	struct kring_page_desc *pd;
-
-	int krerr;
-	int _errno;
-	char *errstr;
-};
-
 struct kdata_packet
 {
 	char dir;
@@ -188,10 +153,10 @@ struct kdata_plain_header
 	int len;
 };
 
-int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
-int kdata_write_decrypted( struct kdata_user *u, long id, int type, const char *remoteHost, char *data, int len );
-int kdata_write_plain( struct kdata_user *u, char *data, int len );
-int kdata_read_wait( struct kdata_user *u );
+int kdata_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
+int kdata_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len );
+int kdata_write_plain( struct kring_user *u, char *data, int len );
+int kdata_read_wait( struct kring_user *u );
 
 static inline int kdata_packet_max_data(void)
 {
@@ -208,17 +173,22 @@ static inline int kdata_plain_max_data(void)
 	return KRING_PAGE_SIZE - sizeof(struct kdata_plain_header);
 }
 
-char *kdata_error( struct kdata_user *u, int err );
+char *kdata_error( struct kring_user *u, int err );
 
-static inline unsigned long kdata_skips( struct kdata_user *u )
+static inline struct kdata_control *kdata_control( struct kring_control *control )
+{
+	return (struct kdata_control*) control;
+}
+
+static inline unsigned long kdata_skips( struct kring_user *u )
 {
 	unsigned long skips = 0;
 	if ( u->ring_id != KDATA_RING_ID_ALL )
-		skips = u->control->reader[u->reader_id].skips;
+		skips = kdata_control(u->control)->reader[u->reader_id].skips;
 	else {
 		int ring;
 		for ( ring = 0; ring < u->nrings; ring++ )
-			skips += u->control[ring].reader[u->reader_id].skips;
+			skips += kdata_control(u->control)[ring].reader[u->reader_id].skips;
 	}
 	return skips;
 }
@@ -252,7 +222,7 @@ static inline kdata_off_t kdata_whead_write_back( struct kdata_control *control,
 	return __sync_val_compare_and_swap( &control->head->whead, oldval, newval );
 }
 
-static inline void *kdata_page_data( struct kdata_user *u, int ctrl, kdata_off_t off )
+static inline void *kdata_page_data( struct kring_user *u, int ctrl, kdata_off_t off )
 {
 	if ( u->socket < 0 )
 		return u->pd[off].m;
@@ -260,14 +230,14 @@ static inline void *kdata_page_data( struct kdata_user *u, int ctrl, kdata_off_t
 		return &u->data[ctrl].page[off];
 }
 
-static inline int kdata_avail( struct kdata_user *u )
+static inline int kdata_avail( struct kring_user *u )
 {
 	if ( u->ring_id != KDATA_RING_ID_ALL )
-		return kdata_avail_impl( u->control, u->reader_id );
+		return kdata_avail_impl( kdata_control(u->control), u->reader_id );
 	else {
 		int ctrl;
 		for ( ctrl = 0; ctrl < u->nrings; ctrl++ ) {
-			if ( kdata_avail_impl( &u->control[ctrl], u->reader_id ) )
+			if ( kdata_avail_impl( &kdata_control(u->control)[ctrl], u->reader_id ) )
 				return 1;
 		}
 		return 0;
@@ -342,44 +312,44 @@ again:
 	__sync_add_and_fetch( &control->reader->consumed, 1 );
 }
 
-static inline int kdata_select_ctrl( struct kdata_user *u )
+static inline int kdata_select_ctrl( struct kring_user *u )
 {
 	if ( u->ring_id != KDATA_RING_ID_ALL )
 		return 0;
 	else {
 		int ctrl;
 		for ( ctrl = 0; ctrl < u->nrings; ctrl++ ) {
-			if ( kdata_avail_impl( &u->control[ctrl], u->reader_id ) )
+			if ( kdata_avail_impl( &kdata_control(u->control)[ctrl], u->reader_id ) )
 				return ctrl;
 		}
 		return -1;
 	}
 }
 
-static inline void *kdata_next_generic( struct kdata_user *u )
+static inline void *kdata_next_generic( struct kring_user *u )
 {
 	int ctrl = kdata_select_ctrl( u );
 
-	kdata_off_t prev = u->control[ctrl].reader[u->reader_id].rhead;
+	kdata_off_t prev = kdata_control(u->control)[ctrl].reader[u->reader_id].rhead;
 	kdata_off_t rhead = prev;
 
-	rhead = kdata_advance_rhead( &u->control[ctrl], u->reader_id, rhead );
+	rhead = kdata_advance_rhead( &kdata_control(u->control)[ctrl], u->reader_id, rhead );
 
 	/* Set the rhead. */
-	u->control[ctrl].reader[u->reader_id].rhead = rhead;
+	kdata_control(u->control)[ctrl].reader[u->reader_id].rhead = rhead;
 
 	/* Release the previous only if we have entered with a successful read. */
-	if ( u->control[ctrl].reader[u->reader_id].entered )
-		kdata_reader_release( u->reader_id, &u->control[ctrl], prev );
+	if ( kdata_control(u->control)[ctrl].reader[u->reader_id].entered )
+		kdata_reader_release( u->reader_id, &kdata_control(u->control)[ctrl], prev );
 
 	/* Indicate we have entered. */
-	u->control[ctrl].reader[u->reader_id].entered = 1;
+	kdata_control(u->control)[ctrl].reader[u->reader_id].entered = 1;
 
 	return kdata_page_data( u, ctrl, rhead );
 }
 
 
-static inline void kdata_next_packet( struct kdata_user *u, struct kdata_packet *packet )
+static inline void kdata_next_packet( struct kring_user *u, struct kdata_packet *packet )
 {
 	struct kdata_packet_header *h;
 
@@ -394,7 +364,7 @@ static inline void kdata_next_packet( struct kdata_user *u, struct kdata_packet 
 	packet->bytes = (unsigned char*)( h + 1 );
 }
 
-static inline void kdata_next_decrypted( struct kdata_user *u, struct kdata_decrypted *decrypted )
+static inline void kdata_next_decrypted( struct kring_user *u, struct kdata_decrypted *decrypted )
 {
 	struct kdata_decrypted_header *h;
 
@@ -407,7 +377,7 @@ static inline void kdata_next_decrypted( struct kdata_user *u, struct kdata_decr
 	decrypted->bytes = (unsigned char*)( h + 1 );
 }
 
-static inline void kdata_next_plain( struct kdata_user *u, struct kdata_plain *plain )
+static inline void kdata_next_plain( struct kring_user *u, struct kdata_plain *plain )
 {
 	struct kdata_plain_header *h;
 
@@ -470,15 +440,15 @@ retry:
 	}
 }
 
-static inline void *kdata_write_FIRST( struct kdata_user *u )
+static inline void *kdata_write_FIRST( struct kring_user *u )
 {
 	kdata_off_t whead;
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = kdata_find_write_loc( u->control );
+	whead = kdata_find_write_loc( kdata_control(u->control) );
 
 	/* Reserve the space. */
-	u->control->head->wresv = whead;
+	kdata_control(u->control)->head->wresv = whead;
 
 	return kdata_page_data( u, 0, whead );
 }
@@ -500,44 +470,44 @@ static inline int kdata_writer_release( struct kdata_control *control, kdata_off
 	return 0;
 }
 
-static inline void kdata_write_SECOND( struct kdata_user *u )
+static inline void kdata_write_SECOND( struct kring_user *u )
 {
 	/* Clear the writer owned bit from the buffer. */
-	kdata_writer_release( u->control, u->control->head->wresv );
+	kdata_writer_release( kdata_control(u->control), kdata_control(u->control)->head->wresv );
 
 	/* Write back the write head, thereby releasing the buffer to writer. */
-	u->control->head->whead = u->control->head->wresv;
+	kdata_control(u->control)->head->whead = kdata_control(u->control)->head->wresv;
 }
 
-static inline void kdata_update_wresv( struct kdata_user *u )
+static inline void kdata_update_wresv( struct kring_user *u )
 {
 	int w;
 	kdata_off_t wresv, before, highest;
 
 again:
-	wresv = u->control->head->wresv;
+	wresv = kdata_control(u->control)->head->wresv;
 
 	/* we are setting wresv to the highest amongst the writers. If a writer is
 	 * inactive then it's resv will be left behind and not affect this
 	 * compuation. */
 	highest = 0;
 	for ( w = 0; w < KDATA_WRITERS; w++ ) {
-		if ( u->control->writer[w].wresv > highest )
-			highest = u->control->writer[w].wresv;
+		if ( kdata_control(u->control)->writer[w].wresv > highest )
+			highest = kdata_control(u->control)->writer[w].wresv;
 	}
 
-	before = kdata_wresv_write_back( u->control, wresv, highest );
+	before = kdata_wresv_write_back( kdata_control(u->control), wresv, highest );
 	if ( before != wresv )
 		goto again;
 }
 
-static inline void kdata_update_whead( struct kdata_user *u )
+static inline void kdata_update_whead( struct kring_user *u )
 {
 	int w;
 	kdata_off_t orig, before, whead = 0, wbar = ~((kdata_off_t)0);
 
 retry:
-	orig = u->control->head->whead;
+	orig = kdata_control(u->control)->head->whead;
 
 	/* Situations a writer can be in: 
 	 *
@@ -550,15 +520,15 @@ retry:
 
 	/* First pass, find the highest write head. */
 	for ( w = 0; w < KDATA_WRITERS; w++ ) {
-		if ( u->control->writer[w].whead > whead )
-			whead = u->control->writer[w].whead;
+		if ( kdata_control(u->control)->writer[w].whead > whead )
+			whead = kdata_control(u->control)->writer[w].whead;
 	}
 
 	/* Second pass. Find the lowest barrier. */
 	for ( w = 0; w < KDATA_WRITERS; w++ ) {
-		if ( u->control->writer[w].wbar != 0 ) {
-			if ( u->control->writer[w].wbar < wbar )
-				wbar = u->control->writer[w].wbar;
+		if ( kdata_control(u->control)->writer[w].wbar != 0 ) {
+			if ( kdata_control(u->control)->writer[w].wbar < wbar )
+				wbar = kdata_control(u->control)->writer[w].wbar;
 		}
 	}
 
@@ -567,27 +537,27 @@ retry:
 	
 	/* Write back. */
 
-	before = kdata_whead_write_back( u->control, orig, whead );
+	before = kdata_whead_write_back( kdata_control(u->control), orig, whead );
 	if ( before != orig )
 		goto retry;
 }
 
-static inline void *kdata_write_FIRST_2( struct kdata_user *u )
+static inline void *kdata_write_FIRST_2( struct kring_user *u )
 {
 	/* Start at wresv. There is nothing free before this value. We cannot start
 	 * at whead because other writers may have written and release (not showing
 	 * writer owned bits, but we cannot take.*/
-	kdata_off_t whead = u->control->head->wresv;
+	kdata_off_t whead = kdata_control(u->control)->head->wresv;
 
 	/* Set the release barrier to the place where we start looking. We cannot
 	 * release past this point. */
-	u->control->writer[u->writer_id].wbar = whead;
+	kdata_control(u->control)->writer[u->writer_id].wbar = whead;
 
 	/* Find the place to write to, skipping ahead as necessary. */
-	whead = kdata_find_write_loc( u->control );
+	whead = kdata_find_write_loc( kdata_control(u->control) );
 
 	/* Private reserve. */
-	u->control->writer[u->writer_id].wresv = whead;
+	kdata_control(u->control)->writer[u->writer_id].wresv = whead;
 
 	/* Update the common wreserve. */
 	kdata_update_wresv( u );
@@ -595,17 +565,17 @@ static inline void *kdata_write_FIRST_2( struct kdata_user *u )
 	return kdata_page_data( u, 0, whead );
 }
 
-static inline void kdata_write_SECOND_2( struct kdata_user *u )
+static inline void kdata_write_SECOND_2( struct kring_user *u )
 {
 	/* Clear the writer owned bit from the buffer. */
-	kdata_writer_release( u->control, u->control->head->wresv );
+	kdata_writer_release( kdata_control(u->control), kdata_control(u->control)->head->wresv );
 
 	/* Write back to the writer's private write head, which releases the buffer
 	 * for this writer. */
-	u->control->writer[u->writer_id].whead = u->control->writer[u->writer_id].wresv;
+	kdata_control(u->control)->writer[u->writer_id].whead = kdata_control(u->control)->writer[u->writer_id].wresv;
 
 	/* Remove our release barrier. */
-	u->control->writer[u->writer_id].wbar = 0;
+	kdata_control(u->control)->writer[u->writer_id].wbar = 0;
 
 	/* Maybe release to the readers. */
 	kdata_update_whead( u );

@@ -20,7 +20,7 @@ static void copy_name( char *dest, const char *src )
 	dest[KCTRL_NLEN-1] = 0;
 }
 
-char *kctrl_error( struct kctrl_user *u, int err )
+char *kctrl_error( struct kring_user *u, int err )
 {
 	int len;
 	const char *prefix, *errnostr;
@@ -82,7 +82,7 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 	) * KRING_PAGE_SIZE;
 }
 
-static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
+static int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl )
 {
 	int res;
 	void *r;
@@ -113,7 +113,7 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 	u->data[ctrl].page = (struct kring_page*)r;
 
 	if ( u->mode == KRING_READ ) {
-		res = kctrl_prep_enter( &u->control[ctrl], u->reader_id );
+		res = kctrl_prep_enter( &kctrl_control(u->control)[ctrl], u->reader_id );
 		if ( res < 0 ) {
 			kctrl_func_error( KRING_ERR_ENTER, 0 );
 			return -1;
@@ -123,14 +123,14 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kctrl_open( struct kctrl_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode )
+int kctrl_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode )
 {
 	int to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
 	struct kring_addr addr;
 
-	memset( u, 0, sizeof(struct kctrl_user) );
+	memset( u, 0, sizeof(struct kring_user) );
 
 	u->socket = socket( KDATA, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( u->socket < 0 ) {
@@ -180,7 +180,7 @@ int kctrl_open( struct kctrl_user *u, enum KRING_TYPE type, const char *ringset,
 	 */
 	to_alloc = 1;
 
-	u->control = (struct kctrl_control*)malloc( sizeof( struct kctrl_control ) * to_alloc );
+	u->control = (struct kring_control*)malloc( sizeof( struct kctrl_control ) * to_alloc );
 	memset( u->control, 0, sizeof( struct kctrl_control ) * to_alloc );
 
 	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
@@ -218,7 +218,7 @@ void kctrl_unlock( int *mutex )
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
  */
-int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len )
+int kctrl_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len )
 {
 #if 0
 	struct kctrl_decrypted_header *h;
@@ -256,7 +256,7 @@ int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *
  * NOTE: when open for writing we always are writing to a specific ring id. No
  * need to iterate over control and data or dereference control/data pointers.
  */
-int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
+int kctrl_write_plain( struct kring_user *u, char *data, int len )
 {
 	struct kctrl_plain_header *h;
 	unsigned char *bytes;
@@ -283,7 +283,7 @@ int kctrl_write_plain( struct kctrl_user *u, char *data, int len )
 	return 0;
 }   
 
-int kctrl_read_wait( struct kctrl_user *u )
+int kctrl_read_wait( struct kring_user *u )
 {
 	char buf[1];
 	int ret = recv( u->socket, buf, 1, 1 ); 
@@ -292,7 +292,7 @@ int kctrl_read_wait( struct kctrl_user *u )
 	return ret;
 }
 
-void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
+void kctrl_next_packet( struct kring_user *u, struct kctrl_packet *packet )
 {
 	struct kctrl_packet_header *h;
 	char buf[1];
@@ -310,7 +310,7 @@ void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet )
 	packet->bytes = (unsigned char*)( h + 1 );
 }
 
-void kctrl_next_decrypted( struct kctrl_user *u, struct kctrl_decrypted *decrypted )
+void kctrl_next_decrypted( struct kring_user *u, struct kctrl_decrypted *decrypted )
 {
 	struct kctrl_decrypted_header *h;
 	char buf[1];
@@ -326,7 +326,7 @@ void kctrl_next_decrypted( struct kctrl_user *u, struct kctrl_decrypted *decrypt
 	decrypted->bytes = (unsigned char*)( h + 1 );
 }
 
-void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *plain )
+void kctrl_next_plain( struct kring_user *u, struct kctrl_plain *plain )
 {
 	struct kctrl_plain_header *h;
 	char buf[1];

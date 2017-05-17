@@ -109,30 +109,6 @@ struct kctrl_control
 	struct kctrl_shared_desc *descriptor;
 };
 
-struct kctrl_user
-{
-	int socket;
-	int ring_id;
-	int nrings;
-	int writer_id;
-	int reader_id;
-	enum KRING_MODE mode;
-
-	/* If reading from multiple rings then this can be an array. */
-	struct kctrl_control *control;
-
-	/* When used in user space we use the data pointer, which points to the
-	 * mmapped region. In the kernel we use pd, which points to the array of
-	 * (pages + memory pointers. Must be interpreted according to socket value. */
-	struct kring_data *data;
-
-	struct kring_page_desc *pd;
-
-	int krerr;
-	int _errno;
-	char *errstr;
-};
-
 struct kctrl_packet
 {
 	char dir;
@@ -175,13 +151,13 @@ struct kctrl_plain_header
 	int len;
 };
 
-int kctrl_open( struct kctrl_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode );
-int kctrl_write_decrypted( struct kctrl_user *u, long id, int type, const char *remoteHost, char *data, int len );
-int kctrl_write_plain( struct kctrl_user *u, char *data, int len );
-int kctrl_read_wait( struct kctrl_user *u );
-void kctrl_next_packet( struct kctrl_user *u, struct kctrl_packet *packet );
-void kctrl_next_decrypted( struct kctrl_user *u, struct kctrl_decrypted *decrypted );
-void kctrl_next_plain( struct kctrl_user *u, struct kctrl_plain *plain );
+int kctrl_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode );
+int kctrl_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len );
+int kctrl_write_plain( struct kring_user *u, char *data, int len );
+int kctrl_read_wait( struct kring_user *u );
+void kctrl_next_packet( struct kring_user *u, struct kctrl_packet *packet );
+void kctrl_next_decrypted( struct kring_user *u, struct kctrl_decrypted *decrypted );
+void kctrl_next_plain( struct kring_user *u, struct kctrl_plain *plain );
 
 static inline int kctrl_packet_max_data(void)
 {
@@ -198,9 +174,9 @@ static inline int kctrl_plain_max_data(void)
 	return KRING_PAGE_SIZE - sizeof(struct kctrl_plain_header);
 }
 
-char *kctrl_error( struct kctrl_user *u, int err );
+char *kctrl_error( struct kring_user *u, int err );
 
-static inline void *kctrl_page_data( struct kctrl_user *u, kctrl_off_t off )
+static inline void *kctrl_page_data( struct kring_user *u, kctrl_off_t off )
 {
 	if ( u->socket < 0 )
 		return u->pd[KCTRL_INDEX(off)].m;
@@ -217,87 +193,92 @@ static inline int kctrl_avail_impl( struct kctrl_control *control )
 	return 0;
 }
 
-static inline int kctrl_avail( struct kctrl_user *u )
+static inline struct kctrl_control *kctrl_control( struct kring_control *control )
 {
-	return kctrl_avail_impl( u->control );
+	return (struct kctrl_control*) control;
+}
+
+static inline int kctrl_avail( struct kring_user *u )
+{
+	return kctrl_avail_impl( kctrl_control( u->control ) );
 }
 
 /* Return the block to the free list. */
-static inline void kctrl_push_to_free_list( struct kctrl_user *u, kctrl_off_t head )
+static inline void kctrl_push_to_free_list( struct kring_user *u, kctrl_off_t head )
 {
 	kctrl_off_t before, free;
 
 again:
-	free = u->control->head->free;
+	free = kctrl_control(u->control)->head->free;
 
-	u->control->descriptor[KCTRL_INDEX(head)].next = free;
+	kctrl_control(u->control)->descriptor[KCTRL_INDEX(head)].next = free;
 
 	before = __sync_val_compare_and_swap(
-			&u->control->head->free, free, head );
+			&kctrl_control(u->control)->head->free, free, head );
 
 	if ( before != free )
 		goto again;
 }
 
-static inline void kctrl_reverse_stack( struct kctrl_user *u )
+static inline void kctrl_reverse_stack( struct kring_user *u )
 {
 	kctrl_off_t prev, next, stack;
 
 	/* Go forward from stack, reversing. */
 	prev = KCTRL_NULL;
-	stack = u->control->head->stack;
+	stack = kctrl_control(u->control)->head->stack;
 	while ( stack != KCTRL_NULL ) {
-		next = u->control->descriptor[ KCTRL_INDEX(stack) ].next;
+		next = kctrl_control(u->control)->descriptor[ KCTRL_INDEX(stack) ].next;
 
-		u->control->descriptor[ KCTRL_INDEX(stack) ].next = prev;
+		kctrl_control(u->control)->descriptor[ KCTRL_INDEX(stack) ].next = prev;
 
 		prev = stack;
 		stack = next;
 	}
 }
 
-static inline void *kctrl_next_generic( struct kctrl_user *u )
+static inline void *kctrl_next_generic( struct kring_user *u )
 {
 	kctrl_off_t head;
 
 	kctrl_reverse_stack( u );
 
 	/* Pull one off the head. */
-	head = u->control->head->head;
+	head = kctrl_control(u->control)->head->head;
 
-	u->control->head->head = u->control->descriptor[ KCTRL_INDEX(u->control->head->head) ].next;
+	kctrl_control(u->control)->head->head = kctrl_control(u->control)->descriptor[ KCTRL_INDEX(kctrl_control(u->control)->head->head) ].next;
 
 	/* Free the node we pulled off. */
 	kctrl_push_to_free_list( u, head );
 
 	/* Return the new head. */
-	return kctrl_page_data( u, u->control->head->head );
+	return kctrl_page_data( u, kctrl_control(u->control)->head->head );
 }
 
-static inline kctrl_off_t kctrl_allocate( struct kctrl_user *u )
+static inline kctrl_off_t kctrl_allocate( struct kring_user *u )
 {
 	volatile kctrl_off_t before, next, free;
 
 again:
 	/* Read the free pointer. If nothing avail then spin. */
-	free = u->control->head->free;
+	free = kctrl_control(u->control)->head->free;
 	if ( free == KCTRL_NULL )
 		return KCTRL_NULL;
 
-	next = u->control->descriptor[free].next;
+	next = kctrl_control(u->control)->descriptor[free].next;
 	
 	/* Attempt to rewrite the pointer to next. */
 	before = __sync_val_compare_and_swap(
-			&u->control->head->free, free, next );
+			&kctrl_control(u->control)->head->free, free, next );
 	
 	/* Try again if some other thread wrote first. */
 	if ( before != free ) 
 		goto again;
 
 	/* Success. Record where we are writing to. Clear the item's next pointer. */
-	u->control->writer[u->writer_id].wloc = free;
+	kctrl_control(u->control)->writer[u->writer_id].wloc = free;
 
-	u->control->descriptor[KCTRL_INDEX(free)].next = KCTRL_NULL;
+	kctrl_control(u->control)->descriptor[KCTRL_INDEX(free)].next = KCTRL_NULL;
 
 #ifndef KERN
 	// printf("allocated: %lu\n", free );
@@ -307,7 +288,7 @@ again:
 }
 
 /* Returns NULL if there are no free buffers in the ring. */
-static inline void *kctrl_write_FIRST( struct kctrl_user *u )
+static inline void *kctrl_write_FIRST( struct kring_user *u )
 {
 	kctrl_off_t free = kctrl_allocate( u );
 
@@ -317,25 +298,25 @@ static inline void *kctrl_write_FIRST( struct kctrl_user *u )
 	return kctrl_page_data( u, free );
 }
 
-static inline void kctrl_push_new( struct kctrl_user *u )
+static inline void kctrl_push_new( struct kring_user *u )
 {
 	volatile kctrl_off_t stack, before;
 
 again:
 	/* Move forward to the true tail. */
-	stack = u->control->head->stack;
+	stack = kctrl_control(u->control)->head->stack;
 
-	u->control->descriptor[KCTRL_INDEX(u->control->writer[u->writer_id].wloc)].next = stack;
+	kctrl_control(u->control)->descriptor[KCTRL_INDEX(kctrl_control(u->control)->writer[u->writer_id].wloc)].next = stack;
 
 	before = __sync_val_compare_and_swap(
-			&u->control->head->stack, stack,
-			u->control->writer[u->writer_id].wloc );
+			&kctrl_control(u->control)->head->stack, stack,
+			kctrl_control(u->control)->writer[u->writer_id].wloc );
 	
 	if ( before != stack )
 		goto again;
 }
 
-static inline void kctrl_write_SECOND( struct kctrl_user *u )
+static inline void kctrl_write_SECOND( struct kring_user *u )
 {
 	kctrl_push_new( u );
 }
