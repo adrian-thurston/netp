@@ -70,8 +70,8 @@ char *kdata_error( struct kdata_user *u, int err )
 static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 {
 	return (
-		( ( ring_id << KDATA_PGOFF_ID_SHIFT )    & KDATA_PGOFF_ID_MASK ) |
-		( ( region << KDATA_PGOFF_REGION_SHIFT ) & KDATA_PGOFF_REGION_MASK )
+		( ( ring_id << KRING_PGOFF_ID_SHIFT )    & KRING_PGOFF_ID_MASK ) |
+		( ( region << KRING_PGOFF_REGION_SHIFT ) & KRING_PGOFF_REGION_MASK )
 	) * KRING_PAGE_SIZE;
 }
 
@@ -82,7 +82,7 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KDATA_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, KDATA_PGOFF_CTRL ) );
+			cons_pgoff( ring_id, KRING_PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
 		kdata_func_error( KRING_ERR_MMAP, errno );
@@ -96,7 +96,7 @@ static int kdata_map_enter( struct kdata_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KDATA_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, KDATA_PGOFF_DATA ) );
+			cons_pgoff( ring_id, KRING_PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
 		kdata_func_error( KRING_ERR_MMAP, errno );
@@ -121,7 +121,7 @@ int kdata_open( struct kdata_user *u, enum KRING_TYPE type, const char *ringset,
 	int ctrl, to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
-	struct kdata_addr addr;
+	struct kring_addr addr;
 
 	memset( u, 0, sizeof(struct kdata_user) );
 

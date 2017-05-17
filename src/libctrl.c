@@ -89,7 +89,7 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KCTRL_CTRL_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, KCTRL_PGOFF_CTRL ) );
+			cons_pgoff( ring_id, KRING_PGOFF_CTRL ) );
 
 	if ( r == MAP_FAILED ) {
 		kctrl_func_error( KRING_ERR_MMAP, errno );
@@ -103,7 +103,7 @@ static int kctrl_map_enter( struct kctrl_user *u, int ring_id, int ctrl )
 
 	r = mmap( 0, KCTRL_DATA_SZ, PROT_READ | PROT_WRITE,
 			MAP_SHARED, u->socket,
-			cons_pgoff( ring_id, KCTRL_PGOFF_DATA ) );
+			cons_pgoff( ring_id, KRING_PGOFF_DATA ) );
 
 	if ( r == MAP_FAILED ) {
 		kctrl_func_error( KRING_ERR_MMAP, errno );
@@ -128,11 +128,11 @@ int kctrl_open( struct kctrl_user *u, enum KRING_TYPE type, const char *ringset,
 	int to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
 	socklen_t idlen = sizeof(reader_id);
-	struct kctrl_addr addr;
+	struct kring_addr addr;
 
 	memset( u, 0, sizeof(struct kctrl_user) );
 
-	u->socket = socket( KCTRL, SOCK_RAW, htons(ETH_P_ALL) );
+	u->socket = socket( KDATA, SOCK_RAW, htons(ETH_P_ALL) );
 	if ( u->socket < 0 ) {
 		kctrl_func_error( KRING_ERR_SOCK, errno );
 		goto err_return;

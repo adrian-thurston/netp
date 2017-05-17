@@ -1,5 +1,3 @@
-#define KERN
-
 #include "krkern.h"
 
 struct kring
@@ -8,34 +6,10 @@ struct kring
 };
 
 
-int kctrl_init(void);
-int kdata_init(void);
-void kdata_exit(void);
-void kctrl_exit(void);
-
-static struct kring_ringset *head_data = 0;
-static struct kring_ringset *head_cmd = 0;
+static struct kring_ringset *head = 0;
 
 extern struct kring_params kdata_params;
 extern struct kring_params kctrl_params;
-
-int kring_ioctl( struct socket *sock, unsigned int cmd, unsigned long arg )
-{
-	printk( "kring_ioctl\n" );
-	return 0;
-}
-
-unsigned int kring_poll( struct file *file, struct socket *sock, poll_table *wait )
-{
-	printk( "kring_poll\n" );
-	return 0;
-}
-
-int kring_setsockopt( struct socket *sock, int level, int optname, char __user * optval, unsigned int optlen )
-{
-	printk( "kring_setsockopt\n" );
-	return 0;
-}
 
 void kring_copy_name( char *dest, const char *src )
 {
@@ -43,22 +17,9 @@ void kring_copy_name( char *dest, const char *src )
 	dest[KRING_NLEN-1] = 0;
 }
 
-struct kring_ringset *kctrl_find_ring( const char *name )
+struct kring_ringset *kring_find_ring( const char *name )
 {
-	struct kring_ringset *r = head_cmd;
-	while ( r != 0 ) {
-		if ( strcmp( r->name, name ) == 0 )
-			return r;
-
-		r = r->next;
-	}
-
-	return 0;
-}
-
-struct kring_ringset *kdata_find_ring( const char *name )
-{
-	struct kring_ringset *r = head_data;
+	struct kring_ringset *r = head;
 	while ( r != 0 ) {
 		if ( strcmp( r->name, name ) == 0 )
 			return r;
@@ -179,7 +140,7 @@ ssize_t kring_add_data_store( struct kring *obj, const char *name, long rings_pe
 	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
 	kring_ringset_alloc( &kdata_params, r, name, rings_per_set );
 
-	kring_add_ringset( &head_data, r );
+	kring_add_ringset( &head, r );
 
 	return 0;
 }
@@ -191,7 +152,7 @@ ssize_t kring_add_cmd_store( struct kring *obj, const char *name )
 	r = kmalloc( sizeof(struct kring_ringset), GFP_KERNEL );
 	kring_ringset_alloc( &kctrl_params, r, name, 1 );
 
-	kring_add_ringset( &head_cmd, r );
+	kring_add_ringset( &head, r );
 
 	return 0;
 }
@@ -208,17 +169,13 @@ ssize_t kctrl_del_store( const char *name  )
 
 int kring_init(void)
 {
-	kctrl_init();
-	kdata_init();
+	kring_sk_init();
 	return 0;
 }
 
 void kring_exit(void)
 {
-	kctrl_exit();
-	kdata_exit();
-
-	kring_free_ringsets( head_data );
-	kring_free_ringsets( head_cmd );
+	kring_sk_exit();
+	kring_free_ringsets( head );
 }
 

@@ -21,8 +21,8 @@ extern "C" {
 
 #define KCTRL_INDEX(off) ((off) & 0x7ff)
 
-#define KCTRL_PGOFF_CTRL 0
-#define KCTRL_PGOFF_DATA 1
+#define KRING_PGOFF_CTRL 0
+#define KRING_PGOFF_DATA 1
 
 #define KCTRL_NULL KCTRL_NPAGES
 
@@ -131,13 +131,6 @@ struct kctrl_user
 	int krerr;
 	int _errno;
 	char *errstr;
-};
-
-struct kctrl_addr
-{
-	char name[KCTRL_NLEN];
-	int ring_id;
-	enum KRING_MODE mode;
 };
 
 struct kctrl_packet

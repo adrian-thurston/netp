@@ -12,5 +12,11 @@
 #define KRING_ERR_RING_N     -6
 #define KRING_ERR_ENTER      -7
 
+struct kring_addr
+{
+	char name[KCTRL_NLEN];
+	int ring_id;
+	enum KRING_MODE mode;
+};
 
 #endif

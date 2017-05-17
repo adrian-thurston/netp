@@ -10,9 +10,9 @@ pkgdata_DATA = Module.symvers
 
 pkginclude_HEADERS = kring.h krdep.h krkern.h kdata.h kctrl.h
 
-EXTRA_DIST = kring.gf attribute.c attribute.h kring.h kdata.c kdata.h kctrl.c kctrl.h
+EXTRA_DIST = kring.gf attribute.c attribute.h socket.c kring.h kdata.c kdata.h kctrl.c kctrl.h
 
-MOBJS = attribute.o kdata.o kctrl.o
+MOBJS = attribute.o kdata.o kctrl.o socket.o
 
 Module.symvers: kring.ko
 

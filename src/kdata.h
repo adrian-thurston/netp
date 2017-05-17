@@ -10,8 +10,8 @@ extern "C" {
 #define KDATA 25
 #define KDATA_NPAGES 2048
 
-#define KDATA_PGOFF_CTRL 0
-#define KDATA_PGOFF_DATA 1
+#define KRING_PGOFF_CTRL 0
+#define KRING_PGOFF_DATA 1
 
 /*
  * Memap identity information. 
@@ -22,11 +22,11 @@ extern "C" {
 /* Must match region shift below. */
 #define KDATA_MAX_RINGS_PER_SET 32
 
-#define KDATA_PGOFF_ID_SHIFT 0
-#define KDATA_PGOFF_ID_MASK  0x1f
+#define KRING_PGOFF_ID_SHIFT 0
+#define KRING_PGOFF_ID_MASK  0x1f
 
-#define KDATA_PGOFF_REGION_SHIFT 5
-#define KDATA_PGOFF_REGION_MASK  0x20
+#define KRING_PGOFF_REGION_SHIFT 5
+#define KRING_PGOFF_REGION_MASK  0x20
 
 #define KDATA_RING_ID_ALL -1
 
@@ -144,13 +144,6 @@ struct kdata_user
 	int krerr;
 	int _errno;
 	char *errstr;
-};
-
-struct kdata_addr
-{
-	char name[KRING_NLEN];
-	int ring_id;
-	enum KRING_MODE mode;
 };
 
 struct kdata_packet
