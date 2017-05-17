@@ -230,35 +230,11 @@ void kdata_kwrite( struct kdata_kern *kring, int dir, const struct sk_buff *skb 
 	}
 }
 
-int kdata_kavail( struct kdata_kern *kring )
-{
-	struct kring_ring *ring = &kring->ringset->ring[kring->ring_id];
-	struct kdata_control *control = KDATA_CONTROL( *ring );
-	int reader_id = 0;
-
-	return ring->num_writers > 0 &&
-		( control->reader[reader_id].rhead != control->head->whead );
-}
-
-void kdata_knext_plain( struct kdata_kern *kring, struct kdata_plain *plain )
-{
-	struct kdata_plain_header *h;
-
-	h = (struct kdata_plain_header*) kdata_next_generic( &kring->user );
-
-	plain->len = h->len;
-	plain->bytes = (unsigned char*)(h + 1);
-}
-
-
 static void kdata_init_control( struct kring_ring *r )
 {
 	KDATA_CONTROL(*r)->head->whead = KDATA_CONTROL(*r)->head->wresv = kdata_prev( 0 );
 }
 
-
 EXPORT_SYMBOL_GPL(kdata_kopen);
 EXPORT_SYMBOL_GPL(kdata_kclose);
 EXPORT_SYMBOL_GPL(kdata_kwrite);
-EXPORT_SYMBOL_GPL(kdata_kavail);
-EXPORT_SYMBOL_GPL(kdata_knext_plain);

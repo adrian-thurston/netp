@@ -171,66 +171,6 @@ int kctrl_kclose( struct kctrl_kern *kring )
 	return 0;
 }
 
-static void kctrl_write_single( struct kctrl_kern *kring, int dir,
-		const struct sk_buff *skb, int offset, int write, int len )
-{
-	struct kctrl_packet_header *h;
-	void *pdata;
-
-	/* Which ringset? */
-	struct kring_ringset *r = kring->ringset;
-
-	h = kctrl_write_FIRST( &kring->user );
-
-	h->len = len;
-	h->dir = (char) dir;
-
-	pdata = (char*)(h + 1);
-	skb_copy_bits( skb, offset, pdata, write );
-
-	kctrl_write_SECOND( &kring->user );
-
-	/* track the number of packets produced. Note we don't account for overflow. */
-//	__sync_add_and_fetch( &r->ring[kring->ring_id].control.head->produced, 1 );
-
-	#if 0
-	for ( id = 0; id < KCTRL_READERS; id++ ) {
-		if ( r->ring[kring->ring_id].reader[id].allocated ) {
-			unsigned long long diff =
-					r->ring[kring->ring_id].control.writer->produced -
-					r->ring[kring->ring_id].control.reader[id].units;
-			// printk( "diff: %llu\n", diff );
-			if ( diff > ( KCTRL_NPAGES / 2 ) ) {
-				printk( "half full: ring_id: %d reader_id: %d\n", kring->ring_id, id );
-			}
-		}
-	}
-	#endif
-
-	wake_up_interruptible_all( &r->waitqueue );
-}
-
-void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb )
-{
-	int offset = 0, write, len;
-
-	while ( true ) {
-		/* Number of bytes left in the packet (maybe overflows) */
-		len = skb->len - offset;
-		if ( len <= 0 )
-			break;
-
-		/* What can we write this time? */
-		write = len;
-		if ( write > kctrl_packet_max_data() )
-			write = kctrl_packet_max_data();
-
-		kctrl_write_single( kring, dir, skb, offset, write, len );
-
-		offset += write;
-	}
-}
-
 void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
 {
 	struct kctrl_plain_header *h;
@@ -266,7 +206,6 @@ static void kctrl_init_control( struct kring_ring *ring )
 
 EXPORT_SYMBOL_GPL(kctrl_kopen);
 EXPORT_SYMBOL_GPL(kctrl_kclose);
-EXPORT_SYMBOL_GPL(kctrl_kwrite);
 EXPORT_SYMBOL_GPL(kctrl_kavail);
 EXPORT_SYMBOL_GPL(kctrl_knext_plain);
 

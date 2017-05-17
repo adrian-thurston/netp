@@ -542,46 +542,6 @@ retry:
 		goto retry;
 }
 
-static inline void *kdata_write_FIRST_2( struct kring_user *u )
-{
-	/* Start at wresv. There is nothing free before this value. We cannot start
-	 * at whead because other writers may have written and release (not showing
-	 * writer owned bits, but we cannot take.*/
-	kdata_off_t whead = kdata_control(u->control)->head->wresv;
-
-	/* Set the release barrier to the place where we start looking. We cannot
-	 * release past this point. */
-	kdata_control(u->control)->writer[u->writer_id].wbar = whead;
-
-	/* Find the place to write to, skipping ahead as necessary. */
-	whead = kdata_find_write_loc( kdata_control(u->control) );
-
-	/* Private reserve. */
-	kdata_control(u->control)->writer[u->writer_id].wresv = whead;
-
-	/* Update the common wreserve. */
-	kdata_update_wresv( u );
-
-	return kdata_page_data( u, 0, whead );
-}
-
-static inline void kdata_write_SECOND_2( struct kring_user *u )
-{
-	/* Clear the writer owned bit from the buffer. */
-	kdata_writer_release( kdata_control(u->control), kdata_control(u->control)->head->wresv );
-
-	/* Write back to the writer's private write head, which releases the buffer
-	 * for this writer. */
-	kdata_control(u->control)->writer[u->writer_id].whead = kdata_control(u->control)->writer[u->writer_id].wresv;
-
-	/* Remove our release barrier. */
-	kdata_control(u->control)->writer[u->writer_id].wbar = 0;
-
-	/* Maybe release to the readers. */
-	kdata_update_whead( u );
-}
-
-
 static inline int kdata_prep_enter( struct kdata_control *control, int reader_id )
 {
 	/* Init the read head. */
