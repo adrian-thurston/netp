@@ -321,11 +321,6 @@ static inline void kctrl_write_SECOND( struct kring_user *u )
 	kctrl_push_new( u );
 }
 
-static inline int kctrl_prep_enter( struct kctrl_control *control, int reader_id )
-{
-	return 0;
-}
-
 #if defined(__cplusplus)
 }
 #endif

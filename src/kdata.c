@@ -113,6 +113,15 @@ int kring_kopen( struct kring_kern *kring, enum KRING_TYPE type, const char *rsn
 	int reader_id = -1, writer_id = -1;
 	struct kring_ringset *ringset;
 
+	if ( type == KRING_DATA && mode != KRING_WRITE )
+		return -1;
+
+	if ( type == KRING_CTRL && mode != KRING_READ )
+		return -1;
+	
+	if ( ring_id == KRING_RING_ID_ALL )
+		return -1;
+
 	if ( type == KRING_CTRL && ring_id != 0 )
 		return -1;
 
@@ -120,6 +129,7 @@ int kring_kopen( struct kring_kern *kring, enum KRING_TYPE type, const char *rsn
 	if ( ringset == 0 )
 		return -1;
 		
+	/* Validate ring_id. */
 	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
@@ -127,64 +137,17 @@ int kring_kopen( struct kring_kern *kring, enum KRING_TYPE type, const char *rsn
 	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 
-	if ( type == KRING_DATA ) {
-
-		if ( mode == KRING_WRITE ) {
-			/* Find a writer ID. */
-			writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
-			if ( writer_id < 0 )
-				return writer_id;
-		}
-		else if ( mode == KRING_READ ) {
-			/* Find a reader ID. */
-			if ( ring_id != KDATA_RING_ID_ALL ) {
-				/* Reader ID for ring specified. */
-				reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
-			}
-			else {
-				/* Find a reader ID that works for all rings. This can fail. */
-				reader_id = kring_allocate_reader_all_rings( ringset );
-			}
-
-			if ( reader_id < 0 )
-				return reader_id;
-
-			/*res = */kdata_prep_enter( KDATA_CONTROL(ringset->ring[ring_id]), 0 );
-			//if ( res < 0 ) {
-			//	kdata_func_error( KRING_ERR_ENTER, 0 );
-			//	return -1;
-			//}
-		}
-
+	if ( type == KRING_DATA && mode == KRING_WRITE ) {
+		/* Find a writer ID. */
+		writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
+		if ( writer_id < 0 )
+			return writer_id;
 	}
-	else if ( type == KRING_CTRL ) {
-
-		if ( mode == KRING_WRITE ) {
-			/* Find a writer ID. */
-			writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
-			if ( writer_id < 0 )
-				return writer_id;
-		}
-		else if ( mode == KRING_READ ) {
-			/* Find a reader ID. */
-			if ( ring_id != KCTRL_RING_ID_ALL ) {
-				/* Reader ID for ring specified. */
-				reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
-			}
-			else {
-				/* Find a reader ID that works for all rings. This can fail. */
-				reader_id = kring_allocate_reader_all_rings( ringset );
-			}
-
-			if ( reader_id < 0 )
-				return reader_id;
-
-			/*res = */kctrl_prep_enter( KCTRL_CONTROL(ringset->ring[ring_id]), 0 );
-			//if ( res < 0 ) {
-			//	kctrl_func_error( KCTRL_ERR_ENTER, 0 );
-			//	return -1;
-			//}
-		}
+	else if ( type == KRING_CTRL && mode == KRING_READ ) {
+		/* Reader ID for ring specified. */
+		reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
+		if ( reader_id < 0 )
+			return reader_id;
 	}
 
 	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
@@ -274,4 +237,5 @@ static void kdata_init_control( struct kring_ring *r )
 
 EXPORT_SYMBOL_GPL(kring_kopen);
 EXPORT_SYMBOL_GPL(kring_kclose);
+
 EXPORT_SYMBOL_GPL(kdata_kwrite);

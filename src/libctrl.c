@@ -79,7 +79,6 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 
 int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl )
 {
-	int res;
 	void *r;
 
 	r = mmap( 0, KCTRL_CTRL_SZ, PROT_READ | PROT_WRITE,
@@ -106,14 +105,6 @@ int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	}
 
 	u->data[ctrl].page = (struct kring_page*)r;
-
-	if ( u->mode == KRING_READ ) {
-		res = kctrl_prep_enter( &kctrl_control(u->control)[ctrl], u->reader_id );
-		if ( res < 0 ) {
-			kctrl_func_error( KRING_ERR_ENTER, 0 );
-			return -1;
-		}
-	}
 
 	return 0;
 }
