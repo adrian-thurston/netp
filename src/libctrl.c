@@ -14,11 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void copy_name( char *dest, const char *src )
-{
-	strncpy( dest, src, KCTRL_NLEN );
-	dest[KCTRL_NLEN-1] = 0;
-}
 
 char *kctrl_error( struct kring_user *u, int err )
 {
@@ -82,7 +77,7 @@ static unsigned long cons_pgoff( unsigned long ring_id, unsigned long region )
 	) * KRING_PAGE_SIZE;
 }
 
-static int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl )
+int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl )
 {
 	int res;
 	void *r;
@@ -121,84 +116,6 @@ static int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	}
 
 	return 0;
-}
-
-int kctrl_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_MODE mode )
-{
-	int to_alloc, res, ring_N, writer_id, reader_id;
-	socklen_t nlen = sizeof(ring_N);
-	socklen_t idlen = sizeof(reader_id);
-	struct kring_addr addr;
-
-	memset( u, 0, sizeof(struct kring_user) );
-
-	u->socket = socket( KDATA, SOCK_RAW, htons(ETH_P_ALL) );
-	if ( u->socket < 0 ) {
-		kctrl_func_error( KRING_ERR_SOCK, errno );
-		goto err_return;
-	}
-
-	u->ring_id = 0;
-	u->mode = mode;
-
-	copy_name( addr.name, ringset );
-	addr.ring_id = 0;
-	addr.mode = mode;
-
-	res = bind( u->socket, (struct sockaddr*)&addr, sizeof(addr) );
-	if ( res < 0 ) {
-		kctrl_func_error( KRING_ERR_BIND, errno );
-		goto err_close;
-	}
-
-	/* Get the number of rings in the ringset. */
-	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_RING_N, &ring_N, &nlen );
-	if ( res < 0 ) {
-		kctrl_func_error( KRING_ERR_RING_N, errno );
-		goto err_close;
-	}
-	u->nrings = ring_N;
-
-	/* Get the writer_id we were assigned. */
-	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_WRITER_ID, &writer_id, &idlen );
-	if ( res < 0 ) {
-		kctrl_func_error( KRING_ERR_WRITER_ID, errno );
-		goto err_close;
-	}
-	u->writer_id = writer_id;
-
-	/* Get the reader id we were assigned. */
-	res = getsockopt( u->socket, SOL_PACKET, KR_OPT_READER_ID, &reader_id, &idlen );
-	if ( res < 0 ) {
-		kctrl_func_error( KRING_ERR_READER_ID, errno );
-		goto err_close;
-	}
-	u->reader_id = reader_id;
-
-	/*
-	 * Allocate ring-specific structs. May not use them all.
-	 */
-	to_alloc = 1;
-
-	u->control = (struct kring_control*)malloc( sizeof( struct kctrl_control ) * to_alloc );
-	memset( u->control, 0, sizeof( struct kctrl_control ) * to_alloc );
-
-	u->data = (struct kring_data*)malloc( sizeof( struct kring_data ) * to_alloc );
-	memset( u->data, 0, sizeof( struct kring_data ) * to_alloc );
-
-	u->pd = 0;
-
-	/* Which rings to map. */
-	res = kctrl_map_enter( u, 0, 0 );
-	if ( res < 0 )
-		goto err_close;
-
-	return 0;
-
-err_close:
-	close( u->socket );
-err_return:
-	return u->krerr;
 }
 
 void kctrl_lock( int *mutex, unsigned long long *spins )

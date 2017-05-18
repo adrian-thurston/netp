@@ -30,11 +30,17 @@ struct kring_control
 	void *descriptor;
 };
 
-enum KRING_TYPE
+enum KRING_PROTO
 {
 	KRING_PACKETS = 1,
 	KRING_DECRYPTED,
 	KRING_PLAIN
+};
+
+enum KRING_TYPE
+{
+	KRING_DATA = 1,
+	KRING_CTRL
 };
 
 enum KRING_MODE

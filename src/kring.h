@@ -19,5 +19,6 @@ struct kring_addr
 	enum KRING_MODE mode;
 };
 
+int kctrl_map_enter( struct kring_user *u, int ring_id, int ctrl );
 
 #endif

@@ -116,7 +116,7 @@ static int kdata_map_enter( struct kring_user *u, int ring_id, int ctrl )
 	return 0;
 }
 
-int kdata_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode )
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_PROTO proto, int ring_id, enum KRING_MODE mode )
 {
 	int ctrl, to_alloc, res, ring_N, writer_id, reader_id;
 	socklen_t nlen = sizeof(ring_N);
@@ -183,21 +183,31 @@ int kdata_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset,
 
 	u->pd = 0;
 
-	/* Which rings to map. */
-	if ( ring_id != KDATA_RING_ID_ALL ) {
-		res = kdata_map_enter( u, ring_id, 0 );
-		if ( res < 0 )
-			goto err_close;
-	}
-	else {
-		for ( ctrl = 0; ctrl < ring_N; ctrl++ ) {
-			res = kdata_map_enter( u, ctrl, ctrl );
+	if ( type == KRING_DATA ) {
+		/* Which rings to map. */
+		if ( ring_id != KDATA_RING_ID_ALL ) {
+			res = kdata_map_enter( u, ring_id, 0 );
 			if ( res < 0 )
 				goto err_close;
 		}
-	}
+		else {
+			for ( ctrl = 0; ctrl < ring_N; ctrl++ ) {
+				res = kdata_map_enter( u, ctrl, ctrl );
+				if ( res < 0 )
+					goto err_close;
+			}
+		}
 
-	return 0;
+		return 0;
+	}
+	else if ( type == KRING_CTRL ) {
+		/* Which rings to map. */
+		res = kctrl_map_enter( u, 0, 0 );
+		if ( res < 0 )
+			goto err_close;
+
+		return 0;
+	}
 
 err_close:
 	close( u->socket );

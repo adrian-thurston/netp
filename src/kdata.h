@@ -153,7 +153,7 @@ struct kdata_plain_header
 	int len;
 };
 
-int kdata_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, int rid, enum KRING_MODE mode );
+int kring_open( struct kring_user *u, enum KRING_TYPE type, const char *ringset, enum KRING_PROTO proto, int rid, enum KRING_MODE mode );
 int kdata_write_decrypted( struct kring_user *u, long id, int type, const char *remoteHost, char *data, int len );
 int kdata_write_plain( struct kring_user *u, char *data, int len );
 int kdata_read_wait( struct kring_user *u );

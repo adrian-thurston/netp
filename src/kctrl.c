@@ -40,13 +40,8 @@ struct kring_params kctrl_params =
 	&kctrl_destruct,
 };
 
-static void kctrl_copy_name( char *dest, const char *src )
-{
-	strncpy( dest, src, KCTRL_NLEN );
-	dest[KCTRL_NLEN-1] = 0;
-}
 
-int kctrl_kavail( struct kctrl_kern *kring )
+int kctrl_kavail( struct kring_kern *kring )
 {
 	return kctrl_avail_impl( kctrl_control(kring->user.control) );
 }
@@ -108,70 +103,9 @@ static void kctrl_destruct( struct kring_sock *krs )
 			}
 		}
 	}
-
 }
 
-int kctrl_kopen( struct kctrl_kern *kring, const char *rsname, enum KRING_MODE mode )
-{
-	int reader_id = -1, writer_id = -1;
-	int ring_id = 0;
-
-	struct kring_ringset *ringset = kring_find_ring( rsname );
-	if ( ringset == 0 )
-		return -1;
-	
-	kctrl_copy_name( kring->name, rsname );
-	kring->ringset = ringset;
-	kring->ring_id = 0;
-
-	if ( mode == KRING_WRITE ) {
-		/* Find a writer ID. */
-		writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
-		if ( writer_id < 0 )
-			return writer_id;
-	}
-	else if ( mode == KRING_READ ) {
-		/* Find a reader ID. */
-		if ( ring_id != KCTRL_RING_ID_ALL ) {
-			/* Reader ID for ring specified. */
-			reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
-		}
-		else {
-			/* Find a reader ID that works for all rings. This can fail. */
-			reader_id = kring_allocate_reader_all_rings( ringset );
-		}
-
-		if ( reader_id < 0 )
-			return reader_id;
-
-		/*res = */kctrl_prep_enter( KCTRL_CONTROL(ringset->ring[ring_id]), 0 );
-		//if ( res < 0 ) {
-		//	kctrl_func_error( KCTRL_ERR_ENTER, 0 );
-		//	return -1;
-		//}
-	}
-
-	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
-	kring->user.socket = -1;
-	kring->user.control = &ringset->ring[ring_id]._control_;
-	kring->user.data = 0;
-	kring->user.pd = ringset->ring[ring_id].pd;
-	kring->user.mode = mode;
-	kring->user.ring_id = ring_id;
-	kring->user.reader_id = reader_id;
-	kring->user.writer_id = writer_id;
-	kring->user.nrings = ringset->nrings;
-
-	return 0;
-}
-
-int kctrl_kclose( struct kctrl_kern *kring )
-{
-	kring->ringset->ring[kring->ring_id].num_writers -= 1;
-	return 0;
-}
-
-void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain )
+void kctrl_knext_plain( struct kring_kern *kring, struct kctrl_plain *plain )
 {
 	struct kctrl_plain_header *h;
 
@@ -204,8 +138,6 @@ static void kctrl_init_control( struct kring_ring *ring )
 	control->descriptor[KCTRL_NPAGES-1].next = KCTRL_NULL;
 }
 
-EXPORT_SYMBOL_GPL(kctrl_kopen);
-EXPORT_SYMBOL_GPL(kctrl_kclose);
 EXPORT_SYMBOL_GPL(kctrl_kavail);
 EXPORT_SYMBOL_GPL(kctrl_knext_plain);
 

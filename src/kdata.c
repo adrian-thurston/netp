@@ -108,14 +108,18 @@ static void kdata_destruct( struct kring_sock *krs )
 
 }
 
-int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum KRING_MODE mode )
+int kring_kopen( struct kring_kern *kring, enum KRING_TYPE type, const char *rsname, int ring_id, enum KRING_MODE mode )
 {
 	int reader_id = -1, writer_id = -1;
+	struct kring_ringset *ringset;
 
-	struct kring_ringset *ringset = kring_find_ring( rsname );
+	if ( type == KRING_CTRL && ring_id != 0 )
+		return -1;
+
+	ringset = kring_find_ring( rsname );
 	if ( ringset == 0 )
 		return -1;
-	
+		
 	if ( ring_id < 0 || ring_id >= ringset->nrings )
 		return -1;
 
@@ -123,31 +127,64 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 	kring->ringset = ringset;
 	kring->ring_id = ring_id;
 
-	if ( mode == KRING_WRITE ) {
-		/* Find a writer ID. */
-		writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
-		if ( writer_id < 0 )
-			return writer_id;
+	if ( type == KRING_DATA ) {
+
+		if ( mode == KRING_WRITE ) {
+			/* Find a writer ID. */
+			writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
+			if ( writer_id < 0 )
+				return writer_id;
+		}
+		else if ( mode == KRING_READ ) {
+			/* Find a reader ID. */
+			if ( ring_id != KDATA_RING_ID_ALL ) {
+				/* Reader ID for ring specified. */
+				reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
+			}
+			else {
+				/* Find a reader ID that works for all rings. This can fail. */
+				reader_id = kring_allocate_reader_all_rings( ringset );
+			}
+
+			if ( reader_id < 0 )
+				return reader_id;
+
+			/*res = */kdata_prep_enter( KDATA_CONTROL(ringset->ring[ring_id]), 0 );
+			//if ( res < 0 ) {
+			//	kdata_func_error( KRING_ERR_ENTER, 0 );
+			//	return -1;
+			//}
+		}
+
 	}
-	else if ( mode == KRING_READ ) {
-		/* Find a reader ID. */
-		if ( ring_id != KDATA_RING_ID_ALL ) {
-			/* Reader ID for ring specified. */
-			reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
-		}
-		else {
-			/* Find a reader ID that works for all rings. This can fail. */
-			reader_id = kring_allocate_reader_all_rings( ringset );
-		}
+	else if ( type == KRING_CTRL ) {
 
-		if ( reader_id < 0 )
-			return reader_id;
+		if ( mode == KRING_WRITE ) {
+			/* Find a writer ID. */
+			writer_id = kring_allocate_writer_on_ring( ringset, &ringset->ring[ring_id] );
+			if ( writer_id < 0 )
+				return writer_id;
+		}
+		else if ( mode == KRING_READ ) {
+			/* Find a reader ID. */
+			if ( ring_id != KCTRL_RING_ID_ALL ) {
+				/* Reader ID for ring specified. */
+				reader_id = kring_allocate_reader_on_ring( ringset, &ringset->ring[ring_id] );
+			}
+			else {
+				/* Find a reader ID that works for all rings. This can fail. */
+				reader_id = kring_allocate_reader_all_rings( ringset );
+			}
 
-		/*res = */kdata_prep_enter( KDATA_CONTROL(ringset->ring[ring_id]), 0 );
-		//if ( res < 0 ) {
-		//	kdata_func_error( KRING_ERR_ENTER, 0 );
-		//	return -1;
-		//}
+			if ( reader_id < 0 )
+				return reader_id;
+
+			/*res = */kctrl_prep_enter( KCTRL_CONTROL(ringset->ring[ring_id]), 0 );
+			//if ( res < 0 ) {
+			//	kctrl_func_error( KCTRL_ERR_ENTER, 0 );
+			//	return -1;
+			//}
+		}
 	}
 
 	/* Set up the user read/write struct for unified read/write operations between kernel and user space. */
@@ -164,13 +201,13 @@ int kdata_kopen( struct kdata_kern *kring, const char *rsname, int ring_id, enum
 	return 0;
 }
 
-int kdata_kclose( struct kdata_kern *kring )
+int kring_kclose( struct kring_kern *kring )
 {
 	kring->ringset->ring[kring->ring_id].num_writers -= 1;
 	return 0;
 }
 
-static void kdata_write_single( struct kdata_kern *kring, int dir,
+static void kdata_write_single( struct kring_kern *kring, int dir,
 		const struct sk_buff *skb, int offset, int write, int len )
 {
 	struct kdata_packet_header *h;
@@ -209,7 +246,7 @@ static void kdata_write_single( struct kdata_kern *kring, int dir,
 	wake_up_interruptible_all( &r->waitqueue );
 }
 
-void kdata_kwrite( struct kdata_kern *kring, int dir, const struct sk_buff *skb )
+void kdata_kwrite( struct kring_kern *kring, int dir, const struct sk_buff *skb )
 {
 	int offset = 0, write, len;
 
@@ -235,6 +272,6 @@ static void kdata_init_control( struct kring_ring *r )
 	KDATA_CONTROL(*r)->head->whead = KDATA_CONTROL(*r)->head->wresv = kdata_prev( 0 );
 }
 
-EXPORT_SYMBOL_GPL(kdata_kopen);
-EXPORT_SYMBOL_GPL(kdata_kclose);
+EXPORT_SYMBOL_GPL(kring_kopen);
+EXPORT_SYMBOL_GPL(kring_kclose);
 EXPORT_SYMBOL_GPL(kdata_kwrite);

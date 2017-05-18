@@ -91,7 +91,7 @@ struct kring_ringset
 
 #define KDATA_CONTROL(p) ( (struct kdata_control*) &((p)._control_) )
 
-struct kdata_kern
+struct kring_kern
 {
 	char name[KRING_NLEN];
 	struct kring_ringset *ringset;
@@ -100,11 +100,12 @@ struct kdata_kern
 	struct kring_user user;
 };
 
-int kdata_kopen( struct kdata_kern *kdata, const char *ringset, int ring_id, enum KRING_MODE mode );
-int kdata_kclose( struct kdata_kern *kdata );
-void kdata_kwrite( struct kdata_kern *kdata, int dir, const struct sk_buff *skb );
-int kdata_kavail( struct kdata_kern *kdata );
-void kdata_knext_plain( struct kdata_kern *kdata, struct kdata_plain *plain );
+int kring_kopen( struct kring_kern *kdata, enum KRING_TYPE type, const char *ringset, int ring_id, enum KRING_MODE mode );
+int kring_kclose( struct kring_kern *kdata );
+
+void kdata_kwrite( struct kring_kern *kdata, int dir, const struct sk_buff *skb );
+int kdata_kavail( struct kring_kern *kdata );
+void kdata_knext_plain( struct kring_kern *kdata, struct kdata_plain *plain );
 
 /*
  * Command.
@@ -112,22 +113,8 @@ void kdata_knext_plain( struct kdata_kern *kdata, struct kdata_plain *plain );
 
 #define KCTRL_CONTROL(p) ((struct kctrl_control*) &((p)._control_))
 
-struct kctrl_kern
-{
-	char name[KCTRL_NLEN];
-	struct kring_ringset *ringset;
-	int ring_id;
-	int writer_id;
-	struct kring_user user;
-};
-
-int kctrl_kopen( struct kctrl_kern *kring, const char *ringset, enum KRING_MODE mode );
-int kctrl_kclose( struct kctrl_kern *kring );
-
-void kctrl_kwrite( struct kctrl_kern *kring, int dir, const struct sk_buff *skb );
-int kctrl_kavail( struct kctrl_kern *kring );
-
-void kctrl_knext_plain( struct kctrl_kern *kring, struct kctrl_plain *plain );
+int kctrl_kavail( struct kring_kern *kring );
+void kctrl_knext_plain( struct kring_kern *kring, struct kctrl_plain *plain );
 
 
 struct kring_ringset *kring_find_ring( const char *name );

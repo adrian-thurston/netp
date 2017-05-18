@@ -16,7 +16,7 @@ struct WriterThread
 	{}
 
 	int writerId;
-	struct kctrl_user kring;
+	struct kring_user kring;
 
 	int main();
 };
