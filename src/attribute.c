@@ -316,11 +316,11 @@ ssize_t shuttle_add_store( struct shuttle *obj, const char *name, const char *ct
 	strcpy( link->name, name );
 	create_netdev( link, name );
 
-	err = kdata_kopen( &link->kring, ring, 0, KRING_WRITE );
+	err = kring_kopen( &link->kring, KRING_DATA, ring, 0, KRING_WRITE );
 	if ( err < 0 )
 		printk( "shuttle: failed to open data ring %s\n", ring );
 
-	err = kctrl_kopen( &link->cmd, ctrl, KRING_READ );
+	err = kring_kopen( &link->cmd, KRING_CTRL, ctrl, 0, KRING_READ );
 	if ( err < 0 )
 		printk( "shuttle: failed to open control ring %s\n", ctrl );
 
@@ -348,8 +348,8 @@ ssize_t shuttle_del_store( struct shuttle *obj, const char *name )
 		// dev_put( link->inside );
 		// dev_put( link->outside );
 
-		kctrl_kclose( &link->cmd );
-		kdata_kclose( &link->kring );
+		kring_kclose( &link->cmd );
+		kring_kclose( &link->kring );
 
 		rtnl_lock();
 		unregister_netdevice_queue( link->dev, NULL );
