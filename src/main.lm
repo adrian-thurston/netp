@@ -55,6 +55,7 @@ void generateMainHeader( P: program )
 	createChildDecls( Thread )
 	sendsToDecls( Thread )
 	optDefine( P )
+	recvDecls( Thread )
 	packetRecvDecls( Thread )
 
 	send Output
