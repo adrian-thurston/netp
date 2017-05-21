@@ -136,7 +136,6 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 	if ( skb->dev == link->inside ) {
 		if ( eth_hdr(skb)->h_proto == htons( ETH_P_ARP ) ) {
 			struct sk_buff *up = skb_clone( skb, GFP_ATOMIC );
-			printk( "inline.ko: sending up arp\n" );
 			up->dev = link->dev;
 			up->pkt_type = PACKET_HOST;
 			netif_receive_skb( up );
@@ -419,7 +418,6 @@ int shuttle_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static struct rtnl_link_stats64 *shuttle_get_stats64( struct net_device *dev,
 		struct rtnl_link_stats64 *stats )
 {
-	printk("shuttle_get_stats64\n");
 	stats->tx_bytes   = 0;
 	stats->tx_packets = 0;
 	stats->rx_bytes   = 0;
