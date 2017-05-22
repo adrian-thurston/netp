@@ -203,7 +203,8 @@ struct SelectFd
 		tlsWantRead(false),
 		tlsWantWrite(false),
 		tlsWriteWantsRead(false),
-		tlsReadWantsWrite(false)
+		tlsReadWantsWrite(false),
+		port(0)
 	{}
 
 	State state;
@@ -225,6 +226,8 @@ struct SelectFd
 	bool tlsReadWantsWrite;
 
 	Recv recv;
+
+	unsigned short port;
 
 	SelectFd *prev, *next;
 };
@@ -365,7 +368,7 @@ public:
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 	virtual void data( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
-	virtual void notifAsyncConnect( SelectFd *fd ) {}
+	virtual void notifAsyncConnect( SelectFd *fd );
 	virtual void notifAccept( SelectFd *fd ) {}
 
 	/*
@@ -381,9 +384,8 @@ public:
 	void startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
 	void startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
 
-	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
-
 	void asyncLookup( SelectFd *fd, const char *host );
+	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
