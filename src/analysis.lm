@@ -174,7 +174,7 @@ void useDecls( P: program )
 		S = S.suffix( 1 )
 		S = S.prefix( S.length - 1 )
 
-		Found: stream
+		Found: stream = nil
 
 		for Path: str in OptInc {
 			Try: str = "[Path]/[S]"

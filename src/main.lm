@@ -314,8 +314,12 @@ void generateMainCode( P: ref<program> )
 		~#include <string.h>
 		~#include <signal.h>
 		~#include <sys/time.h>
+		~#include <sys/types.h>
+		~#include <sys/stat.h>
+		~#include <fcntl.h>
 		~
 		~#include "main.h"
+		~#include "genf.h"
 
 	threadIncludes( Thread )
 	send Output ~
@@ -329,9 +333,30 @@ void generateMainCode( P: ref<program> )
 		~void MainGen::maybeBackground()
 		~{
 		~	if ( background ) {
-		~		int result = daemon( 0, 0 );
+		~		/* Ensure we can open the files we need to open. */
+		~		int rdfd = open( "/dev/null", O_RDONLY );
+		~		if ( rdfd == -1 )
+		~			log_FATAL( "daemonize: could not open /dev/null for stdin replacement: " << strerror(errno) );
+		~
+		~		int lgfd = open( PKGLOGDIR "/" PACKAGE ".log", O_WRONLY|O_APPEND|O_CREAT,
+		~				S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH );
+		~		if ( lgfd == -1 )
+		~			log_FATAL( "daemonize: could not open log file: " << strerror(errno) );
+		~
+		~		/* Change dirs, but don't close fds. */
+		~		int result = daemon( 0, 1 );
 		~		if ( result == -1 )
-		~			log_FATAL( "damonize: " << strerror(errno) );
+		~			log_FATAL( "damonize: daemon() failed: " << strerror(errno) );
+		
+		~		/* Redirect stdin from /dev/null. */
+		~		dup2( rdfd, 0 );
+		~		::close( rdfd );
+		~
+		~		/* Redirect stdout and stderr to the log file. This will capture
+		~		 * the log file since it is writing to stderr. */
+		~		dup2( lgfd, 1 );
+		~		dup2( lgfd, 2 );
+		~		::close( lgfd );
 		~	}
 		~}
 
