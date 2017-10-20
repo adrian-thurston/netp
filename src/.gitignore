@@ -16,3 +16,5 @@
 /modules.order
 /Kbuild
 /attribute.h
+/genf.mk
+/genf.h.in
