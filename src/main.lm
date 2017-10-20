@@ -330,6 +330,17 @@ void generateMainCode( P: ref<program> )
 	parseOptions( P )
 
 	send Output
+		~#define LOGFILE LOGDIR "/" PACKAGE ".log"
+		~#define PIDFILE PIDDIR "/" PACKAGE ".pid"
+
+	send Output
+		~void on_exit(void)
+		~{
+		~	unlink( PIDFILE );
+		~}
+
+	send Output
+		~
 		~void MainGen::maybeBackground()
 		~{
 		~	if ( background ) {
@@ -338,16 +349,24 @@ void generateMainCode( P: ref<program> )
 		~		if ( rdfd == -1 )
 		~			log_FATAL( "daemonize: could not open /dev/null for stdin replacement: " << strerror(errno) );
 		~
-		~		int lgfd = open( PKGLOGDIR "/" PACKAGE ".log", O_WRONLY|O_APPEND|O_CREAT,
+		~		int lgfd = open( LOGFILE, O_WRONLY|O_APPEND|O_CREAT,
 		~				S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH );
 		~		if ( lgfd == -1 )
 		~			log_FATAL( "daemonize: could not open log file: " << strerror(errno) );
+		~
+		~		FILE *pidf = fopen( PIDFILE, "w" );
+		~		if ( pidf == NULL )
+		~			log_FATAL( "daemonize: could not open pid file: " << strerror(errno) );
+		~		
+		~		/* Setup the pidfile unlink. Used on daemon failure and also in
+		~		 * the detached child process. */
+		~		atexit( on_exit );
 		~
 		~		/* Change dirs, but don't close fds. */
 		~		int result = daemon( 0, 1 );
 		~		if ( result == -1 )
 		~			log_FATAL( "damonize: daemon() failed: " << strerror(errno) );
-		
+		~
 		~		/* Redirect stdin from /dev/null. */
 		~		dup2( rdfd, 0 );
 		~		::close( rdfd );
@@ -357,6 +376,11 @@ void generateMainCode( P: ref<program> )
 		~		dup2( lgfd, 1 );
 		~		dup2( lgfd, 2 );
 		~		::close( lgfd );
+		~
+		~		/* write the pid file. */
+		~		pid_t pid = getpid();
+		~		fprintf( pidf, "%ld\n", (long)pid );
+		~		fclose( pidf );
 		~	}
 		~}
 
