@@ -356,6 +356,10 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 		case SelectFd::Connect: {
 			if ( readyMask & WRITE_READY ) {
+				/* Turn off want write. We must do this before any notification
+				 * below, which may want to turn it on. */
+				fd->wantWrite = false;
+
 				int option;
 				socklen_t optlen = sizeof(int);
 				getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
