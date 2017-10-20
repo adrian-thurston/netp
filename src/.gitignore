@@ -21,3 +21,7 @@
 
 /.deps
 /.libs
+
+/genf.h.in
+/genf.mk
+
