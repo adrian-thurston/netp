@@ -320,6 +320,7 @@ void generateMainCode( P: ref<program> )
 		~#include <sys/capability.h>
 		~#include <sys/prctl.h>
 		~#include <linux/securebits.h>
+		~#include <pwd.h>
 		~
 		~#include "main.h"
 		~#include "genf.h"
@@ -520,11 +521,22 @@ void generateMainCode( P: ref<program> )
 			~	 * when changing user ids. */
 			~	prctl( PR_SET_KEEPCAPS, 1L );
 			~
-			~	r = setgid( 1001 );
+			~	passwd *pw = NULL, *found = NULL;
+			~	while ( pw = getpwent() ) {
+			~		if ( strcmp( pw->pw_name, RUN_AS ) == 0 ) {
+			~			found = pw;
+			~			break;
+			~		}
+			~	}
+			~
+			~	if ( found == 0 )
+			~		printf( "could not locate run as user\n" );
+			~		
+			~	r = setgid( found->pw_gid );
 			~	if ( r != 0 )
 			~		printf( "setgid failure\n" );
 			~
-			~	r = setuid( 1001 );
+			~	r = setuid( found->pw_uid );
 			~	if ( r != 0 )
 			~		printf( "setuid failure\n" );
 			~
@@ -543,8 +555,6 @@ void generateMainCode( P: ref<program> )
 			~	if ( r != 0 )
 			~		printf( "cap_set_proc failure\n" );
 			~	cap_free( c );
-			~
-			~	reportCaps();
 			~}
 			~
 	}
