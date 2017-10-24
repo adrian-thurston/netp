@@ -317,6 +317,9 @@ void generateMainCode( P: ref<program> )
 		~#include <sys/types.h>
 		~#include <sys/stat.h>
 		~#include <fcntl.h>
+		~#include <sys/capability.h>
+		~#include <sys/prctl.h>
+		~#include <linux/securebits.h>
 		~
 		~#include "main.h"
 		~#include "genf.h"
@@ -496,8 +499,66 @@ void generateMainCode( P: ref<program> )
 	send Output
 		~Thread *getThis();
 		~
+	
+	if GblNumCaps > 0 {
+		send Output
+			~void reportCaps()
+			~{
+			~	ssize_t len = 0;
+			~	cap_t c = cap_get_proc();
+			~	char *t = cap_to_text( c, &len );
+			~	printf( "exec caps: %s\n", t );
+			~	cap_free( t );
+			~	cap_free( c );
+			~}
+			~
+			~void genfRetainCaps()
+			~{
+			~	int r = 0;
+			~
+			~	/* Tell the system to not change caps (except clearing effective)
+			~	 * when changing user ids. */
+			~	prctl( PR_SET_KEEPCAPS, 1L );
+			~
+			~	r = setgid( 1001 );
+			~	if ( r != 0 )
+			~		printf( "setgid failure\n" );
+			~
+			~	r = setuid( 1001 );
+			~	if ( r != 0 )
+			~		printf( "setuid failure\n" );
+			~
+			~	/*
+			~	 * Reduce caps to what we need.
+			~	 */
+			~	cap_t c = cap_get_proc();
+			~
+			~	cap_clear( c );
+			~
+			"	cap_value_t to_set\[\] = { [GblCapList] };
+			"	r = cap_set_flag( c, CAP_PERMITTED, [GblNumCaps], to_set, CAP_SET );
+			"	r = cap_set_flag( c, CAP_EFFECTIVE, [GblNumCaps], to_set, CAP_SET );
+			~
+			~	r = cap_set_proc( c );
+			~	if ( r != 0 )
+			~		printf( "cap_set_proc failure\n" );
+			~	cap_free( c );
+			~
+			~	reportCaps();
+			~}
+			~
+	}
+
+	send Output
 		~int main( int argc, char *const*argv )
 		~{
+
+	if GblNumCaps > 0  {
+		send Output
+			~	genfRetainCaps();
+	}
+
+	send Output
 		~	pthread_key_create( &Thread::thisKey, 0 );
 		~	genf::lf = new lfdostream( 2 );
 		~	ares_library_init( 0);

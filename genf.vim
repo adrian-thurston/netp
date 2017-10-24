@@ -12,7 +12,7 @@ syntax keyword Type
 	\ message packet thread module attribute kobj
 
 syntax keyword Keyword
-	\ starts sends to receives show store debug use appid
+	\ starts sends to receives show store debug use appid caps
 
 syntax match optlit "-[\-A-Za-z0-9]*" contained
 

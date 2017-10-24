@@ -128,6 +128,12 @@ global KobjList: list<kobj> = new list<kobj>()
 
 global AttrNum: int = 1
 
+#
+# Capabilities
+#
+global GblCapList: cap_list = nil
+global GblNumCaps: int = 0
+
 void attrDecl( Kobj: kobj, AD: attr_decl )
 {
 	Attr: attr = new attr()
@@ -305,5 +311,13 @@ void semanticAnalysis( P: program )
 		for AD: attr_decl in KD 
 			attrDecl( Kobj, AD )
 		KobjList->push_tail( Kobj )
+	}
+
+	# Capabilities
+	CapsDecl: caps_decl = caps_decl in P
+	if CapsDecl {
+		GblCapList = CapsDecl.cap_list
+		for Id: id in GblCapList
+			GblNumCaps = GblNumCaps + 1
 	}
 }
