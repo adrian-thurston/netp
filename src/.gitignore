@@ -18,3 +18,5 @@
 /attribute.h
 /genf.mk
 /genf.h.in
+
+/init.d.sh
