@@ -501,19 +501,50 @@ void generateMainCode( P: ref<program> )
 		~Thread *getThis();
 		~
 	
-	if GblNumCaps > 0 {
+	send Output
+		~void reportCaps()
+		~{
+		~	ssize_t len = 0;
+		~	cap_t c = cap_get_proc();
+		~	char *t = cap_to_text( c, &len );
+		~	printf( "exec caps: %s\n", t );
+		~	cap_free( t );
+		~	cap_free( c );
+		~}
+		~
+		~passwd *findRunAsUser()
+		~{
+		~	passwd *found = NULL, *pw;
+		~	while ( (pw = getpwent()) ) {
+		~		if ( strcmp( pw->pw_name, RUN_AS ) == 0 ) {
+		~			found = pw;
+		~			break;
+		~		}
+		~	}
+		~
+		~	if ( found == 0 )
+		~		log_FATAL( "could not locate run-as user " RUN_AS );
+		~
+		~	return found;
+		~}
+		~
+		~void switchToRunAs()
+		~{
+		~	passwd *runAs = findRunAsUser();
+		~		
+		~	int r = setgid( runAs->pw_gid );
+		~	if ( r != 0 )
+		~		log_FATAL( "setgid(" << runAs->pw_gid << ") failure: " << strerror(errno) );
+		~
+		~	r = setuid( runAs->pw_uid );
+		~	if ( r != 0 )
+		~		log_FATAL( "setuid(" << runAs->pw_uid << ") failure: " << strerror(errno) );
+		~}
+		~
+	
+	if GblNumCaps > 0  {
 		send Output
-			~void reportCaps()
-			~{
-			~	ssize_t len = 0;
-			~	cap_t c = cap_get_proc();
-			~	char *t = cap_to_text( c, &len );
-			~	printf( "exec caps: %s\n", t );
-			~	cap_free( t );
-			~	cap_free( c );
-			~}
-			~
-			~void genfRetainCaps()
+			~void dropCaps()
 			~{
 			~	int r = 0;
 			~
@@ -524,24 +555,8 @@ void generateMainCode( P: ref<program> )
 			~	 * when changing user ids. */
 			~	prctl( PR_SET_KEEPCAPS, 1L );
 			~
-			~	passwd *pw = NULL, *found = NULL;
-			~	while ( (pw = getpwent()) ) {
-			~		if ( strcmp( pw->pw_name, RUN_AS ) == 0 ) {
-			~			found = pw;
-			~			break;
-			~		}
-			~	}
-			~
-			~	if ( found == 0 )
-			~		log_FATAL( "could not locate run-as user " RUN_AS );
-			~		
-			~	r = setgid( found->pw_gid );
-			~	if ( r != 0 )
-			~		log_FATAL( "setgid(" << found->pw_gid << ") failure: " << strerror(errno) );
-			~
-			~	r = setuid( found->pw_uid );
-			~	if ( r != 0 )
-			~		log_FATAL( "setuid(" << found->pw_uid << ") failure: " << strerror(errno) );
+			~	/* Drop privs. */
+			~	switchToRunAs();
 			~
 			~	/*
 			~	 * Reduce caps to what we need.
@@ -563,10 +578,10 @@ void generateMainCode( P: ref<program> )
 	}
 	else {
 		send Output
-			~void verifyNonRoot()
+			~void dropCaps()
 			~{
 			~	if ( getuid() == 0 || getgid() == 0 )
-			~		log_FATAL( "this service does not require any capabilities, do not run as root" );
+			~		switchToRunAs();
 			~}
 	}
 
@@ -574,17 +589,7 @@ void generateMainCode( P: ref<program> )
 		~int main( int argc, char *const*argv )
 		~{
 		~	genf::lf = new lfdostream( 2 );
-
-	if GblNumCaps > 0  {
-		send Output
-			~	genfRetainCaps();
-	}
-	else {
-		send Output
-			~	verifyNonRoot();
-	}
-
-	send Output
+		~	dropCaps();
 		~	pthread_key_create( &Thread::thisKey, 0 );
 		~	ares_library_init( 0);
 		~	MainThread main;
