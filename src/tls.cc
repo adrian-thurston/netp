@@ -171,6 +171,8 @@ void Thread::clientConnect( SelectFd *fd )
 		/* Check the verification result. */
 		long verifyResult = SSL_get_verify_result( fd->ssl );
 		if ( verifyResult != X509_V_OK ) {
+			fd->sslVerifyError = true;
+
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
 		}
 
@@ -186,6 +188,8 @@ void Thread::clientConnect( SelectFd *fd )
 #ifdef HAVE_X509_CHECK_HOST
 		int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
 		if ( cr != 1 ) {
+			fd->sslVerifyError = true;
+
 			log_ERROR( "ssl peer cn host mismatch: requested " <<
 					fd->remoteHost << " but cert is for " << peer_CN );
 		}
