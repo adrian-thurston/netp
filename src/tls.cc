@@ -189,6 +189,9 @@ void Thread::clientConnect( SelectFd *fd )
 			log_ERROR( "ssl peer cn host mismatch: requested " <<
 					fd->remoteHost << " but cert is for " << peer_CN );
 		}
+#else
+		/* Would like to require or implement this. Not available on 14.04. */
+		/* #error no X509_check_host */
 #endif
 
 		/* Create a BIO for the ssl wrapper. */
