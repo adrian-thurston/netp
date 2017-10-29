@@ -539,13 +539,19 @@ std::ostream &operator <<( std::ostream &out, const log_binary &b );
 	*genf::lf << log_lock() << "ERROR: " << log_prefix() << \
 	msg << std::endl << log_unlock()
 	
+/* Phase out. */
 #define log_message( msg ) \
 	*genf::lf << log_lock() << "message: " << log_prefix() << \
 	msg << std::endl << log_unlock()
 
 #define log_warning( msg ) \
-	*genf::lf << log_lock() << "warning: " << log_prefix() << \
+	*genf::lf << log_lock() << "WARNING: " << log_prefix() << \
 	msg << std::endl << log_unlock()
+
+#define log_WARNING( msg ) \
+	*genf::lf << log_lock() << "WARNING: " << log_prefix() << \
+	msg << std::endl << log_unlock()
+
 
 #define log_debug( realm, msg ) \
 	do { if ( Thread::enabledRealms & ( realm ) ) \

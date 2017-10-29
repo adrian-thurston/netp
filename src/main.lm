@@ -343,12 +343,48 @@ void generateMainCode( P: ref<program> )
 		~	unlink( PIDFILE );
 		~}
 		~
+		~FILE *pidExists()
+		~{
+		~	long pid;
+		~	FILE *pidf = fopen( PIDFILE, "r" );
+		~	if ( pidf != NULL ) {
+		~		int r = fscanf( pidf, "%ld", &pid );
+		~		if ( r != 1 )
+		~			log_FATAL( "pid file exists but we could not read a pid from it: " << PIDFILE );
+		~		fclose( pidf );
+		~
+		~		char fn[64];
+		~		snprintf( fn, sizeof(fn), "/proc/%ld/comm", pid );
+		~		fn[sizeof(fn)-1] = 0;
+		~		FILE *comm = fopen( fn, "rd" );
+		~		if ( comm == NULL && errno == ENOENT ) {
+		~			if ( MainThread::overwritePidFile ) {
+		~				/* Dangling pid file and overwrite is desired. */
+		~				log_WARNING( "dangling pid file was overwritten" );
+		~				return fopen( PIDFILE, "w" );
+		~			}
+
+		~			log_FATAL( "pid file " PIDFILE " is dangling, override with -P" );
+		~		}
+		~	}
+		~
+		~	log_FATAL( "could not open pid file: " PIDFILE << ": " << strerror(EEXIST) );
+		~	return NULL;
+		~}
+		~
 		~FILE *openPidFile()
 		~{
 		~	/* NOTE: using a glibc extension here to get an exclusive open. */
 		~	FILE *pidf = fopen( PIDFILE, "wx" );
+		~	if ( pidf == NULL && errno == EEXIST ) {
+		~		/* If the pid file creation failed because the file exists then
+		~		 * open it up and investigate a bit. User can explicitly
+		~		 * overwrite it. */
+		~		pidf = pidExists();
+		~	}
+
 		~	if ( pidf == NULL )
-		~		log_FATAL( "could not open pid file: " PIDFILE << ": " << strerror(errno) );
+		~		log_FATAL( "pid file " PIDFILE << ": " << strerror(errno) );
 		~
 		~	/* Setup the pidfile unlink. Used in normal exit as well as adverse
 		~	 * failure. Also passed to child process. */
