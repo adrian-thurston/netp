@@ -777,3 +777,26 @@ std::ostream &operator <<( std::ostream &out, const log_binary &b )
 
 	return out;
 }
+
+std::ostream &operator <<( std::ostream &out, const log_hex &h )
+{
+	unsigned char *p = (unsigned char*)h.data;
+	int off = 0;
+
+	out << std::endl;
+	out << std::hex;
+
+	while ( off < h.len ) {
+		unsigned int d = p[off];
+
+		out << ' ';
+		out << std::setfill('0') << std::setw( 2 ) << d;
+
+		off += 1;
+
+		if ( off % 16 == 0 )
+			out << std::endl;
+	}
+
+	return out;
+}

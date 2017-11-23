@@ -516,6 +516,23 @@ struct log_binary
 	int len;
 };
 
+struct log_hex
+{
+	log_hex( const char *data, int len )
+		:
+			data(data), len(len)
+	{}
+
+	log_hex( const unsigned char *data, int len )
+		:
+			data((const char*)data),
+			len(len)
+	{}
+
+	const char *data;
+	int len;
+};
+
 inline std::ostream &operator <<( std::ostream &out, const log_text &a )
 {
 	out.write( a.data, a.len );
@@ -523,6 +540,7 @@ inline std::ostream &operator <<( std::ostream &out, const log_text &a )
 }
 
 std::ostream &operator <<( std::ostream &out, const log_binary &b );
+std::ostream &operator <<( std::ostream &out, const log_hex &b );
 
 /* FIXME: There is a gotcha here. The class-specific of log_prefix does not
  * work with static functions. */
