@@ -1,12 +1,14 @@
 #!/bin/bash
 #
 
-set -xe
+set -x
 
 /home/thurston/pkgs/fetch/libexec/fetch/init.d stop
 /home/thurston/pkgs/netp/libexec/netp/init.d stop
 /home/thurston/pkgs/tlsproxy/libexec/tlsproxy/init.d stop
 /home/thurston/pkgs/broker/libexec/broker/init.d stop
+
+set -e
 
 iptables -t mangle -D PREROUTING -p tcp -m tcp --dport 443 -j TPROXY  --on-port 4430 --tproxy-mark 101/101
 
