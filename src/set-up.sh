@@ -41,3 +41,12 @@ ip rule add fwmark 101 lookup 101
 ip route add local default dev lo table 101
 
 iptables -t mangle -A PREROUTING -p tcp -m tcp --dport 443 -j TPROXY  --on-port 4430 --tproxy-mark 101/101
+
+cd /home/thurston/devel/broker/src
+./broker -b
+cd /home/thurston/devel/netp/src
+./netp -b
+cd /home/thurston/devel/tlsproxy/src
+./tlsproxy -b
+cd /home/thurston/devel/fetch/src
+./fetch -b
