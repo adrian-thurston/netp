@@ -24,5 +24,5 @@ kring.ko: .kbuild
 .PHONY: .kbuild
 
 .kbuild:
-	make MOBJS="$(MOBJS)" -C /lib/modules/3.13.0-24-generic/build/ M=`pwd`  
+	make MOBJS="$(MOBJS)" -C /lib/modules/3.13.0-128-generic/build/ M=`pwd`  
 
