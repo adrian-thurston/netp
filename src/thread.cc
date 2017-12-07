@@ -310,7 +310,7 @@ void Thread::funnelSigs( sigset_t *set )
 	sigaddset( set, SIGHUP );
 	sigaddset( set, SIGINT );
 	sigaddset( set, SIGQUIT );
-	sigaddset( set, SIGKILL );
+	// sigaddset( set, SIGKILL );
 	sigaddset( set, SIGTERM );
 	sigaddset( set, SIGCHLD );
 }
