@@ -1,4 +1,5 @@
 
+#include <valgrind/memcheck.h>
 #include <thread.h>
 
 #include <openssl/x509.h>
@@ -215,7 +216,11 @@ int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 
 	int nbytes = BIO_read( fd->bio, buf, len );
 
-	if ( nbytes <= 0 ) {
+	if ( nbytes > 0 ) {
+		/* FIXME: should this be controlled by a debug build option */
+		VALGRIND_MAKE_MEM_DEFINED( buf, nbytes );
+	}
+	else {
 		if ( BIO_should_retry( fd->bio ) ) {
 			/* Read failure is retry-related. */
 			fd->tlsReadWantsWrite = BIO_should_write(fd->bio);
