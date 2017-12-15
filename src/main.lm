@@ -363,8 +363,8 @@ void generateMainCode( P: ref<program> )
 		~				log_WARNING( "dangling pid file was overwritten" );
 		~				return fopen( PIDFILE, "w" );
 		~			}
-
-		~			log_FATAL( "pid file " PIDFILE " is dangling, override with -P" );
+		~
+		~			log_FATAL( "pid file " PIDFILE " is dangling, overwrite with -P" );
 		~		}
 		~	}
 		~
