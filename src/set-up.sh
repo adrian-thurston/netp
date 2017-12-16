@@ -3,6 +3,13 @@
 
 set -xe
 
+[ `whoami` = root ] || exit
+
+ulimit -c unlimited
+echo 1 > /proc/sys/kernel/core_uses_pid
+echo "/tmp/core-%e-%s-%u-%g-%p-%t" > /proc/sys/kernel/core_pattern
+echo 2 > /proc/sys/fs/suid_dumpable
+
 insmod /home/thurston/devel/kring/src/kring.ko
 
 echo r0 4 > /sys/kring/add_data

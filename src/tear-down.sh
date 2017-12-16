@@ -3,6 +3,8 @@
 
 set -x
 
+[ `whoami` == root ] || exit
+
 /home/thurston/pkgs/fetch/libexec/fetch/init.d stop
 /home/thurston/pkgs/netp/libexec/netp/init.d stop
 /home/thurston/pkgs/tlsproxy/libexec/tlsproxy/init.d stop
