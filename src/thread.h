@@ -208,6 +208,8 @@ struct SelectFd
 		port(0)
 	{}
 
+	void close();
+
 	State state;
 	Thread *thread;
 	int fd;
