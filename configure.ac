@@ -23,4 +23,9 @@ AC_CONFIG_FILES([
 	src/Makefile
 ])
 
+KERNDIR=`function f { echo $1; }; f /lib/modules/3.13.0-*/build`
+AC_CHECK_FILE( [$KERNDIR/Module.symvers], [],
+	[AC_ERROR([could not locate kernel build dir at $KERNDIR] )] )
+AC_SUBST([KERNDIR])
+
 AC_OUTPUT
