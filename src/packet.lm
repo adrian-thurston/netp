@@ -285,6 +285,8 @@ void generatePacketCode( P: program )
 			"
 			"		n += 1;
 			"	}
+			"
+			"	writer->buf.empty();
 			"}
 			"
 	}
