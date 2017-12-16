@@ -497,7 +497,7 @@ void generateMainCode( P: ref<program> )
 		~	}
 		~	case SIGINT:
 		~	case SIGQUIT:
-		~	case SIGKILL:
+		~	// case SIGKILL:
 		~	case SIGTERM:
 		~	{
 		~		log_message( "breaking from signal loop" );
@@ -537,7 +537,7 @@ void generateMainCode( P: ref<program> )
 		~	signal( SIGHUP,  thread_funnel_handler );
 		~	signal( SIGINT,  thread_funnel_handler );
 		~	signal( SIGQUIT, thread_funnel_handler );
-		~	signal( SIGKILL, thread_funnel_handler );
+		~	// signal( SIGKILL, thread_funnel_handler );
 		~	signal( SIGTERM, thread_funnel_handler );
 		~	signal( SIGCHLD, thread_funnel_handler );
 		~
