@@ -176,8 +176,20 @@ struct SelectFd
 		int need;
 	};
 
+	enum Type {
+		TypeTlsConnect
+	};
+
+	enum TypeState {
+		TsLookup,
+		TsConnect,
+		TsTlsConnect,
+		TsTlsEstablished
+	};
+
 	enum State {
-		User = 1,
+		TypeBased = 1,
+		User,
 		Lookup,
 		Connect,
 		PktListen,
@@ -190,6 +202,7 @@ struct SelectFd
 
 	SelectFd( Thread *thread, int fd, void *local )
 	:
+		type(TypeTlsConnect),
 		state(User),
 		thread(thread),
 		fd(fd),
@@ -210,6 +223,8 @@ struct SelectFd
 
 	void close();
 
+	Type type;
+	TypeState typeState;
 	State state;
 	Thread *thread;
 	int fd;
@@ -273,7 +288,8 @@ struct Thread
 		pendingNotifSignal( false ),
 		logFile( &std::cerr ),
 		selectTimeout( 0 ),
-		loop( true )
+		loop( true ),
+		threadClientCtx( 0 )
 	{
 	}
 
@@ -349,6 +365,8 @@ public:
 
 	virtual void recvSingle() {}
 
+	void _notifAsyncConnect( SelectFd *fd );
+	void __selectFdReady( SelectFd *fd, uint8_t readyMask );
 	void _selectFdReady( SelectFd *selectFd, uint8_t readyField );
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 	virtual void handleSignal( int sig ) {}
@@ -378,6 +396,14 @@ public:
 	/*
 	 * SSL
 	 */
+	void startTls()
+	{
+		tlsStartup();
+		threadClientCtx = sslClientCtx();
+	}
+
+	SSL_CTX *threadClientCtx;
+
 	SSL_CTX *sslClientCtx();
 
 	SSL_CTX *sslServerCtx( const char *key, const char *cert );
@@ -388,7 +414,12 @@ public:
 	void startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
 	void startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
 
+	void initiateConnection( SelectFd *fd, const char *host, uint16_t port );
+
+	void _asyncLookup( SelectFd *fd, const char *host );
 	void asyncLookup( SelectFd *fd, const char *host );
+	void __lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
+	void _lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 
 	void clientConnect( SelectFd *fd );

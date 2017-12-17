@@ -564,7 +564,14 @@ int Thread::selectLoop( timeval *timer, bool wantPoll )
 static void lookupCallback( void *arg, int status, int timeouts, unsigned char *abuf, int alen )
 {
 	SelectFd *fd = static_cast<SelectFd*>(arg);
-	fd->thread->lookupCallback( fd, status, timeouts, abuf, alen );
+	fd->thread->_lookupCallback( fd, status, timeouts, abuf, alen );
+}
+
+void Thread::_asyncLookup( SelectFd *selectFd, const char *host )
+{
+	if ( selectFd->remoteHost == 0 )
+		selectFd->remoteHost = strdup(host);
+	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
 }
 
 void Thread::asyncLookup( SelectFd *selectFd, const char *host )
@@ -573,6 +580,54 @@ void Thread::asyncLookup( SelectFd *selectFd, const char *host )
 	if ( selectFd->remoteHost == 0 )
 		selectFd->remoteHost = strdup(host);
 	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
+}
+
+void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
+{
+//	FdDesc *fdDesc = fdLocal( fd );
+//	if ( fdDesc->stop ) {
+//		log_debug( DBG_THREAD, "lookup succeeded, but we are instructed to stop" );
+//		return;
+//	}
+
+	if ( status == ARES_SUCCESS ) {
+		/* Parse the reply. */
+		int naddrttls = 10;
+		ares_addrttl addrttls[naddrttls];
+		ares_parse_a_reply( abuf, alen, 0, addrttls, &naddrttls );
+
+		/* Pull out the first address. */
+		for ( int i = 0; i < naddrttls; i++ ) {
+			//log_debug( DBG_DNS, "result: " << inet_ntoa( addrttls[i].ipaddr ) << " " << addrttls[i].ttl );
+		}
+
+		if ( naddrttls > 0 ) {
+			//log_debug( DBG_THREAD, "lookup succeeded, connecting to " << inet_ntoa( addrttls[0].ipaddr ) );
+
+			sockaddr_in servername;
+			servername.sin_family = AF_INET;
+			servername.sin_port = htons(fd->port);
+			servername.sin_addr = addrttls[0].ipaddr;
+
+			// log_message("starting async connect");
+			int connFd = inetConnect( &servername, true );
+
+			fd->typeState = SelectFd::TsConnect;
+			fd->fd = connFd;
+			fd->wantWrite = true;
+
+			selectFdList.append( fd );
+		}
+	}
+
+}
+
+void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
+{
+	if ( fd->state == SelectFd::TypeBased )
+		__lookupCallback( fd, status, timeouts, abuf, alen );
+	else
+		lookupCallback( fd, status, timeouts, abuf, alen );
 }
 
 void Thread::lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )

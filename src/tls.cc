@@ -362,9 +362,67 @@ void Thread::serverAccept( SelectFd *fd )
 	}
 }
 
+void Thread::initiateConnection( SelectFd *fd, const char *host, uint16_t port )
+{
+	fd->type = SelectFd::TypeTlsConnect;
+	fd->state = SelectFd::TypeBased;
+	fd->typeState = SelectFd::TsLookup;
+	fd->port = port;
+	_asyncLookup( fd, host );
+}
+
+void Thread::_notifAsyncConnect( SelectFd *fd )
+{
+	startTlsClient( threadClientCtx, fd, fd->remoteHost );
+//	selectFdList.append( fd );
+	fd->typeState = SelectFd::TsTlsConnect;
+}
+
+void Thread::__selectFdReady( SelectFd *fd, uint8_t readyMask )
+{
+	switch ( fd->type ) {
+		case SelectFd::TypeTlsConnect: {
+			switch ( fd->typeState ) {
+				case SelectFd::TsLookup:
+					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
+					break;
+				case SelectFd::TsConnect:
+					// log_message("handling ready in ts connect");
+					if ( readyMask & WRITE_READY ) {
+						/* Turn off want write. We must do this before any notification
+						 * below, which may want to turn it on. */
+						fd->wantWrite = false;
+
+						int option;
+						socklen_t optlen = sizeof(int);
+						getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
+						if ( option == 0 ) {
+							_notifAsyncConnect( fd );
+						}
+						else {
+							log_ERROR( "failed async connect: " << strerror(option) );
+						}
+					}
+
+					break;
+				case SelectFd::TsTlsConnect:
+					clientConnect( fd );
+					break;
+				case SelectFd::TsTlsEstablished:
+					//tlsSelectFdReady( fd, readyMask );
+					break;
+			}
+		}
+	}
+}
+
 void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 {
 	switch ( fd->state ) {
+		case SelectFd::TypeBased:
+			__selectFdReady( fd, readyMask );
+			break;
+
 		case SelectFd::User:
 			selectFdReady( fd, readyMask );
 			break;
