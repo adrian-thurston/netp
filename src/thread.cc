@@ -371,6 +371,15 @@ int Thread::signalLoop( sigset_t *set, struct timeval *timer )
 	return 0;
 }
 
+bool tlsEstablished( SelectFd *fd )
+{
+	bool established =
+		( fd->type == SelectFd::TypeClassic && fd->state == SelectFd::TlsEstablished ) ||
+		( fd->type == SelectFd::TypeTlsConnect && fd->typeState == SelectFd::TsTlsEstablished );
+
+	return established;
+}
+
 int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 {
 	timeval left, last;
@@ -390,13 +399,14 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		int nfds = ares_fds( ac, &readSet, &writeSet );
 		
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
+			// log_message( "state: " << fd->state );
 			bool wantRead =
-					fd->state != SelectFd::TlsEstablished ?
+					( !tlsEstablished( fd ) ) ?
 					fd->wantRead :
 					( fd->tlsWantRead || ( fd->tlsWantWrite & fd->tlsWriteWantsRead ) );
 
 			bool wantWrite =
-					fd->state != SelectFd::TlsEstablished ?
+					( !tlsEstablished( fd ) ) ?
 					fd->wantWrite :
 					( fd->tlsWantWrite || ( fd->tlsWantRead & fd->tlsReadWantsWrite ) );
 
@@ -624,7 +634,7 @@ void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned 
 
 void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
 {
-	if ( fd->state == SelectFd::TypeBased )
+	if ( fd->type == SelectFd::TypeTlsConnect )
 		__lookupCallback( fd, status, timeouts, abuf, alen );
 	else
 		lookupCallback( fd, status, timeouts, abuf, alen );

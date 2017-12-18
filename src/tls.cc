@@ -162,6 +162,21 @@ void Thread::startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
 	selectFdList.append( selectFd );
 }
 
+void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
+{
+	switch ( fd->type ) {
+		case SelectFd::TypeClassic:
+			tlsConnectResult( fd, sslError );
+			break;
+		case SelectFd::TypeTlsConnect:
+			if ( sslError == SSL_ERROR_NONE ) {
+				GenfConnection *c = static_cast<GenfConnection*>(fd->local);
+				c->connectComplete();
+			}
+			break;
+	}
+}
+
 void Thread::clientConnect( SelectFd *fd )
 {
 	int result = SSL_connect( fd->ssl );
@@ -172,7 +187,8 @@ void Thread::clientConnect( SelectFd *fd )
 		bool retry = prepNextRound( fd, result );
 		if ( !retry ) {
 			/* Not a retry failure. */
-			tlsConnectResult( fd, result );
+			_tlsConnectResult( fd, result );
+			// log_message("post connect result state: " << fd->state );
 		}
 	}
 	else {
@@ -213,7 +229,8 @@ void Thread::clientConnect( SelectFd *fd )
 		/* Just wrapped the bio, update in select fd. */
 		fd->bio = bio;
 
-		tlsConnectResult( fd, SSL_ERROR_NONE );
+		_tlsConnectResult( fd, SSL_ERROR_NONE );
+		// log_message("post connect result state: " << fd->state );
 	}
 }
 
@@ -362,10 +379,14 @@ void Thread::serverAccept( SelectFd *fd )
 	}
 }
 
+void GenfConnection::initiate( const char *host, uint16_t port )
+{
+	thread->initiateConnection( selectFd, host, port );
+}
+
 void Thread::initiateConnection( SelectFd *fd, const char *host, uint16_t port )
 {
 	fd->type = SelectFd::TypeTlsConnect;
-	fd->state = SelectFd::TypeBased;
 	fd->typeState = SelectFd::TsLookup;
 	fd->port = port;
 	_asyncLookup( fd, host );
@@ -375,12 +396,118 @@ void Thread::_notifAsyncConnect( SelectFd *fd )
 {
 	startTlsClient( threadClientCtx, fd, fd->remoteHost );
 //	selectFdList.append( fd );
+	fd->type = SelectFd::TypeTlsConnect;
 	fd->typeState = SelectFd::TsTlsConnect;
 }
 
-void Thread::__selectFdReady( SelectFd *fd, uint8_t readyMask )
+void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
+{
+	while ( true ) {
+		char bytes[8192*2];
+		int nbytes = Thread::tlsRead( fd, bytes, sizeof(bytes) );
+
+		if ( nbytes < 0 ) {
+			::close( fd->fd ); 
+			fd->state = SelectFd::Closed;
+
+			fd->wantRead = false;
+			fd->wantWrite = false;
+			break;
+		}
+		else if ( nbytes > 0 ) {
+			GenfConnection *c = static_cast<GenfConnection*>(fd->local);
+			c->dataAvail( bytes, nbytes );
+			if ( c->closed )
+				break;
+		}
+		else if ( nbytes == 0 ) {
+			break;
+		}
+	}
+}
+
+
+void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 {
 	switch ( fd->type ) {
+		case SelectFd::TypeClassic: {
+			switch ( fd->state ) {
+				case SelectFd::User:
+					selectFdReady( fd, readyMask );
+					break;
+
+				case SelectFd::Lookup:
+					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
+					break;
+
+				case SelectFd::Connect: {
+					if ( readyMask & WRITE_READY ) {
+						/* Turn off want write. We must do this before any notification
+						 * below, which may want to turn it on. */
+						fd->wantWrite = false;
+
+						int option;
+						socklen_t optlen = sizeof(int);
+						getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
+						if ( option == 0 ) {
+							notifAsyncConnect( fd );
+						}
+						else {
+							log_ERROR( "failed async connect: " << strerror(option) );
+						}
+					}
+
+					break;
+				}
+
+				case SelectFd::PktListen: {
+					sockaddr_in peer;
+					socklen_t len = sizeof(sockaddr_in);
+
+					int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
+					if ( result >= 0 ) {
+						SelectFd *selectFd = new SelectFd( this, result, 0 );
+						selectFd->state = SelectFd::PktData;
+						selectFd->wantRead = true;
+						selectFdList.append( selectFd );
+						notifAccept( selectFd );
+					}
+					else {
+						log_ERROR( "failed to accept connection: " << strerror(errno) );
+					}
+					break;
+				}
+				case SelectFd::PktData: {
+					if ( readyMask & READ_READY )
+						data( fd );
+					if ( readyMask & WRITE_READY )
+						writeReady( fd );
+					break;
+				}
+
+				case SelectFd::TlsConnect:
+					clientConnect( fd );
+					break;
+
+				case SelectFd::TlsAccept:
+					serverAccept( fd );
+					break;
+
+				case SelectFd::TlsEstablished:
+					tlsSelectFdReady( fd, readyMask );
+					break;
+
+				case SelectFd::Closed:
+					/* This shouldn't come in. We need to disable the flags. */
+					fd->wantRead = false;
+					fd->wantWrite = false;
+					break;
+			}
+
+
+
+			break;
+		}
 		case SelectFd::TypeTlsConnect: {
 			switch ( fd->typeState ) {
 				case SelectFd::TsLookup:
@@ -409,89 +536,10 @@ void Thread::__selectFdReady( SelectFd *fd, uint8_t readyMask )
 					clientConnect( fd );
 					break;
 				case SelectFd::TsTlsEstablished:
-					//tlsSelectFdReady( fd, readyMask );
+					// log_message( "ts tls established" );
+					_tlsSelectFdReady( fd, readyMask );
 					break;
 			}
 		}
-	}
-}
-
-void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
-{
-	switch ( fd->state ) {
-		case SelectFd::TypeBased:
-			__selectFdReady( fd, readyMask );
-			break;
-
-		case SelectFd::User:
-			selectFdReady( fd, readyMask );
-			break;
-
-		case SelectFd::Lookup:
-			/* Shouldn't happen. When in lookup state, events happen on the resolver. */
-			break;
-
-		case SelectFd::Connect: {
-			if ( readyMask & WRITE_READY ) {
-				/* Turn off want write. We must do this before any notification
-				 * below, which may want to turn it on. */
-				fd->wantWrite = false;
-
-				int option;
-				socklen_t optlen = sizeof(int);
-				getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
-				if ( option == 0 ) {
-					notifAsyncConnect( fd );
-				}
-				else {
-					log_ERROR( "failed async connect: " << strerror(option) );
-				}
-			}
-
-			break;
-		}
-
-		case SelectFd::PktListen: {
-			sockaddr_in peer;
-			socklen_t len = sizeof(sockaddr_in);
-
-			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-			if ( result >= 0 ) {
-				SelectFd *selectFd = new SelectFd( this, result, 0 );
-				selectFd->state = SelectFd::PktData;
-				selectFd->wantRead = true;
-				selectFdList.append( selectFd );
-				notifAccept( selectFd );
-			}
-			else {
-				log_ERROR( "failed to accept connection: " << strerror(errno) );
-			}
-			break;
-		}
-		case SelectFd::PktData: {
-			if ( readyMask & READ_READY )
-				data( fd );
-			if ( readyMask & WRITE_READY )
-				writeReady( fd );
-			break;
-		}
-
-		case SelectFd::TlsConnect:
-			clientConnect( fd );
-			break;
-
-		case SelectFd::TlsAccept:
-			serverAccept( fd );
-			break;
-
-		case SelectFd::TlsEstablished:
-			tlsSelectFdReady( fd, readyMask );
-			break;
-
-		case SelectFd::Closed:
-			/* This shouldn't come in. We need to disable the flags. */
-			fd->wantRead = false;
-			fd->wantWrite = false;
-			break;
 	}
 }

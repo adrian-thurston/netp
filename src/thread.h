@@ -177,6 +177,7 @@ struct SelectFd
 	};
 
 	enum Type {
+		TypeClassic,
 		TypeTlsConnect
 	};
 
@@ -188,8 +189,7 @@ struct SelectFd
 	};
 
 	enum State {
-		TypeBased = 1,
-		User,
+		User = 1,
 		Lookup,
 		Connect,
 		PktListen,
@@ -202,7 +202,7 @@ struct SelectFd
 
 	SelectFd( Thread *thread, int fd, void *local )
 	:
-		type(TypeTlsConnect),
+		type(TypeClassic),
 		state(User),
 		thread(thread),
 		fd(fd),
@@ -252,6 +252,21 @@ struct SelectFd
 };
 
 typedef List<SelectFd> SelectFdList;
+
+struct GenfConnection
+{
+	GenfConnection( Thread *thread, SelectFd *fd )
+		: thread(thread), selectFd(fd), closed(false) {}
+
+	void initiate( const char *host, uint16_t port );
+
+	virtual void connectComplete() = 0;
+	virtual void dataAvail( char *bytes, int nbytes ) = 0;
+
+	Thread *thread;
+	SelectFd *selectFd;
+	bool closed;
+};
 
 struct PacketHeader;
 struct PacketWriter
@@ -366,7 +381,6 @@ public:
 	virtual void recvSingle() {}
 
 	void _notifAsyncConnect( SelectFd *fd );
-	void __selectFdReady( SelectFd *fd, uint8_t readyMask );
 	void _selectFdReady( SelectFd *selectFd, uint8_t readyField );
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 	virtual void handleSignal( int sig ) {}
@@ -427,6 +441,7 @@ public:
 	int tlsWrite( SelectFd *fd, char *data, int len );
 	int tlsRead( SelectFd *fd, void *buf, int len );
 
+	void _tlsSelectFdReady( SelectFd *fd, uint8_t readyMask );
 	virtual void tlsSelectFdReady( SelectFd *fd, uint8_t readyMask ) {}
 
 	void tlsStartup( const char *randFile = 0 );
@@ -438,6 +453,7 @@ public:
 	bool prepNextRound( SelectFd *fd, int result );
 	void serverAccept( SelectFd *fd );
 
+	void _tlsConnectResult( SelectFd *fd, int sslError );
 	virtual void tlsConnectResult( SelectFd *fd, int sslError ) {}
 	virtual void tlsAcceptResult( SelectFd *fd, int sslError ) {}
 
