@@ -172,6 +172,10 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 			if ( sslError == SSL_ERROR_NONE ) {
 				GenfConnection *c = static_cast<GenfConnection*>(fd->local);
 				c->connectComplete();
+
+				fd->typeState = SelectFd::TsTlsEstablished;
+				fd->tlsWantRead = true;
+				fd->wantWrite = false;
 			}
 			break;
 	}
