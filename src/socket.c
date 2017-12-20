@@ -58,7 +58,7 @@ int kdata_sock_create( struct net *net, struct socket *sock, int protocol, int k
 	if ( protocol != htons(ETH_P_ALL) )
 		return -EPROTONOSUPPORT;
 
-	sk = sk_alloc( net, PF_INET, GFP_KERNEL, &kdata_proto );
+	sk = sk_alloc( net, PF_INET, GFP_KERNEL, &kdata_proto ARG_SK_ALLOC );
 
 	if ( sk == NULL )
 		return -ENOMEM;
@@ -377,7 +377,7 @@ int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len )
 	return 0;
 }
 
-int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags )
+int kring_recvmsg( PARAM_IOCB struct socket *sock, struct msghdr *msg, size_t len, int flags )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
@@ -404,7 +404,7 @@ int kring_recvmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, 
 	return 0;
 }
 
-int kring_sendmsg( struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len )
+int kring_sendmsg( PARAM_IOCB struct socket *sock, struct msghdr *msg, size_t len )
 {
 	struct kring_sock *krs = kring_sk( sock->sk );
 	struct kring_ringset *r = krs->ringset;
