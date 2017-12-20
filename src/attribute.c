@@ -15,7 +15,7 @@
 #include "module.h"
 #include "attribute.h"
 #include "avl.h"
-
+#include "config.h"
 
 struct connection
 {
@@ -515,7 +515,11 @@ static int create_netdev( struct link *link, const char *name )
 	struct net_device *dev;
 	struct shuttle_dev_priv *priv;
 
+#if KERNVER == 3
 	dev = alloc_netdev( sizeof(struct shuttle_dev_priv), name, shuttle_dev_setup );
+#elif KERNVER == 4
+	dev = alloc_netdev( sizeof(struct shuttle_dev_priv), name, NET_NAME_UNKNOWN, shuttle_dev_setup );
+#endif
 
 	if (!dev)
 		return -ENOMEM;
