@@ -5,6 +5,8 @@ set -xe
 
 [ `whoami` = root ] || exit
 
+source ./interfaces.sh
+
 ulimit -c unlimited
 echo 1 > /proc/sys/kernel/core_uses_pid
 echo "/tmp/core-%e-%s-%u-%g-%p-%t" > /proc/sys/kernel/core_pattern
@@ -21,11 +23,11 @@ insmod ./shuttle.ko
 
 echo shuttle1 c0 r0 >/sys/shuttle/add
 
-echo eth1 outside  >/sys/shuttle/shuttle1/port_add
-echo eth2 inside  >/sys/shuttle/shuttle1/port_add
+echo $OUTSIDE outside  >/sys/shuttle/shuttle1/port_add
+echo $INSIDE inside  >/sys/shuttle/shuttle1/port_add
 
-ip link set eth1 up
-ip link set eth2 up
+ip link set $OUTSIDE up
+ip link set $INSIDE up
 
 #
 # Doesn't seem to matter if we assign an IP address or bring up device, so long
