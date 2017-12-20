@@ -52,13 +52,13 @@ iptables -t mangle -A PREROUTING -p tcp -m tcp --dport 443 -j TPROXY  --on-port 
 sleep 1
 
 cd /home/thurston/devel/broker/src
-./broker -b
+./broker -b -P
 
 sleep 1
 
 cd /home/thurston/devel/netp/src
-./netp -b
+./netp -b -P
 cd /home/thurston/devel/tlsproxy/src
-./tlsproxy -b
+./tlsproxy -b -P
 cd /home/thurston/devel/fetch/src
-./fetch -b
+./fetch -b -P
