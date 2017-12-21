@@ -3,7 +3,6 @@
 
 #include "kdata.h"
 #include "kctrl.h"
-#include "config.h"
 
 #include <linux/skbuff.h>
 #include <linux/kobject.h>
@@ -140,18 +139,6 @@ int kring_getsockopt( struct socket *sock, int level, int optname, char __user *
 int kring_sock_mmap( struct file *file, struct socket *sock, struct vm_area_struct *vma );
 int kring_sock_release( struct socket *sock );
 int kring_bind( struct socket *sock, struct sockaddr *sa, int addr_len );
-
-#if   KERNVER == 3
-#define PARAM_IOCB struct kiocb *iocb,
-#define ARG_SK_ALLOC
-#elif KERNVER == 4
-#define PARAM_IOCB
-#define ARG_SK_ALLOC , 1
-#endif
-
-int kring_recvmsg( PARAM_IOCB struct socket *sock, struct msghdr *msg, size_t len, int flags );
-int kring_sendmsg( PARAM_IOCB struct socket *sock, struct msghdr *msg, size_t len );
-void kring_sock_destruct( struct sock *sk );
 
 int kring_sk_init(void);
 void kring_sk_exit(void);

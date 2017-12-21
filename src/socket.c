@@ -1,7 +1,19 @@
 #include "krkern.h"
 #include "kring.h"
+#include "config.h"
+
+#if   KERNVER == 3
+#define PARAM_IOCB struct kiocb *iocb,
+#define ARG_SK_ALLOC
+#elif KERNVER == 4
+#define PARAM_IOCB
+#define ARG_SK_ALLOC , 1
+#endif
 
 int kdata_sock_create( struct net *net, struct socket *sock, int protocol, int kern );
+int kring_recvmsg( PARAM_IOCB struct socket *sock, struct msghdr *msg, size_t len, int flags );
+int kring_sendmsg( PARAM_IOCB struct socket *sock, struct msghdr *msg, size_t len );
+void kring_sock_destruct( struct sock *sk );
 
 static struct proto_ops kdata_ops = {
 	.family = KDATA,
