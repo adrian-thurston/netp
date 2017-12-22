@@ -4,7 +4,7 @@ lib_LTLIBRARIES = libgenf.la
 
 include_HEADERS =
 
-libgenf_la_SOURCES = list.h thread.h thread.cc tls.cc
+libgenf_la_SOURCES = list.h thread.h thread.cc tls.cc connection.cc
 libgenf_la_CPPFLAGS = -Iinclude
 
 genfincdir = $(includedir)/genf

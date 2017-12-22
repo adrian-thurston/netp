@@ -600,6 +600,8 @@ void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned 
 //		return;
 //	}
 
+	Connection *c = static_cast<Connection*>(fd->local);
+
 	if ( status == ARES_SUCCESS ) {
 		/* Parse the reply. */
 		int naddrttls = 10;
@@ -626,10 +628,13 @@ void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned 
 			fd->fd = connFd;
 			fd->wantWrite = true;
 
+			c->onSelectList = true;
 			selectFdList.append( fd );
 		}
 	}
-
+	else {
+		c->failure( Connection::LookupFailure );
+	}
 }
 
 void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )

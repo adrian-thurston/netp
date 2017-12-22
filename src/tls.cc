@@ -170,7 +170,7 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 			break;
 		case SelectFd::TypeTlsConnect:
 			if ( sslError == SSL_ERROR_NONE ) {
-				GenfConnection *c = static_cast<GenfConnection*>(fd->local);
+				Connection *c = static_cast<Connection*>(fd->local);
 				c->connectComplete();
 
 				fd->typeState = SelectFd::TsTlsEstablished;
@@ -178,6 +178,68 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 				fd->wantWrite = false;
 			}
 			break;
+	}
+}
+
+void Thread::_clientConnect( SelectFd *fd )
+{
+	int result = SSL_connect( fd->ssl );
+	if ( result <= 0 ) {
+		/* No connect yet. May need more data. */
+		result = SSL_get_error( fd->ssl, result );
+
+		bool retry = prepNextRound( fd, result );
+		if ( !retry ) {
+			/* Not a retry failure. */
+			_tlsConnectResult( fd, result );
+			// log_message("post connect result state: " << fd->state );
+		}
+	}
+	else {
+		/* Check the verification result. */
+		long verifyResult = SSL_get_verify_result( fd->ssl );
+		if ( verifyResult != X509_V_OK ) {
+			fd->sslVerifyError = true;
+
+			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
+			Connection *c = static_cast<Connection*>(fd->local);
+			c->failure( Connection::FailSslPeerFailedVerify );
+		}
+
+		/* Check the cert chain. The chain length is automatically checked by
+		 * OpenSSL when we set the verify depth in the CTX */
+
+		/* Check the common name. */
+		X509 *peer = SSL_get_peer_certificate( fd->ssl );
+		char peer_CN[PEER_CN_NAME_LEN];
+		X509_NAME_get_text_by_NID( X509_get_subject_name(peer),
+				NID_commonName, peer_CN, PEER_CN_NAME_LEN );
+
+#ifdef HAVE_X509_CHECK_HOST
+		int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
+		if ( cr != 1 ) {
+			fd->sslVerifyError = true;
+
+			log_ERROR( "ssl peer cn host mismatch: requested " <<
+					fd->remoteHost << " but cert is for " << peer_CN );
+
+			Connection *c = static_cast<Connection*>(fd->local);
+			c->failure( Connection::SslPeerCnHostMismatch );
+		}
+#else
+		/* Would like to require or implement this. Not available on 14.04. */
+		/* #error no X509_check_host */
+#endif
+
+		/* Create a BIO for the ssl wrapper. */
+		BIO *bio = BIO_new( BIO_f_ssl() );
+		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
+
+		/* Just wrapped the bio, update in select fd. */
+		fd->bio = bio;
+
+		_tlsConnectResult( fd, SSL_ERROR_NONE );
+		// log_message("post connect result state: " << fd->state );
 	}
 }
 
@@ -383,11 +445,6 @@ void Thread::serverAccept( SelectFd *fd )
 	}
 }
 
-void GenfConnection::initiate( const char *host, uint16_t port )
-{
-	thread->initiateConnection( selectFd, host, port );
-}
-
 void Thread::initiateConnection( SelectFd *fd, const char *host, uint16_t port )
 {
 	fd->type = SelectFd::TypeTlsConnect;
@@ -411,6 +468,9 @@ void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
 		int nbytes = Thread::tlsRead( fd, bytes, sizeof(bytes) );
 
 		if ( nbytes < 0 ) {
+			Connection *c = static_cast<Connection*>(fd->local);
+			c->failure( Connection::SslReadFailure );
+
 			::close( fd->fd ); 
 			fd->state = SelectFd::Closed;
 
@@ -419,7 +479,7 @@ void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 		}
 		else if ( nbytes > 0 ) {
-			GenfConnection *c = static_cast<GenfConnection*>(fd->local);
+			Connection *c = static_cast<Connection*>(fd->local);
 			c->dataAvail( bytes, nbytes );
 			if ( c->closed )
 				break;
@@ -532,12 +592,14 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 						}
 						else {
 							log_ERROR( "failed async connect: " << strerror(option) );
+							Connection *c = static_cast<Connection*>(fd->local);
+							c->failure( Connection::FailAsyncConnect );
 						}
 					}
 
 					break;
 				case SelectFd::TsTlsConnect:
-					clientConnect( fd );
+					_clientConnect( fd );
 					break;
 				case SelectFd::TsTlsEstablished:
 					// log_message( "ts tls established" );

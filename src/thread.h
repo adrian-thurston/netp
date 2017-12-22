@@ -253,10 +253,10 @@ struct SelectFd
 
 typedef List<SelectFd> SelectFdList;
 
-struct GenfConnection
+struct Connection
 {
-	GenfConnection( Thread *thread, SelectFd *fd )
-		: thread(thread), selectFd(fd), closed(false) {}
+	Connection( Thread *thread, SelectFd *fd )
+		: thread(thread), selectFd(fd), closed(false), onSelectList(false) {}
 
 	void initiate( const char *host, uint16_t port );
 
@@ -266,6 +266,18 @@ struct GenfConnection
 	Thread *thread;
 	SelectFd *selectFd;
 	bool closed;
+	bool onSelectList;
+
+	void close();
+
+	enum FailType {
+		SslReadFailure = 1,
+		FailSslPeerFailedVerify,
+		FailAsyncConnect,
+		LookupFailure
+	};
+
+	virtual void failure( FailType failType ) = 0;
 };
 
 struct PacketHeader;
@@ -436,6 +448,7 @@ public:
 	void _lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 
+	void _clientConnect( SelectFd *fd );
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
 	int tlsWrite( SelectFd *fd, char *data, int len );
