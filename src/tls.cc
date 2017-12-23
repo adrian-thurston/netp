@@ -204,42 +204,48 @@ void Thread::_clientConnect( SelectFd *fd )
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
 			Connection *c = static_cast<Connection*>(fd->local);
 			c->failure( Connection::FailSslPeerFailedVerify );
+			c->close();
 		}
+		else {
+			/* Check the cert chain. The chain length is automatically checked by
+			 * OpenSSL when we set the verify depth in the CTX */
 
-		/* Check the cert chain. The chain length is automatically checked by
-		 * OpenSSL when we set the verify depth in the CTX */
-
-		/* Check the common name. */
-		X509 *peer = SSL_get_peer_certificate( fd->ssl );
-		char peer_CN[PEER_CN_NAME_LEN];
-		X509_NAME_get_text_by_NID( X509_get_subject_name(peer),
-				NID_commonName, peer_CN, PEER_CN_NAME_LEN );
+			/* Check the common name. */
+			X509 *peer = SSL_get_peer_certificate( fd->ssl );
+			char peer_CN[PEER_CN_NAME_LEN];
+			X509_NAME_get_text_by_NID( X509_get_subject_name(peer),
+					NID_commonName, peer_CN, PEER_CN_NAME_LEN );
 
 #ifdef HAVE_X509_CHECK_HOST
-		int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
-		if ( cr != 1 ) {
-			fd->sslVerifyError = true;
+			int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
+			if ( cr != 1 ) {
+				fd->sslVerifyError = true;
 
-			log_ERROR( "ssl peer cn host mismatch: requested " <<
-					fd->remoteHost << " but cert is for " << peer_CN );
+				log_ERROR( "ssl peer cn host mismatch: requested " <<
+						fd->remoteHost << " but cert is for " << peer_CN );
 
-			Connection *c = static_cast<Connection*>(fd->local);
-			c->failure( Connection::SslPeerCnHostMismatch );
-		}
+				Connection *c = static_cast<Connection*>(fd->local);
+				c->failure( Connection::SslPeerCnHostMismatch );
+				c->close();
+			}
+			else
 #else
-		/* Would like to require or implement this. Not available on 14.04. */
-		/* #error no X509_check_host */
+			{
+				/* Would like to require or implement this. Not available on 14.04. */
+				/* #error no X509_check_host */
 #endif
 
-		/* Create a BIO for the ssl wrapper. */
-		BIO *bio = BIO_new( BIO_f_ssl() );
-		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
+				/* Create a BIO for the ssl wrapper. */
+				BIO *bio = BIO_new( BIO_f_ssl() );
+				BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
 
-		/* Just wrapped the bio, update in select fd. */
-		fd->bio = bio;
+				/* Just wrapped the bio, update in select fd. */
+				fd->bio = bio;
 
-		_tlsConnectResult( fd, SSL_ERROR_NONE );
-		// log_message("post connect result state: " << fd->state );
+				_tlsConnectResult( fd, SSL_ERROR_NONE );
+				// log_message("post connect result state: " << fd->state );
+			}
+		}
 	}
 }
 
@@ -470,12 +476,7 @@ void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
 		if ( nbytes < 0 ) {
 			Connection *c = static_cast<Connection*>(fd->local);
 			c->failure( Connection::SslReadFailure );
-
-			::close( fd->fd ); 
-			fd->state = SelectFd::Closed;
-
-			fd->wantRead = false;
-			fd->wantWrite = false;
+			c->close();
 			break;
 		}
 		else if ( nbytes > 0 ) {
@@ -594,6 +595,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 							log_ERROR( "failed async connect: " << strerror(option) );
 							Connection *c = static_cast<Connection*>(fd->local);
 							c->failure( Connection::FailAsyncConnect );
+							c->close();
 						}
 					}
 

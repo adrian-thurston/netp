@@ -592,6 +592,11 @@ void Thread::asyncLookup( SelectFd *selectFd, const char *host )
 	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
 }
 
+int Connection::write( char *data, int len )
+{
+	return thread->tlsWrite( selectFd, data, len );
+}
+
 void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
 {
 //	FdDesc *fdDesc = fdLocal( fd );

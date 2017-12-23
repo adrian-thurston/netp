@@ -263,6 +263,8 @@ struct Connection
 	virtual void connectComplete() = 0;
 	virtual void dataAvail( char *bytes, int nbytes ) = 0;
 
+	int write( char *data, int len );
+
 	Thread *thread;
 	SelectFd *selectFd;
 	bool closed;
