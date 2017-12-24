@@ -491,6 +491,11 @@ void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
 	}
 }
 
+void Thread::notifAsyncConnect( SelectFd *selectFd )
+{
+	selectFd->state = SelectFd::PktData;
+	selectFd->wantRead = true;
+}
 
 void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 {

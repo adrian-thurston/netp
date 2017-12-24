@@ -688,12 +688,6 @@ void Thread::lookupCallback( SelectFd *fd, int status, int timeouts, unsigned ch
 	}
 }
 
-void Thread::notifAsyncConnect( SelectFd *selectFd )
-{
-	selectFd->state = SelectFd::PktData;
-	selectFd->wantRead = true;
-}
-
 int Thread::inetConnect( sockaddr_in *sa, bool nonBlocking )
 {
 	/* Create the socket. */
@@ -719,23 +713,6 @@ int Thread::inetConnect( sockaddr_in *sa, bool nonBlocking )
 	}
 
 	return fd;
-}
-
-int Thread::inetConnect( const char *host, uint16_t port, bool nonBlocking )
-{
-	/* Lookup the host. */
-	hostent *hostinfo = gethostbyname( host );
-	if ( hostinfo == NULL ) {
-		log_ERROR( "inet connect: name resoluation failed: " << strerror(errno) );
-		return -1;
-	}
-
-	sockaddr_in servername;
-	servername.sin_family = AF_INET;
-	servername.sin_port = htons(port);
-	servername.sin_addr = *(in_addr*)hostinfo->h_addr;
-
-	return inetConnect( &servername, nonBlocking );
 }
 
 void Thread::initId()
