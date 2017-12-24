@@ -174,6 +174,7 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 				c->connectComplete();
 
 				fd->typeState = SelectFd::TsTlsEstablished;
+				fd->tlsEstablished = true;
 				fd->tlsWantRead = true;
 				fd->wantWrite = false;
 			}

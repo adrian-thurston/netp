@@ -401,12 +401,12 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
 			// log_message( "state: " << fd->state );
 			bool wantRead =
-					( !tlsEstablished( fd ) ) ?
+					( !fd->tlsEstablished ) ?
 					fd->wantRead :
 					( fd->tlsWantRead || ( fd->tlsWantWrite & fd->tlsWriteWantsRead ) );
 
 			bool wantWrite =
-					( !tlsEstablished( fd ) ) ?
+					( !fd->tlsEstablished ) ?
 					fd->wantWrite :
 					( fd->tlsWantWrite || ( fd->tlsWantRead & fd->tlsReadWantsWrite ) );
 

@@ -216,6 +216,7 @@ struct SelectFd
 		sslVerifyError(false),
 		tlsWantRead(false),
 		tlsWantWrite(false),
+		tlsEstablished(false),
 		tlsWriteWantsRead(false),
 		tlsReadWantsWrite(false),
 		port(0)
@@ -240,6 +241,8 @@ struct SelectFd
 	/* If connection is tls, the application should use these. */
 	bool tlsWantRead;
 	bool tlsWantWrite;
+
+	bool tlsEstablished;
 
 	bool tlsWriteWantsRead;
 	bool tlsReadWantsWrite;
