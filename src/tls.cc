@@ -462,14 +462,24 @@ void Thread::initiateConnection( SelectFd *fd, const char *host, uint16_t port )
 	_asyncLookup( fd, host );
 }
 
-void Thread::_notifAsyncConnect( SelectFd *fd )
+void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 {
-	startTlsClient( threadClientCtx, fd, fd->remoteHost );
-//	selectFdList.append( fd );
-	fd->type = SelectFd::TypeTlsConnect;
-	fd->typeState = SelectFd::TsTlsConnect;
+	if ( conn->tlsConnect ) {
+		startTlsClient( threadClientCtx, fd, fd->remoteHost );
+		// selectFdList.append( fd );
+		fd->type = SelectFd::TypeTlsConnect;
+		fd->typeState = SelectFd::TsTlsConnect;
+	}
+	else {
+		/* FIXME: some type of notification here? */
+		fd->type = SelectFd::TypeTlsConnect;
+		fd->typeState = SelectFd::TsEstablished;
+		fd->wantRead = true;
+		conn->connectComplete();
+	}
 }
 
+#if 0
 void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
 {
 	while ( true ) {
@@ -493,11 +503,17 @@ void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
 		}
 	}
 }
+#endif
 
 void Thread::notifAsyncConnect( SelectFd *selectFd )
 {
 	selectFd->state = SelectFd::PktData;
 	selectFd->wantRead = true;
+}
+
+void PktConnection::readReady()
+{
+	thread->data( selectFd );
 }
 
 void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
@@ -575,7 +591,9 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				case SelectFd::TsLookup:
 					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
 					break;
-				case SelectFd::TsConnect:
+				case SelectFd::TsConnect: {
+					Connection *c = static_cast<Connection*>(fd->local);
+
 					// log_message("handling ready in ts connect");
 					if ( readyMask & WRITE_READY ) {
 						/* Turn off want write. We must do this before any notification
@@ -586,24 +604,33 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 						socklen_t optlen = sizeof(int);
 						getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
 						if ( option == 0 ) {
-							_notifAsyncConnect( fd );
+							asyncConnect( fd, c );
 						}
 						else {
 							log_ERROR( "failed async connect: " << strerror(option) );
-							Connection *c = static_cast<Connection*>(fd->local);
 							c->failure( Connection::FailAsyncConnect );
 							c->close();
 						}
 					}
 
 					break;
+				}
 				case SelectFd::TsTlsConnect:
 					_clientConnect( fd );
 					break;
-				case SelectFd::TsTlsEstablished:
-					// log_message( "ts tls established" );
-					_tlsSelectFdReady( fd, readyMask );
+				case SelectFd::TsTlsEstablished: {
+					Connection *c = static_cast<Connection*>(fd->local);
+					c->readReady();
 					break;
+				}
+				case SelectFd::TsEstablished: {
+					Connection *c = static_cast<Connection*>(fd->local);
+					if ( readyMask & READ_READY ) {
+						log_message( "ts established: read ready" );
+						c->readReady();
+					}
+					break;
+				}
 			}
 		}
 	}

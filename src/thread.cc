@@ -583,11 +583,6 @@ void Thread::asyncLookup( SelectFd *selectFd, const char *host )
 	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
 }
 
-int Connection::write( char *data, int len )
-{
-	return thread->tlsWrite( selectFd, data, len );
-}
-
 void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
 {
 //	FdDesc *fdDesc = fdLocal( fd );
@@ -609,6 +604,7 @@ void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned 
 			//log_debug( DBG_DNS, "result: " << inet_ntoa( addrttls[i].ipaddr ) << " " << addrttls[i].ttl );
 		}
 
+
 		if ( naddrttls > 0 ) {
 			//log_debug( DBG_THREAD, "lookup succeeded, connecting to " << inet_ntoa( addrttls[0].ipaddr ) );
 
@@ -617,7 +613,6 @@ void Thread::__lookupCallback( SelectFd *fd, int status, int timeouts, unsigned 
 			servername.sin_port = htons(fd->port);
 			servername.sin_addr = addrttls[0].ipaddr;
 
-			// log_message("starting async connect");
 			int connFd = inetConnect( &servername, true );
 
 			fd->typeState = SelectFd::TsConnect;
@@ -661,8 +656,6 @@ void Thread::lookupCallback( SelectFd *fd, int status, int timeouts, unsigned ch
 		}
 
 		if ( naddrttls > 0 ) {
-			//log_debug( DBG_THREAD, "lookup succeeded, connecting to " << inet_ntoa( addrttls[0].ipaddr ) );
-
 			sockaddr_in servername;
 			servername.sin_family = AF_INET;
 			servername.sin_port = htons(fd->port);

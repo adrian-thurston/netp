@@ -186,7 +186,8 @@ struct SelectFd
 		TsLookup = 1,
 		TsConnect,
 		TsTlsConnect,
-		TsTlsEstablished
+		TsTlsEstablished,
+		TsEstablished
 	};
 
 	enum State {
@@ -263,18 +264,21 @@ struct Connection
 	};
 
 	Connection( Thread *thread, SelectFd *fd )
-		: thread(thread), selectFd(fd), closed(false), onSelectList(false) {}
+		: thread(thread), selectFd(fd), tlsConnect(true), closed(false), onSelectList(false) {}
 
-	void initiate( const char *host, uint16_t port );
+	void initiateTls( const char *host, uint16_t port );
 
 	virtual void connectComplete() = 0;
-	virtual void dataAvail( char *bytes, int nbytes ) = 0;
+	virtual void readReady() = 0;
 	virtual void failure( FailType failType ) = 0;
+
+	int read( char *data, int len );
 
 	int write( char *data, int len );
 
 	Thread *thread;
 	SelectFd *selectFd;
+	bool tlsConnect;
 	bool closed;
 	bool onSelectList;
 
@@ -284,8 +288,11 @@ struct Connection
 struct PktConnection
 	: public Connection
 {
+	PktConnection( Thread *thread, SelectFd *selectFd )
+		: Connection( thread, selectFd ) {}
+
 	virtual void connectComplete() {}
-	virtual void dataAvail( char *bytes, int nbytes );
+	virtual void readReady();
 	virtual void failure( FailType failType ) {}
 };
 
@@ -400,7 +407,7 @@ public:
 
 	virtual void recvSingle() {}
 
-	void _notifAsyncConnect( SelectFd *fd );
+	void asyncConnect( SelectFd *fd, Connection *conn );
 	void _selectFdReady( SelectFd *selectFd, uint8_t readyField );
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 	virtual void handleSignal( int sig ) {}
