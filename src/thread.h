@@ -177,12 +177,13 @@ struct SelectFd
 	};
 
 	enum Type {
-		TypeClassic,
+		TypeClassic = 1,
+		TypePktListen,
 		TypeTlsConnect
 	};
 
 	enum TypeState {
-		TsLookup,
+		TsLookup = 1,
 		TsConnect,
 		TsTlsConnect,
 		TsTlsEstablished
@@ -192,11 +193,7 @@ struct SelectFd
 		User = 1,
 		Lookup,
 		Connect,
-		PktListen,
 		PktData,
-		TlsAccept,
-		TlsConnect,
-		TlsEstablished,
 		Closed
 	};
 
@@ -258,6 +255,13 @@ typedef List<SelectFd> SelectFdList;
 
 struct Connection
 {
+	enum FailType {
+		SslReadFailure = 1,
+		FailSslPeerFailedVerify,
+		FailAsyncConnect,
+		LookupFailure
+	};
+
 	Connection( Thread *thread, SelectFd *fd )
 		: thread(thread), selectFd(fd), closed(false), onSelectList(false) {}
 
@@ -265,6 +269,7 @@ struct Connection
 
 	virtual void connectComplete() = 0;
 	virtual void dataAvail( char *bytes, int nbytes ) = 0;
+	virtual void failure( FailType failType ) = 0;
 
 	int write( char *data, int len );
 
@@ -274,15 +279,14 @@ struct Connection
 	bool onSelectList;
 
 	void close();
+};
 
-	enum FailType {
-		SslReadFailure = 1,
-		FailSslPeerFailedVerify,
-		FailAsyncConnect,
-		LookupFailure
-	};
-
-	virtual void failure( FailType failType ) = 0;
+struct PktConnection
+	: public Connection
+{
+	virtual void connectComplete() {}
+	virtual void dataAvail( char *bytes, int nbytes );
+	virtual void failure( FailType failType ) {}
 };
 
 struct PacketHeader;

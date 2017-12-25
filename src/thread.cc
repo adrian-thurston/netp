@@ -371,15 +371,6 @@ int Thread::signalLoop( sigset_t *set, struct timeval *timer )
 	return 0;
 }
 
-bool tlsEstablished( SelectFd *fd )
-{
-	bool established =
-		( fd->type == SelectFd::TypeClassic && fd->state == SelectFd::TlsEstablished ) ||
-		( fd->type == SelectFd::TypeTlsConnect && fd->typeState == SelectFd::TsTlsEstablished );
-
-	return established;
-}
-
 int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 {
 	timeval left, last;

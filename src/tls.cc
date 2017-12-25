@@ -135,7 +135,7 @@ void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char 
 	if ( selectFd->remoteHost == 0 )
 		selectFd->remoteHost = strdup(remoteHost);
 
-	selectFd->state = SelectFd::TlsConnect;
+	selectFd->state = (SelectFd::State)-1; //SelectFd::TlsConnect;
 	selectFd->wantRead = false;
 	selectFd->wantWrite = true;
 
@@ -151,7 +151,7 @@ void Thread::startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
 	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
 	SSL_set_bio( ssl, bio, bio );
 
-	selectFd->state = SelectFd::TlsAccept;
+	selectFd->state = (SelectFd::State) -1; //SelectFd::TlsAccept;
 	selectFd->ssl = ssl;
 	selectFd->bio = bio;
 	SSL_set_ex_data( ssl, 0, selectFd );
@@ -167,6 +167,8 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 	switch ( fd->type ) {
 		case SelectFd::TypeClassic:
 			tlsConnectResult( fd, sslError );
+			break;
+		case SelectFd::TypePktListen:
 			break;
 		case SelectFd::TypeTlsConnect:
 			if ( sslError == SSL_ERROR_NONE ) {
@@ -531,23 +533,6 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 					break;
 				}
 
-				case SelectFd::PktListen: {
-					sockaddr_in peer;
-					socklen_t len = sizeof(sockaddr_in);
-
-					int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-					if ( result >= 0 ) {
-						SelectFd *selectFd = new SelectFd( this, result, 0 );
-						selectFd->state = SelectFd::PktData;
-						selectFd->wantRead = true;
-						selectFdList.append( selectFd );
-						notifAccept( selectFd );
-					}
-					else {
-						log_ERROR( "failed to accept connection: " << strerror(errno) );
-					}
-					break;
-				}
 				case SelectFd::PktData: {
 					if ( readyMask & READ_READY )
 						data( fd );
@@ -555,18 +540,6 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 						writeReady( fd );
 					break;
 				}
-
-				case SelectFd::TlsConnect:
-					clientConnect( fd );
-					break;
-
-				case SelectFd::TlsAccept:
-					serverAccept( fd );
-					break;
-
-				case SelectFd::TlsEstablished:
-					tlsSelectFdReady( fd, readyMask );
-					break;
 
 				case SelectFd::Closed:
 					/* This shouldn't come in. We need to disable the flags. */
@@ -577,6 +550,24 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 
 
+			break;
+		}
+
+		case SelectFd::TypePktListen: {
+			sockaddr_in peer;
+			socklen_t len = sizeof(sockaddr_in);
+
+			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
+			if ( result >= 0 ) {
+				SelectFd *selectFd = new SelectFd( this, result, 0 );
+				selectFd->state = SelectFd::PktData;
+				selectFd->wantRead = true;
+				selectFdList.append( selectFd );
+				notifAccept( selectFd );
+			}
+			else {
+				log_ERROR( "failed to accept connection: " << strerror(errno) );
+			}
 			break;
 		}
 		case SelectFd::TypeTlsConnect: {
