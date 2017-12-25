@@ -267,6 +267,7 @@ struct Connection
 		: thread(thread), selectFd(fd), tlsConnect(true), closed(false), onSelectList(false) {}
 
 	void initiateTls( const char *host, uint16_t port );
+	void initiatePkt( const char *host, uint16_t port );
 
 	virtual void connectComplete() = 0;
 	virtual void readReady() = 0;

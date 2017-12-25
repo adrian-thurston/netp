@@ -19,7 +19,28 @@ int Connection::write( char *data, int len )
 
 void Connection::initiateTls( const char *host, uint16_t port )
 {
-	thread->initiateConnection( selectFd, host, port );
+	selectFd = new SelectFd( thread, 0, 0 );
+	selectFd->local = this;
+
+	tlsConnect = true;
+	selectFd->type = SelectFd::TypeTlsConnect;
+	selectFd->typeState = SelectFd::TsLookup;
+	selectFd->port = port;
+
+	thread->_asyncLookup( selectFd, host );
+}
+
+void Connection::initiatePkt( const char *host, uint16_t port )
+{
+	selectFd = new SelectFd( thread, -1, 0 );
+	selectFd->local = this;
+
+	tlsConnect = false;
+	selectFd->type = SelectFd::TypeTlsConnect;
+	selectFd->typeState = SelectFd::TsLookup;
+	selectFd->port = port;
+
+	thread->_asyncLookup( selectFd, host );
 }
 
 void Connection::close( )
