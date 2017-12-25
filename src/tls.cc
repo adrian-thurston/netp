@@ -575,8 +575,13 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 			if ( result >= 0 ) {
+				PktConnection *pc = new PktConnection( this, 0 );
 				SelectFd *selectFd = new SelectFd( this, result, 0 );
-				selectFd->state = SelectFd::PktData;
+				selectFd->local = pc;
+				pc->selectFd = selectFd;
+				pc->tlsConnect = false;
+				selectFd->type = SelectFd::TypeTlsConnect;
+				selectFd->typeState = SelectFd::TsEstablished;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );
 				notifAccept( selectFd );
