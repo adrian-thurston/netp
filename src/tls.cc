@@ -192,7 +192,6 @@ void Thread::clientConnect( SelectFd *fd )
 		if ( !retry ) {
 			/* Not a retry failure. */
 			_tlsConnectResult( fd, result );
-			// log_message("post connect result state: " << fd->state );
 		}
 	}
 	else {
@@ -243,7 +242,6 @@ void Thread::clientConnect( SelectFd *fd )
 				fd->bio = bio;
 
 				_tlsConnectResult( fd, SSL_ERROR_NONE );
-				// log_message("post connect result state: " << fd->state );
 			}
 		}
 	}
@@ -454,7 +452,6 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				case SelectFd::Connect: {
 					Connection *c = static_cast<Connection*>(fd->local);
 
-					// log_message("handling ready in ts connect");
 					if ( readyMask & WRITE_READY ) {
 						/* Turn off want write. We must do this before any notification
 						 * below, which may want to turn it on. */
@@ -486,7 +483,6 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				case SelectFd::Established: {
 					Connection *c = static_cast<Connection*>(fd->local);
 					if ( readyMask & READ_READY ) {
-						log_message( "ts established: read ready" );
 						c->readReady();
 					}
 					break;

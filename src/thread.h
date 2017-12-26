@@ -203,6 +203,7 @@ struct SelectFd
 		bio(0),
 		remoteHost(0),
 		sslVerifyError(false),
+		closed(false),
 		tlsWantRead(false),
 		tlsWantWrite(false),
 		tlsEstablished(false),
@@ -225,6 +226,7 @@ struct SelectFd
 	BIO *bio;
 	const char *remoteHost;
 	bool sslVerifyError;
+	bool closed;
 
 	/* If connection is tls, the application should use these. */
 	bool tlsWantRead;

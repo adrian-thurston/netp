@@ -390,6 +390,9 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		int nfds = ares_fds( ac, &readSet, &writeSet );
 		
 		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
+			if ( fd->closed )
+				continue;
+
 			// log_message( "state: " << fd->state );
 			bool wantRead =
 					( !fd->tlsEstablished ) ?
