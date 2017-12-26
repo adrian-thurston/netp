@@ -402,7 +402,7 @@ public:
 
 	virtual void recvSingle() {}
 
-	void asyncConnect( SelectFd *fd, Connection *conn );
+	virtual void asyncConnect( SelectFd *fd, Connection *conn );
 	void _selectFdReady( SelectFd *selectFd, uint8_t readyField );
 	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 	virtual void handleSignal( int sig ) {}
