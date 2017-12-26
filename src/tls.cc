@@ -181,7 +181,7 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 	}
 }
 
-void Thread::_clientConnect( SelectFd *fd )
+void Thread::clientConnect( SelectFd *fd )
 {
 	int result = SSL_connect( fd->ssl );
 	if ( result <= 0 ) {
@@ -246,63 +246,6 @@ void Thread::_clientConnect( SelectFd *fd )
 				// log_message("post connect result state: " << fd->state );
 			}
 		}
-	}
-}
-
-void Thread::clientConnect( SelectFd *fd )
-{
-	int result = SSL_connect( fd->ssl );
-	if ( result <= 0 ) {
-		/* No connect yet. May need more data. */
-		result = SSL_get_error( fd->ssl, result );
-
-		bool retry = prepNextRound( fd, result );
-		if ( !retry ) {
-			/* Not a retry failure. */
-			_tlsConnectResult( fd, result );
-			// log_message("post connect result state: " << fd->state );
-		}
-	}
-	else {
-		/* Check the verification result. */
-		long verifyResult = SSL_get_verify_result( fd->ssl );
-		if ( verifyResult != X509_V_OK ) {
-			fd->sslVerifyError = true;
-
-			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
-		}
-
-		/* Check the cert chain. The chain length is automatically checked by
-		 * OpenSSL when we set the verify depth in the CTX */
-
-		/* Check the common name. */
-		X509 *peer = SSL_get_peer_certificate( fd->ssl );
-		char peer_CN[PEER_CN_NAME_LEN];
-		X509_NAME_get_text_by_NID( X509_get_subject_name(peer),
-				NID_commonName, peer_CN, PEER_CN_NAME_LEN );
-
-#ifdef HAVE_X509_CHECK_HOST
-		int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
-		if ( cr != 1 ) {
-			fd->sslVerifyError = true;
-
-			log_ERROR( "ssl peer cn host mismatch: requested " <<
-					fd->remoteHost << " but cert is for " << peer_CN );
-		}
-#else
-		/* Would like to require or implement this. Not available on 14.04. */
-		/* #error no X509_check_host */
-#endif
-
-		/* Create a BIO for the ssl wrapper. */
-		BIO *bio = BIO_new( BIO_f_ssl() );
-		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
-
-		/* Just wrapped the bio, update in select fd. */
-		fd->bio = bio;
-
-		_tlsConnectResult( fd, SSL_ERROR_NONE );
-		// log_message("post connect result state: " << fd->state );
 	}
 }
 
@@ -451,14 +394,6 @@ void Thread::serverAccept( SelectFd *fd )
 	}
 }
 
-void Thread::initiateConnection( SelectFd *fd, const char *host, uint16_t port )
-{
-	fd->type = SelectFd::Connection;
-	fd->typeState = SelectFd::Lookup;
-	fd->port = port;
-	_asyncLookup( fd, host );
-}
-
 void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 {
 	if ( conn->tlsConnect ) {
@@ -541,7 +476,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 					break;
 				}
 				case SelectFd::TlsConnect:
-					_clientConnect( fd );
+					clientConnect( fd );
 					break;
 				case SelectFd::TlsEstablished: {
 					Connection *c = static_cast<Connection*>(fd->local);

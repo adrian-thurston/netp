@@ -445,22 +445,16 @@ public:
 	void startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
 	void startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
 
-	void initiateConnection( SelectFd *fd, const char *host, uint16_t port );
-
-	void _asyncLookup( SelectFd *fd, const char *host );
+	void asyncLookup( SelectFd *fd, const char *host );
 
 	void connectLookupComplete( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
 	void _lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 
-	void _clientConnect( SelectFd *fd );
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }
 	int tlsWrite( SelectFd *fd, char *data, int len );
 	int tlsRead( SelectFd *fd, void *buf, int len );
-
-	void _tlsSelectFdReady( SelectFd *fd, uint8_t readyMask );
-	virtual void tlsSelectFdReady( SelectFd *fd, uint8_t readyMask ) {}
 
 	void tlsStartup( const char *randFile = 0 );
 	void tlsShutdown();
@@ -474,8 +468,6 @@ public:
 	void _tlsConnectResult( SelectFd *fd, int sslError );
 	virtual void tlsConnectResult( SelectFd *fd, int sslError ) {}
 	virtual void tlsAcceptResult( SelectFd *fd, int sslError ) {}
-
-	void asyncResolve( const char *name );
 
 	char *pktFind( Rope *rope, long l );
 };

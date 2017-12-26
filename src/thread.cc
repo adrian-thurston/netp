@@ -568,7 +568,7 @@ static void lookupCallback( void *arg, int status, int timeouts, unsigned char *
 	fd->thread->_lookupCallback( fd, status, timeouts, abuf, alen );
 }
 
-void Thread::_asyncLookup( SelectFd *selectFd, const char *host )
+void Thread::asyncLookup( SelectFd *selectFd, const char *host )
 {
 	if ( selectFd->remoteHost == 0 )
 		selectFd->remoteHost = strdup(host);
