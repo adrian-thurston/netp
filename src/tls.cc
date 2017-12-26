@@ -472,6 +472,11 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 					break;
 				}
+
+				case SelectFd::TlsAccept:
+					serverAccept( fd );
+					break;
+
 				case SelectFd::TlsConnect:
 					clientConnect( fd );
 					break;

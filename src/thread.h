@@ -185,6 +185,7 @@ struct SelectFd
 	enum State {
 		Lookup = 1,
 		Connect,
+		TlsAccept,
 		TlsConnect,
 		TlsEstablished,
 		Established
