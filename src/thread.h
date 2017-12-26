@@ -192,9 +192,6 @@ struct SelectFd
 
 	enum State {
 		User = 1,
-		Lookup,
-		Connect,
-		PktData,
 		Closed
 	};
 
@@ -432,7 +429,6 @@ public:
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 	virtual void data( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
-	virtual void notifAsyncConnect( SelectFd *fd );
 	virtual void notifAccept( SelectFd *fd ) {}
 
 	/*
@@ -459,10 +455,10 @@ public:
 	void initiateConnection( SelectFd *fd, const char *host, uint16_t port );
 
 	void _asyncLookup( SelectFd *fd, const char *host );
-	void asyncLookup( SelectFd *fd, const char *host );
-	void __lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
+
+	void connectLookupComplete( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
+	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
 	void _lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
-	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
 
 	void _clientConnect( SelectFd *fd );
 	void clientConnect( SelectFd *fd );

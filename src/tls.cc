@@ -479,38 +479,6 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 	}
 }
 
-#if 0
-void Thread::_tlsSelectFdReady( SelectFd *fd, uint8_t readyMask )
-{
-	while ( true ) {
-		char bytes[8192*2];
-		int nbytes = Thread::tlsRead( fd, bytes, sizeof(bytes) );
-
-		if ( nbytes < 0 ) {
-			Connection *c = static_cast<Connection*>(fd->local);
-			c->failure( Connection::SslReadFailure );
-			c->close();
-			break;
-		}
-		else if ( nbytes > 0 ) {
-			Connection *c = static_cast<Connection*>(fd->local);
-			c->dataAvail( bytes, nbytes );
-			if ( c->closed )
-				break;
-		}
-		else if ( nbytes == 0 ) {
-			break;
-		}
-	}
-}
-#endif
-
-void Thread::notifAsyncConnect( SelectFd *selectFd )
-{
-	selectFd->state = SelectFd::PktData;
-	selectFd->wantRead = true;
-}
-
 void PktConnection::readReady()
 {
 	thread->data( selectFd );
@@ -525,46 +493,12 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 					selectFdReady( fd, readyMask );
 					break;
 
-				case SelectFd::Lookup:
-					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
-					break;
-
-				case SelectFd::Connect: {
-					if ( readyMask & WRITE_READY ) {
-						/* Turn off want write. We must do this before any notification
-						 * below, which may want to turn it on. */
-						fd->wantWrite = false;
-
-						int option;
-						socklen_t optlen = sizeof(int);
-						getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
-						if ( option == 0 ) {
-							notifAsyncConnect( fd );
-						}
-						else {
-							log_ERROR( "failed async connect: " << strerror(option) );
-						}
-					}
-
-					break;
-				}
-
-				case SelectFd::PktData: {
-					if ( readyMask & READ_READY )
-						data( fd );
-					if ( readyMask & WRITE_READY )
-						writeReady( fd );
-					break;
-				}
-
 				case SelectFd::Closed:
 					/* This shouldn't come in. We need to disable the flags. */
 					fd->wantRead = false;
 					fd->wantWrite = false;
 					break;
 			}
-
-
 
 			break;
 		}
