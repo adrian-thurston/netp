@@ -116,7 +116,6 @@ SSL_CTX *Thread::sslServerCtx( EVP_PKEY *pkey, X509 *x509 )
 	return ctx;
 }
 
-
 void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost )
 {
 	makeNonBlocking( selectFd->fd );
@@ -135,7 +134,6 @@ void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char 
 	if ( selectFd->remoteHost == 0 )
 		selectFd->remoteHost = strdup(remoteHost);
 
-	selectFd->state = (SelectFd::State)-1; //SelectFd::TlsConnect;
 	selectFd->wantRead = false;
 	selectFd->wantWrite = true;
 
@@ -151,7 +149,6 @@ void Thread::startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
 	SSL_set_mode( ssl, SSL_MODE_AUTO_RETRY );
 	SSL_set_bio( ssl, bio, bio );
 
-	selectFd->state = (SelectFd::State) -1; //SelectFd::TlsAccept;
 	selectFd->ssl = ssl;
 	selectFd->bio = bio;
 	SSL_set_ex_data( ssl, 0, selectFd );
@@ -165,17 +162,17 @@ void Thread::startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
 void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 {
 	switch ( fd->type ) {
-		case SelectFd::TypeClassic:
+		case SelectFd::User:
 			tlsConnectResult( fd, sslError );
 			break;
-		case SelectFd::TypePktListen:
+		case SelectFd::PktListen:
 			break;
-		case SelectFd::TypeTlsConnect:
+		case SelectFd::Connection:
 			if ( sslError == SSL_ERROR_NONE ) {
 				Connection *c = static_cast<Connection*>(fd->local);
 				c->connectComplete();
 
-				fd->typeState = SelectFd::TsTlsEstablished;
+				fd->typeState = SelectFd::TlsEstablished;
 				fd->tlsEstablished = true;
 				fd->tlsWantRead = true;
 				fd->wantWrite = false;
@@ -456,8 +453,8 @@ void Thread::serverAccept( SelectFd *fd )
 
 void Thread::initiateConnection( SelectFd *fd, const char *host, uint16_t port )
 {
-	fd->type = SelectFd::TypeTlsConnect;
-	fd->typeState = SelectFd::TsLookup;
+	fd->type = SelectFd::Connection;
+	fd->typeState = SelectFd::Lookup;
 	fd->port = port;
 	_asyncLookup( fd, host );
 }
@@ -467,13 +464,13 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 	if ( conn->tlsConnect ) {
 		startTlsClient( threadClientCtx, fd, fd->remoteHost );
 		// selectFdList.append( fd );
-		fd->type = SelectFd::TypeTlsConnect;
-		fd->typeState = SelectFd::TsTlsConnect;
+		fd->type = SelectFd::Connection;
+		fd->typeState = SelectFd::Connect;
 	}
 	else {
 		/* FIXME: some type of notification here? */
-		fd->type = SelectFd::TypeTlsConnect;
-		fd->typeState = SelectFd::TsEstablished;
+		fd->type = SelectFd::Connection;
+		fd->typeState = SelectFd::Established;
 		fd->wantRead = true;
 		conn->connectComplete();
 	}
@@ -487,23 +484,12 @@ void PktConnection::readReady()
 void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 {
 	switch ( fd->type ) {
-		case SelectFd::TypeClassic: {
-			switch ( fd->state ) {
-				case SelectFd::User:
-					selectFdReady( fd, readyMask );
-					break;
-
-				case SelectFd::Closed:
-					/* This shouldn't come in. We need to disable the flags. */
-					fd->wantRead = false;
-					fd->wantWrite = false;
-					break;
-			}
-
+		case SelectFd::User: {
+			selectFdReady( fd, readyMask );
 			break;
 		}
 
-		case SelectFd::TypePktListen: {
+		case SelectFd::PktListen: {
 			sockaddr_in peer;
 			socklen_t len = sizeof(sockaddr_in);
 
@@ -514,8 +500,8 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				selectFd->local = pc;
 				pc->selectFd = selectFd;
 				pc->tlsConnect = false;
-				selectFd->type = SelectFd::TypeTlsConnect;
-				selectFd->typeState = SelectFd::TsEstablished;
+				selectFd->type = SelectFd::Connection;
+				selectFd->typeState = SelectFd::Established;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );
 				notifAccept( selectFd );
@@ -525,12 +511,12 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			}
 			break;
 		}
-		case SelectFd::TypeTlsConnect: {
+		case SelectFd::Connection: {
 			switch ( fd->typeState ) {
-				case SelectFd::TsLookup:
+				case SelectFd::Lookup:
 					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
 					break;
-				case SelectFd::TsConnect: {
+				case SelectFd::Connect: {
 					Connection *c = static_cast<Connection*>(fd->local);
 
 					// log_message("handling ready in ts connect");
@@ -554,15 +540,15 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 					break;
 				}
-				case SelectFd::TsTlsConnect:
+				case SelectFd::TlsConnect:
 					_clientConnect( fd );
 					break;
-				case SelectFd::TsTlsEstablished: {
+				case SelectFd::TlsEstablished: {
 					Connection *c = static_cast<Connection*>(fd->local);
 					c->readReady();
 					break;
 				}
-				case SelectFd::TsEstablished: {
+				case SelectFd::Established: {
 					Connection *c = static_cast<Connection*>(fd->local);
 					if ( readyMask & READ_READY ) {
 						log_message( "ts established: read ready" );

@@ -601,7 +601,7 @@ void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsi
 
 			int connFd = inetConnect( &servername, true );
 
-			fd->typeState = SelectFd::TsConnect;
+			fd->typeState = SelectFd::Connect;
 			fd->fd = connFd;
 			fd->wantWrite = true;
 
@@ -617,13 +617,13 @@ void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsi
 void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
 {
 	switch ( fd->type ) {
-		case SelectFd::TypeClassic:
+		case SelectFd::User:
 			lookupCallback( fd, status, timeouts, abuf, alen );
 			break;
-		case SelectFd::TypeTlsConnect:
+		case SelectFd::Connection:
 			connectLookupComplete( fd, status, timeouts, abuf, alen );
 			break;
-		case SelectFd::TypePktListen:
+		case SelectFd::PktListen:
 			break;
 	}
 }

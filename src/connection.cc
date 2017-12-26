@@ -23,8 +23,8 @@ void Connection::initiateTls( const char *host, uint16_t port )
 	selectFd->local = this;
 
 	tlsConnect = true;
-	selectFd->type = SelectFd::TypeTlsConnect;
-	selectFd->typeState = SelectFd::TsLookup;
+	selectFd->type = SelectFd::Connection;
+	selectFd->typeState = SelectFd::Lookup;
 	selectFd->port = port;
 
 	thread->_asyncLookup( selectFd, host );
@@ -36,8 +36,8 @@ void Connection::initiatePkt( const char *host, uint16_t port )
 	selectFd->local = this;
 
 	tlsConnect = false;
-	selectFd->type = SelectFd::TypeTlsConnect;
-	selectFd->typeState = SelectFd::TsLookup;
+	selectFd->type = SelectFd::Connection;
+	selectFd->typeState = SelectFd::Lookup;
 	selectFd->port = port;
 
 	thread->_asyncLookup( selectFd, host );

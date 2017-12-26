@@ -177,28 +177,22 @@ struct SelectFd
 	};
 
 	enum Type {
-		TypeClassic = 1,
-		TypePktListen,
-		TypeTlsConnect
-	};
-
-	enum TypeState {
-		TsLookup = 1,
-		TsConnect,
-		TsTlsConnect,
-		TsTlsEstablished,
-		TsEstablished
+		User = 1,
+		PktListen,
+		Connection
 	};
 
 	enum State {
-		User = 1,
-		Closed
+		Lookup = 1,
+		Connect,
+		TlsConnect,
+		TlsEstablished,
+		Established
 	};
 
 	SelectFd( Thread *thread, int fd, void *local )
 	:
-		type(TypeClassic),
-		state(User),
+		type(User),
 		thread(thread),
 		fd(fd),
 		local(local),
@@ -220,8 +214,7 @@ struct SelectFd
 	void close();
 
 	Type type;
-	TypeState typeState;
-	State state;
+	State typeState;
 	Thread *thread;
 	int fd;
 	void *local;
