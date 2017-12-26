@@ -475,9 +475,14 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				case SelectFd::TlsConnect:
 					clientConnect( fd );
 					break;
+
 				case SelectFd::TlsEstablished: {
 					Connection *c = static_cast<Connection*>(fd->local);
-					c->readReady();
+					if ( fd->tlsWantRead )
+						c->readReady();
+
+					if ( fd->tlsWantWrite )
+						c->writeReady();
 					break;
 				}
 				case SelectFd::Established: {

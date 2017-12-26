@@ -263,6 +263,7 @@ struct Connection
 
 	virtual void connectComplete() = 0;
 	virtual void readReady() = 0;
+	virtual void writeReady() = 0;
 	virtual void failure( FailType failType ) = 0;
 
 	int read( char *data, int len );
@@ -286,6 +287,7 @@ struct PktConnection
 
 	virtual void connectComplete() {}
 	virtual void readReady();
+	virtual void writeReady() {}
 	virtual void failure( FailType failType ) {}
 };
 
