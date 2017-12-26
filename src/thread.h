@@ -217,7 +217,7 @@ struct SelectFd
 	void close();
 
 	Type type;
-	State typeState;
+	State state;
 	Thread *thread;
 	int fd;
 	void *local;

@@ -170,7 +170,7 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 				Connection *c = static_cast<Connection*>(fd->local);
 				c->connectComplete();
 
-				fd->typeState = SelectFd::TlsEstablished;
+				fd->state = SelectFd::TlsEstablished;
 				fd->tlsEstablished = true;
 				fd->tlsWantRead = true;
 				fd->wantWrite = false;
@@ -399,12 +399,12 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 		startTlsClient( threadClientCtx, fd, fd->remoteHost );
 		// selectFdList.append( fd );
 		fd->type = SelectFd::Connection;
-		fd->typeState = SelectFd::TlsConnect;
+		fd->state = SelectFd::TlsConnect;
 	}
 	else {
 		/* FIXME: some type of notification here? */
 		fd->type = SelectFd::Connection;
-		fd->typeState = SelectFd::Established;
+		fd->state = SelectFd::Established;
 		fd->wantRead = true;
 		conn->connectComplete();
 	}
@@ -449,7 +449,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				pc->selectFd = selectFd;
 				pc->tlsConnect = false;
 				selectFd->type = SelectFd::Connection;
-				selectFd->typeState = SelectFd::Established;
+				selectFd->state = SelectFd::Established;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );
 				notifyAccept( selectFd );
@@ -460,7 +460,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 		}
 		case SelectFd::Connection: {
-			switch ( fd->typeState ) {
+			switch ( fd->state ) {
 				case SelectFd::Lookup:
 					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
 					break;

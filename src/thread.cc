@@ -604,7 +604,7 @@ void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsi
 
 			int connFd = inetConnect( &servername, true );
 
-			fd->typeState = SelectFd::Connect;
+			fd->state = SelectFd::Connect;
 			fd->fd = connFd;
 			fd->wantWrite = true;
 
