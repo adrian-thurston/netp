@@ -165,8 +165,6 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 		case SelectFd::User:
 			tlsConnectResult( fd, sslError );
 			break;
-		case SelectFd::PktListen:
-			break;
 		case SelectFd::Connection:
 			if ( sslError == SSL_ERROR_NONE ) {
 				Connection *c = static_cast<Connection*>(fd->local);
@@ -177,6 +175,9 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 				fd->tlsWantRead = true;
 				fd->wantWrite = false;
 			}
+			break;
+		case SelectFd::Listen:
+		case SelectFd::PktListen:
 			break;
 	}
 }
@@ -422,6 +423,20 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 		}
 
+		case SelectFd::Listen: {
+			sockaddr_in peer;
+			socklen_t len = sizeof(sockaddr_in);
+
+			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
+			if ( result >= 0 ) {
+				notifyAccept( result );
+			}
+			else {
+				log_ERROR( "failed to accept connection: " << strerror(errno) );
+			}
+			break;
+		}
+
 		case SelectFd::PktListen: {
 			sockaddr_in peer;
 			socklen_t len = sizeof(sockaddr_in);
@@ -437,7 +452,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				selectFd->typeState = SelectFd::Established;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );
-				notifAccept( selectFd );
+				notifyAccept( selectFd );
 			}
 			else {
 				log_ERROR( "failed to accept connection: " << strerror(errno) );

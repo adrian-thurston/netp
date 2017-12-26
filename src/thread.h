@@ -178,6 +178,7 @@ struct SelectFd
 
 	enum Type {
 		User = 1,
+		Listen,
 		PktListen,
 		Connection
 	};
@@ -427,7 +428,8 @@ public:
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 	virtual void data( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
-	virtual void notifAccept( SelectFd *fd ) {}
+	virtual void notifyAccept( SelectFd *fd ) {}
+	virtual void notifyAccept( int fd ) {}
 
 	/*
 	 * SSL

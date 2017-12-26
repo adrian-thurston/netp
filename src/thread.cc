@@ -626,6 +626,7 @@ void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned c
 		case SelectFd::Connection:
 			connectLookupComplete( fd, status, timeouts, abuf, alen );
 			break;
+		case SelectFd::Listen:
 		case SelectFd::PktListen:
 			break;
 	}
