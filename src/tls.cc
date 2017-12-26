@@ -398,7 +398,7 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 		startTlsClient( threadClientCtx, fd, fd->remoteHost );
 		// selectFdList.append( fd );
 		fd->type = SelectFd::Connection;
-		fd->typeState = SelectFd::Connect;
+		fd->typeState = SelectFd::TlsConnect;
 	}
 	else {
 		/* FIXME: some type of notification here? */
