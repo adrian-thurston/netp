@@ -243,7 +243,7 @@ int Thread::inetListen( uint16_t port, bool transparent )
 	/* Create the socket. */
 	int listenFd = socket( PF_INET, SOCK_STREAM, 0 );
 	if ( listenFd < 0 ) {
-		log_ERROR( "unable to allocate socket" );
+		log_ERROR( "inet listen: unable to allocate socket: " << strerror(errno) );
 		return -1;
 	}
 
@@ -258,7 +258,7 @@ int Thread::inetListen( uint16_t port, bool transparent )
 		 * transparent proxy). */
 		int r = setsockopt( listenFd, SOL_IP, IP_TRANSPARENT, &optionVal, sizeof(optionVal) );
 		if ( r < 0 ) {
-			log_ERROR( "failed to set IP_TRANSPARENT flag on socket: " << strerror(r) );
+			log_ERROR( "inet listen: failed to set IP_TRANSPARENT flag on socket: " << strerror(r) );
 		}
 	}
 
@@ -287,12 +287,16 @@ bool Thread::makeNonBlocking( int fd )
 {
 	/* Make FD non-blocking. */
 	int flags = fcntl( fd, F_GETFL );
-	if ( flags == -1 )
+	if ( flags == -1 ) {
+		log_ERROR( "fcntl(" << fd << "): F_GETFL: " << strerror(errno) );
 		return false;
+	}
 
 	int res = fcntl( fd, F_SETFL, flags | O_NONBLOCK );
-	if ( res == -1 )
+	if ( res == -1 ) {
+		log_ERROR( "fcntl(" << fd << "): F_SETFL: " << strerror(errno) );
 		return false;
+	}
 
 	return true;
 }
@@ -643,9 +647,8 @@ int Thread::inetConnect( sockaddr_in *sa, bool nonBlocking )
 
 	if ( nonBlocking ) {
 		bool nbres = makeNonBlocking( fd );
-		if ( !nbres ) {
-			log_ERROR( "failed to make FD non-blocking" );
-		}
+		if ( !nbres )
+			log_ERROR( "inet connect: failed to make FD non-blocking" );
 	}
 	
 	/* Connect to the listener. */

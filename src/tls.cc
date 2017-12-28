@@ -118,7 +118,9 @@ SSL_CTX *Thread::sslServerCtx( EVP_PKEY *pkey, X509 *x509 )
 
 void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost )
 {
-	makeNonBlocking( selectFd->fd );
+	bool nb = makeNonBlocking( selectFd->fd );
+	if ( !nb )
+		log_ERROR( "TLS start client: non-blocking IO not available" );
 
 	BIO *bio = BIO_new_fd( selectFd->fd, BIO_NOCLOSE );
 
@@ -364,11 +366,11 @@ bool Thread::prepNextRound( SelectFd *fd, int result )
 	return fd->wantRead || fd->wantWrite;
 }
 
-void Thread::serverAccept( SelectFd *fd )
+void Thread::tlsAccept( SelectFd *fd )
 {
 	bool nb = makeNonBlocking( fd->fd );
 	if ( !nb )
-		log_ERROR( "non-blocking IO not available" );
+		log_ERROR( "TLS accept: non-blocking IO not available" );
 
 	int result = SSL_accept( fd->ssl );
 	if ( result <= 0 ) {
