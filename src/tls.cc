@@ -35,6 +35,7 @@ void SelectFd::close()
 	SSL_shutdown( ssl );
 	SSL_free( ssl );
 	::close( fd );
+	closed = true;
 }
 
 /* Do this once at startup. */
@@ -491,7 +492,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				}
 
 				case SelectFd::TlsAccept:
-					serverAccept( fd );
+					tlsAccept( fd );
 					break;
 
 				case SelectFd::TlsConnect:

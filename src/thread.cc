@@ -393,32 +393,47 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 
 		int nfds = ares_fds( ac, &readSet, &writeSet );
 		
-		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
-			if ( fd->closed )
-				continue;
+		for ( SelectFdList::Iter fd = selectFdList; fd.lte(); ) {
+			/* May be detaching fd. */
+			SelectFdList::Iter next = fd.next();
 
-			// log_message( "state: " << fd->state );
-			bool wantRead =
-					( !fd->tlsEstablished ) ?
-					fd->wantRead :
-					( fd->tlsWantRead || ( fd->tlsWantWrite & fd->tlsWriteWantsRead ) );
+			if ( fd->closed ) {
+				selectFdList.detach( fd );
+			}
+			else {
+				// log_message( "state: " << fd->state );
+				bool wantRead =
+						( !fd->tlsEstablished ) ?
+						fd->wantRead :
+						( fd->tlsWantRead || ( fd->tlsWantWrite & fd->tlsWriteWantsRead ) );
 
-			bool wantWrite =
-					( !fd->tlsEstablished ) ?
-					fd->wantWrite :
-					( fd->tlsWantWrite || ( fd->tlsWantRead & fd->tlsReadWantsWrite ) );
+				bool wantWrite =
+						( !fd->tlsEstablished ) ?
+						fd->wantWrite :
+						( fd->tlsWantWrite || ( fd->tlsWantRead & fd->tlsReadWantsWrite ) );
 
-			if ( ( wantRead || wantWrite ) && fd->fd >= nfds )
-				nfds = fd->fd + 1;
+				if ( ( wantRead || wantWrite ) && fd->fd >= nfds )
+					nfds = fd->fd + 1;
 
-			if ( wantRead )
-				FD_SET( fd->fd, &readSet );
+				if ( wantRead ) {
+					if ( FD_ISSET( fd->fd, &readSet ) )
+						log_ERROR( "fd " << fd->fd << " added to read set more than once" );
 
-			if ( wantWrite )
-				FD_SET( fd->fd, &writeSet );
+					FD_SET( fd->fd, &readSet );
+				}
 
-			/* Use this opportunity to reset the round abort flag. */
-			fd->abortRound = false;
+				if ( wantWrite ) {
+					if ( FD_ISSET( fd->fd, &writeSet ) )
+						log_ERROR( "fd " << fd->fd << " added to write set more than once" );
+
+					FD_SET( fd->fd, &writeSet );
+				}
+
+				/* Use this opportunity to reset the round abort flag. */
+				fd->abortRound = false;
+			}
+
+			fd = next;
 		}
 
 		/* Use what's left on the genf timer, or select a default for breaking
@@ -526,10 +541,10 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 		 * Handle file descriptors.
 		 */
 		if ( result > 0 ) {
-			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); ) {
-				/* Prepare for possibility that the file descriptor will be
-				 * removed from the select list. */
-				SelectFdList::Iter next = fd.next();
+			for ( SelectFdList::Iter fd = selectFdList; fd.lte(); fd++ ) {
+				/* Skip any closed FDs. */
+				if ( fd->closed )
+					continue;
 
 				/* Check for round abort on the FD. */
 				if ( !fd->abortRound ) {
@@ -542,8 +557,6 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 					if ( readyField )
 						_selectFdReady( fd, readyField );
 				}
-
-				fd = next;
 			}
 		}
 

@@ -54,10 +54,7 @@ void Connection::close( )
 		if ( selectFd->fd >= 0 )
 		    ::close( selectFd->fd );
 
-		if ( onSelectList != 0 )
-			thread->selectFdList.detach( selectFd );
-
-		delete selectFd;
+		selectFd->closed = true;
 	}
 
 	selectFd = 0;

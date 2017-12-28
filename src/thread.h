@@ -447,7 +447,7 @@ public:
 	SSL_CTX *sslServerCtx( const char *key, const char *cert );
 	SSL_CTX *sslServerCtx( EVP_PKEY *pkey, X509 *x509 );
 
-	static bool makeNonBlocking( int fd );
+	bool makeNonBlocking( int fd );
 
 	void startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
 	void startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
@@ -469,8 +469,9 @@ public:
 	virtual void writeRetry( SelectFd *fd ) {}
 
 	void tlsError( RealmSet realm, int e );
+	void tlsAccept( SelectFd *fd );
+
 	bool prepNextRound( SelectFd *fd, int result );
-	void serverAccept( SelectFd *fd );
 
 	void _tlsConnectResult( SelectFd *fd, int sslError );
 	virtual void tlsConnectResult( SelectFd *fd, int sslError ) {}
