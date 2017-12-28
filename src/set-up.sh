@@ -60,7 +60,9 @@ sleep 1
 
 cd /home/thurston/devel/netp/src
 ./netp -b -P
+
 cd /home/thurston/devel/tlsproxy/src
 ./tlsproxy -b -P
-cd /home/thurston/devel/fetch/src
-./fetch -b -P
+
+# cd /home/thurston/devel/fetch/src
+# ./fetch -b -P
