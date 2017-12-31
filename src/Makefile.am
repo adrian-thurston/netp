@@ -11,6 +11,11 @@ genfincdir = $(includedir)/genf
 
 genfinc_HEADERS = list.h thread.h
 
+pkgdata_DATA = with-aapl
+
+with-aapl:
+	echo $(WITH_AAPL) > with-aapl
+
 LM_DEPS = \
 	grammar.lm \
 	args.lm \
