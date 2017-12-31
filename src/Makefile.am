@@ -4,13 +4,13 @@ lib_LTLIBRARIES = libkring.la
 
 kmod_DATA = kring.ko
 
-libkring_la_SOURCES = libkring.c libdata.c libctrl.c
+libkring_la_SOURCES = libkring.h libkring.c libdata.c libctrl.c
 
 pkgdata_DATA = Module.symvers
 
 pkginclude_HEADERS = kring.h krdep.h krkern.h kdata.h kctrl.h
 
-EXTRA_DIST = kring.gf attribute.c attribute.h socket.c kring.h kdata.c kdata.h kctrl.c kctrl.h
+EXTRA_DIST = kring.gf attribute.c module.h socket.c kring.h kdata.c kdata.h kctrl.c kctrl.h
 
 BUILT_SOURCES = attribute.h module.c
 
