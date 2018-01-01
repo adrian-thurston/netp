@@ -3,7 +3,7 @@ KRING_SYMVERS = @KRING_SYMVERS@
 
 data_DATA = shuttle.ko
 
-EXTRA_DIST = shuttle.gf attribute.c attribute.h
+EXTRA_DIST = shuttle.gf attribute.c module.h avl.h avl.c
 
 SOURCES = attribute.h attribute.c module.c avl.h avl.c
 
