@@ -252,8 +252,9 @@ struct Connection
 {
 	enum FailType {
 		SslReadFailure = 1,
-		FailSslPeerFailedVerify,
-		FailAsyncConnect,
+		SslPeerFailedVerify,
+		SslPeerCnHostMismatch,
+		AsyncConnectFailed,
 		LookupFailure
 	};
 

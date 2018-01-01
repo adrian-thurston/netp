@@ -206,7 +206,7 @@ void Thread::clientConnect( SelectFd *fd )
 
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
 			Connection *c = static_cast<Connection*>(fd->local);
-			c->failure( Connection::FailSslPeerFailedVerify );
+			c->failure( Connection::SslPeerFailedVerify );
 			c->close();
 		}
 		else {
@@ -483,7 +483,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 						}
 						else {
 							log_ERROR( "failed async connect: " << strerror(option) );
-							c->failure( Connection::FailAsyncConnect );
+							c->failure( Connection::AsyncConnectFailed );
 							c->close();
 						}
 					}
