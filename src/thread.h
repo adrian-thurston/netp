@@ -452,11 +452,16 @@ public:
 	void startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd );
 	void startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost );
 
-	void asyncLookup( SelectFd *fd, const char *host );
+	void asyncLookup( SelectFd *fd, const char *host )
+		{ asyncLookupQuery( fd, host ); }
+
+	void asyncLookupHost( SelectFd *fd, const char *host );
+	void asyncLookupQuery( SelectFd *fd, const char *host );
 
 	void connectLookupComplete( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
-	virtual void lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
-	void _lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
+	virtual void lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
+	void _lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
+	void _lookupCallbackHost( SelectFd *fd, int status, int timeouts, struct hostent *hostent );
 
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }

@@ -582,18 +582,33 @@ int Thread::selectLoop( timeval *timer, bool wantPoll )
 	return pselectLoop( &set, timer, wantPoll );
 }
 
-static void lookupCallback( void *arg, int status, int timeouts, unsigned char *abuf, int alen )
+static void lookupCallbackQuery( void *arg, int status, int timeouts, unsigned char *abuf, int alen )
 {
 	SelectFd *fd = static_cast<SelectFd*>(arg);
-	fd->thread->_lookupCallback( fd, status, timeouts, abuf, alen );
+	fd->thread->_lookupCallbackQuery( fd, status, timeouts, abuf, alen );
 }
 
-void Thread::asyncLookup( SelectFd *selectFd, const char *host )
+static void lookupCallbackHost( void *arg, int status, int timeouts, struct hostent *hostent )
+{
+	SelectFd *fd = static_cast<SelectFd*>(arg);
+	fd->thread->_lookupCallbackHost( fd, status, timeouts, hostent );
+}
+
+
+void Thread::asyncLookupHost( SelectFd *selectFd, const char *host )
 {
 	if ( selectFd->remoteHost == 0 )
 		selectFd->remoteHost = strdup(host);
-	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallback, selectFd );
+	ares_gethostbyname( ac, host, AF_INET, ::lookupCallbackHost, selectFd );
 }
+
+void Thread::asyncLookupQuery( SelectFd *selectFd, const char *host )
+{
+	if ( selectFd->remoteHost == 0 )
+		selectFd->remoteHost = strdup(host);
+	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallbackQuery, selectFd );
+}
+
 
 void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
 {
@@ -634,11 +649,11 @@ void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsi
 	}
 }
 
-void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
+void Thread::_lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
 {
 	switch ( fd->type ) {
 		case SelectFd::User:
-			lookupCallback( fd, status, timeouts, abuf, alen );
+			lookupCallbackQuery( fd, status, timeouts, abuf, alen );
 			break;
 		case SelectFd::Connection:
 			connectLookupComplete( fd, status, timeouts, abuf, alen );
@@ -646,6 +661,30 @@ void Thread::_lookupCallback( SelectFd *fd, int status, int timeouts, unsigned c
 		case SelectFd::Listen:
 		case SelectFd::PktListen:
 			break;
+	}
+}
+
+void Thread::_lookupCallbackHost( SelectFd *fd, int status, int timeouts, struct hostent *hostent )
+{
+	Connection *c = static_cast<Connection*>(fd->local);
+
+	if ( status == ARES_SUCCESS ) {
+		sockaddr_in servername;
+		servername.sin_family = AF_INET;
+		servername.sin_port = htons(fd->port);
+		memcpy( &servername.sin_addr, hostent->h_addr, sizeof(servername.sin_addr) );
+
+		int connFd = inetConnect( &servername, true );
+
+		fd->state = SelectFd::Connect;
+		fd->fd = connFd;
+		fd->wantWrite = true;
+
+		c->onSelectList = true;
+		selectFdList.append( fd );
+	}
+	else {
+		c->failure( Connection::LookupFailure );
 	}
 }
 

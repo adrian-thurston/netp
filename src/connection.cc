@@ -27,7 +27,7 @@ void Connection::initiateTls( const char *host, uint16_t port )
 	selectFd->state = SelectFd::Lookup;
 	selectFd->port = port;
 
-	thread->asyncLookup( selectFd, host );
+	thread->asyncLookupHost( selectFd, host );
 }
 
 void Connection::initiatePkt( const char *host, uint16_t port )
@@ -40,7 +40,7 @@ void Connection::initiatePkt( const char *host, uint16_t port )
 	selectFd->state = SelectFd::Lookup;
 	selectFd->port = port;
 
-	thread->asyncLookup( selectFd, host );
+	thread->asyncLookupHost( selectFd, host );
 }
 
 void Connection::close( )
