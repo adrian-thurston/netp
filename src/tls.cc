@@ -232,11 +232,10 @@ void Thread::clientConnect( SelectFd *fd )
 				c->close();
 			}
 			else
-#else
+#endif
 			{
 				/* Would like to require or implement this. Not available on 14.04. */
 				/* #error no X509_check_host */
-#endif
 
 				/* Create a BIO for the ssl wrapper. */
 				BIO *bio = BIO_new( BIO_f_ssl() );
