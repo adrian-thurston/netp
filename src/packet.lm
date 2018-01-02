@@ -67,10 +67,11 @@ void packetReceives( Thread: thread )
 	send Output
 		"void [Thread->Id]Gen::data( SelectFd *fd )
 		"{
+		"	Connection *c = static_cast<Connection*>(fd->local);
 		"	switch ( fd->recv.state ) {
 		"	case SelectFd::Recv::WantHead: {
 		"		const int sz = sizeof(fd->recv.head);
-		"		int len = ::read( fd->fd, &fd->recv.head + fd->recv.have, sz - fd->recv.have );
+		"		int len = c->read( (char*)&fd->recv.head + fd->recv.have, sz - fd->recv.have );
 		"		if ( len < 0 ) {
 		"			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
 		"				log_debug( DBG__PKTRECV, \"packet head read delayed: : \" << strerror(errno) );
@@ -114,7 +115,7 @@ void packetReceives( Thread: thread )
 		"	case SelectFd::Recv::WantBlock: {
 		"		while ( true ) {
 		"			while ( fd->recv.have < fd->recv.need ) {
-		"				int len = ::read( fd->fd, fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
+		"				int len = c->read( fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
 		"				if ( len < 0 ) {
 		"					/* Error. */
 		"					if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
@@ -259,6 +260,7 @@ void generatePacketCode( P: program )
 			"void [Packet->Id]::send( PacketWriter *writer )
 			"{
 			"	RopeBlock *rb = writer->buf.hblk;
+			"	Connection *c = static_cast<Connection*>(writer->fd->local);
 			"
 			"	writer->toSend->length = writer->length();
 			"	writer->toSend->firstLen = writer->buf.length(rb) - sizeof(PacketHeader);
@@ -279,7 +281,7 @@ void generatePacketCode( P: program )
 
 			"		*nextLen = rb->next != 0 ? writer->buf.length(rb->next) : 0;
 			"
-			"		int res = ::write( writer->fd, data, blockLen );
+			"		int res = c->write( data, blockLen );
 			"		log_debug( DBG__PKTSEND, \"packet send result: \" << res );
 			"
 			"		n += 1;

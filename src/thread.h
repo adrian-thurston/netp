@@ -286,7 +286,7 @@ struct PktConnection
 	: public Connection
 {
 	PktConnection( Thread *thread, SelectFd *selectFd )
-		: Connection( thread, selectFd ) {}
+		: Connection( thread, selectFd ) { tlsConnect = false; }
 
 	virtual void connectComplete() {}
 	virtual void readReady();
@@ -297,12 +297,12 @@ struct PktConnection
 struct PacketHeader;
 struct PacketWriter
 {
-	PacketWriter( int fd )
+	PacketWriter( SelectFd *fd )
 	:
 		fd(fd)
 	{}
 
-	int fd;
+	SelectFd *fd;
 	PacketHeader *toSend;
 	void *content;
 	Rope buf;
