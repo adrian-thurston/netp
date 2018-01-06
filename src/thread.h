@@ -282,10 +282,10 @@ struct Connection
 	void close();
 };
 
-struct PktConnection
+struct PacketConnection
 	: public Connection
 {
-	PktConnection( Thread *thread, SelectFd *selectFd )
+	PacketConnection( Thread *thread, SelectFd *selectFd )
 		: Connection( thread, selectFd ) { tlsConnect = false; }
 
 	virtual void connectComplete() {}

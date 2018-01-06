@@ -441,7 +441,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 			if ( result >= 0 ) {
-				PktConnection *pc = new PktConnection( this, 0 );
+				PacketConnection *pc = new PacketConnection( this, 0 );
 				SelectFd *selectFd = new SelectFd( this, result, 0 );
 				selectFd->local = pc;
 				pc->selectFd = selectFd;
