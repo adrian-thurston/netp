@@ -17,13 +17,11 @@ int Connection::read( char *data, int len )
 			}
 			else {
 				/* closed. */
-				log_message( "error reading: " << strerror(errno) );
 				return -1;
 			}
 		}
 		else if ( res == 0 ) {
 			/* Normal closure. */
-			log_message( "normal closure:" );
 			return -1;
 		}
 

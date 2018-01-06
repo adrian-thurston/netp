@@ -434,7 +434,8 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				notifyAccept( result );
 			}
 			else {
-				log_ERROR( "failed to accept connection: " << strerror(errno) );
+				if ( errno != EAGAIN && errno != EWOULDBLOCK )
+					log_ERROR( "failed to accept connection: " << strerror(errno) );
 			}
 			break;
 		}
@@ -457,7 +458,8 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				notifyAccept( selectFd );
 			}
 			else {
-				log_ERROR( "failed to accept connection: " << strerror(errno) );
+				if ( errno != EAGAIN && errno != EWOULDBLOCK )
+					log_ERROR( "failed to accept connection: " << strerror(errno) );
 			}
 			break;
 		}
