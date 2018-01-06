@@ -1,13 +1,34 @@
 #include "thread.h"
 
 #include <openssl/ssl.h>
+#include <errno.h>
 
 int Connection::read( char *data, int len )
 {
-	if ( tlsConnect )
+	if ( tlsConnect ) {
 		return thread->tlsRead( selectFd, data, len );
-	else
-		return ::read( selectFd->fd, data, len );
+	}
+	else {
+		int res = ::read( selectFd->fd, data, len );
+		if ( res < 0 ) {
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+				/* Nothing now. */
+				return 0;
+			}
+			else {
+				/* closed. */
+				log_message( "error reading: " << strerror(errno) );
+				return -1;
+			}
+		}
+		else if ( res == 0 ) {
+			/* Normal closure. */
+			log_message( "normal closure:" );
+			return -1;
+		}
+
+		return res;
+	}
 }
 
 int Connection::write( char *data, int len )

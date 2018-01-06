@@ -269,8 +269,8 @@ struct Connection
 	virtual void writeReady() = 0;
 	virtual void failure( FailType failType ) = 0;
 
+	/* -1: EOF, 0: try again, pos: data. */
 	int read( char *data, int len );
-
 	int write( char *data, int len );
 
 	Thread *thread;

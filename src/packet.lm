@@ -73,20 +73,13 @@ void packetReceives( Thread: thread )
 		"		const int sz = sizeof(fd->recv.head);
 		"		int len = c->read( (char*)&fd->recv.head + fd->recv.have, sz - fd->recv.have );
 		"		if ( len < 0 ) {
-		"			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
-		"				log_debug( DBG__PKTRECV, \"packet head read delayed: : \" << strerror(errno) );
-		"				return;
-		"			}
-		"			else {
-		"				/* fatal error. */
-		"				log_debug( DBG__PKTRECV, \"packet head read failed: : \" << strerror(errno) );
-		"			}
+		"			/* EOF. */
+		"			log_debug( DBG__PKTRECV, \"packet head read closed\" );
+		"			close( fd );
+		"			return;
 		"		}
 		"		else if ( len == 0 ) {
-		"			log_debug( DBG__PKTRECV, \"packet head read returned zero\" );
-		"
-		"			/* EOF. */
-		"			close( fd );
+		"			log_debug( DBG__PKTRECV, \"packet head read delayed: : \" << strerror(errno) );
 		"			return;
 		"		}
 		"		else if ( fd->recv.have + len < sz )  {
@@ -117,21 +110,14 @@ void packetReceives( Thread: thread )
 		"			while ( fd->recv.have < fd->recv.need ) {
 		"				int len = c->read( fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
 		"				if ( len < 0 ) {
-		"					/* Error. */
-		"					if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
-		"						/* continue. */
-		"						log_debug( DBG__PKTRECV, \"packet data read delayed: : \" << strerror(errno) );
-		"						return;
-		"					}
-		"					else {
-		"						log_debug( DBG__PKTRECV, \"packet data read failed: : \" << strerror(errno) );
-		"						/* fatal error. */
-		"					}
+		"					/* EOF. */
+		"					log_debug( DBG__PKTRECV, \"packet data read closed\" );
+		"					close( fd );
+		"					return;
 		"				}
 		"				else if ( len == 0 ) {
-		"					log_debug( DBG__PKTRECV, \"packet data read returned zero\" );
-		"					/* EOF. */
-		"					close( fd );
+		"					/* continue. */
+		"					log_debug( DBG__PKTRECV, \"packet data read delayed: : \" << strerror(errno) );
 		"					return;
 		"				}
 		"				else if ( fd->recv.have + len < fd->recv.need )  {
