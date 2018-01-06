@@ -21,7 +21,7 @@ void UserThread::recvHello( Hello *msg )
 
 void UserThread::handleTimer()
 {
-	log_message( "timer" );
+	// log_message( "timer" );
 }
 
 void UserThread::recvShutdown( Shutdown *msg )

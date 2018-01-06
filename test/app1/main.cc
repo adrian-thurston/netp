@@ -5,35 +5,38 @@
 
 #include <unistd.h>
 
+extern const char data1[];
+extern const char data2[];
+
 void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 {
 	log_message( "received BigPacket" );
 
-	std::cout << pkt->big1 << std::endl;
-	std::cout << pkt->big2 << std::endl;
-	std::cout << pkt->big3 << std::endl;
+	log_message( "big1 check ... " << ( strcmp( pkt->big1, ::data1 ) == 0 ? "OK" : "FAILED" ) );
+	log_message( "big2 check ... " << ( strcmp( pkt->big2, ::data2 ) == 0 ? "OK" : "FAILED" ) );
+	log_message( "big3 check ... " << ( strcmp( pkt->big3, ::data3 ) == 0 ? "OK" : "FAILED" ) );
 
-	std::cout.flush();
+	log_message( "l1 check   ... " << ( ( pkt->l1 != ::l1 ) == 0 ? "OK" : "FAILED" ) );
+	log_message( "l2 check   ... " << ( ( pkt->l2 != ::l2 ) == 0 ? "OK" : "FAILED" ) );
+	log_message( "l3 check   ... " << ( ( pkt->l3 != ::l3 ) == 0 ? "OK" : "FAILED" ) );
 
-	breakLoop();
+}
+
+void MainThread::handleTimer()
+{
+	static bool done = false;
+
+	if ( !done ) {
+		done = true;
+
+		/* Connection to broker. */
+		PacketConnection *pc = new PacketConnection( this, 0 );
+		pc->initiatePkt( "localhost", 44726 );
+	}
 }
 
 int MainThread::main()
 {
-	if ( fetch ) {
-		int fd = inetConnect( "127.0.0.1", 44726 );
-
-		SelectFd *selectFd = new SelectFd( this, fd, 0 );
-		selectFd->state = SelectFd::PktData;
-		selectFd->wantRead = true;
-
-		selectFdList.append( selectFd );
-		selectLoop();
-		::close( fd );
-
-		return 0;
-	}
-
 	log_message( "starting up" );
 
 	UserThread *bare = new UserThread;
@@ -48,7 +51,11 @@ int MainThread::main()
 	create( bare );
 	create( listen );
 
-	signalLoop();
+	struct timeval t;
+	t.tv_sec = 1;
+	t.tv_usec = 0;
+
+	selectLoop( &t );
 
 	sendsToUser->openShutdown();
 	sendsToUser->send();

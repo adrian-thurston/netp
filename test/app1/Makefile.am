@@ -1,3 +1,5 @@
+include genf.mk
+
 GENF = @SUBJECT@
 
 bin_PROGRAMS = app1
@@ -11,7 +13,7 @@ app1_SOURCES = \
 	listen.cc \
 	$(BUILT_SOURCES)
 
-BUILT_SOURCES = \
+BUILT_SOURCES += \
 	main_gen.h \
 	main_gen.cc \
 	user_gen.h \

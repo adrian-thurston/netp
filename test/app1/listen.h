@@ -23,11 +23,7 @@ struct ListenThread
 	void handleTimer();
 	void recvShutdown( Shutdown *msg );
 
-void notifAccept( SelectFd *selectFd );
-void writeReady( SelectFd *fd );
-
-	virtual void accept( int fd );
-	virtual void selectFdReady( SelectFd *fd, uint8_t readyMask );
+	void notifyAccept( SelectFd *fd );
 };
 
 #endif /* _LISTEN_H */

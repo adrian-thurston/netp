@@ -5,3 +5,5 @@
 /configure
 /libtool
 /runtests
+/m4
+/sedsubst

@@ -20,8 +20,11 @@ message Hello
 packet BigPacket
 {
 	string big1;
+	long   l1;
 	string big2;
+	long   l2;
 	string big3;
+	long   l3;
 };
 
 

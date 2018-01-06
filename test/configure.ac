@@ -1,8 +1,8 @@
 AC_INIT([genf-suite], [1.0.1])
 AM_INIT_AUTOMAKE
 
-AC_CONFIG_MACRO_DIR([../m4])
-m4_include([../m4/common.m4])
+AC_CONFIG_MACRO_DIR([m4])
+m4_include([m4/common.m4])
 
 : ${CFLAGS="-Wall -g"}
 : ${CXXFLAGS="-Wall -g"}
@@ -39,10 +39,6 @@ AC_CHECK_LIB([genf], [genf_thread_start], [], [AC_ERROR([check genf: cannot link
 AC_SUBST(SUBJECT)
 AC_SUBST(top_srcdir)
 
-SED_SUBST=["\
-	-e 's|@top_srcdir@|${top_srcdir}|g' \
-	-e 's|@SUBJECT@|${SUBJECT}|g' \
-"]
 AC_SUBST(SED_SUBST)
 
 dnl write output files

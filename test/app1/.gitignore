@@ -2,3 +2,8 @@
 /*_gen.cc
 /.libs
 /app1
+/genf.h.in
+/genf.h
+/genf.mk
+/init.d
+/init.d.sh
