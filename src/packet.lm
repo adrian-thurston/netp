@@ -237,7 +237,7 @@ void generatePacketCode( P: program )
 
 		#
 		# format:
-		#   PacketHeader, which contains first len, then ( nextLen, block )*
+		#   PacketHeader, which contains first nextLen, then ( nextLen, block )*
 		#
 		# The block lengths include the size of the nextLen field (int)
 		#
@@ -251,10 +251,10 @@ void generatePacketCode( P: program )
 			"	writer->toSend->length = writer->length();
 			"	writer->toSend->firstLen = writer->buf.length(rb) - sizeof(PacketHeader);
 			"
+			"	/* First pass: set each nextlen. */
 			"	int n = 0;
 			"	for ( ; rb != 0; rb = rb->next ) {
 			"		char *data = writer->buf.data(rb);
-			"		int blockLen = writer->buf.length(rb);
 			"
 			"		int *nextLen;
 			"		if ( n == 0 ) {
@@ -264,13 +264,22 @@ void generatePacketCode( P: program )
 			"		else {
 			"			nextLen = (int*)(data);
 			"		}
-
+			"
 			"		*nextLen = rb->next != 0 ? writer->buf.length(rb->next) : 0;
 			"
+			"		n += 1;
+			"	}
+			"
+			"	/* Second pass: write the blocks. */
+			"	for ( rb = writer->buf.hblk; rb != 0; rb = rb->next ) {
+			"		char *data = writer->buf.data(rb);
+			"		int blockLen = writer->buf.length(rb);
+			"
 			"		int res = c->write( data, blockLen );
+			"		if ( res < blockLen )
+			"			log_ERROR( \"failed to send full block\" );
 			"		log_debug( DBG__PKTSEND, \"packet send result: \" << res );
 			"
-			"		n += 1;
 			"	}
 			"
 			"	writer->buf.empty();

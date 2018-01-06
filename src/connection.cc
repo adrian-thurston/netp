@@ -31,10 +31,23 @@ int Connection::read( char *data, int len )
 
 int Connection::write( char *data, int len )
 {
-	if ( tlsConnect )
+	if ( tlsConnect ) {
 		return thread->tlsWrite( selectFd, data, len );
-	else
-		return ::write( selectFd->fd, data, len );
+	}
+	else {
+		int res = ::write( selectFd->fd, data, len );
+		if ( res < 0 ) {
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {
+				/* Cannot write anything now. */
+				return 0;
+			}
+			else {
+				/* error-based closure. */
+				return -1;
+			}
+		}
+		return res;
+	}
 }
 
 void Connection::initiateTls( const char *host, uint16_t port )
@@ -79,5 +92,10 @@ void Connection::close( )
 
 	selectFd = 0;
 	closed = true;
+}
+
+void PktConnection::readReady()
+{
+	thread->data( selectFd );
 }
 

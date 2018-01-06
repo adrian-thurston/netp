@@ -412,11 +412,6 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 	}
 }
 
-void PktConnection::readReady()
-{
-	thread->data( selectFd );
-}
-
 void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 {
 	switch ( fd->type ) {
