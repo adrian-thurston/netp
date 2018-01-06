@@ -224,20 +224,6 @@ void ItQueue::release( ItHeader *header )
 	writer->hoff += length;
 };
 
-char *PacketWriter::allocBytes( int nb, long &offset )
-{
-	if ( buf.tblk == 0 || nb <= ( buf.tblk->size - buf.toff ) ) {
-		offset = buf.length() - sizeof(PacketHeader);
-		return buf.append( 0, nb );
-	}
-	else {
-		/* Need to move to block 1 or up, so we include the block header. */
-		offset = buf.length() - sizeof(PacketHeader) + sizeof(PacketBlockHeader);
-		char *data = buf.append( 0, sizeof(PacketBlockHeader) + nb );
-		return data + sizeof(PacketBlockHeader);
-	}
-}
-
 int Thread::inetListen( uint16_t port, bool transparent )
 {
 	/* Create the socket. */
@@ -722,22 +708,6 @@ void Thread::initId()
 	if ( pendingNotifSignal )
 		pthread_kill( pthread_this, SIGUSR1 );
 
-}
-
-char *Thread::pktFind( Rope *rope, long l )
-{
-	RopeBlock *rb = rope->hblk;
-
-	while ( rb != 0 ) {
-		long avail = rope->length( rb );
-		if ( l < avail )
-			return rope->data( rb ) + l;
-		
-		rb = rb->next;
-		l -= avail;
-	}
-
-	return 0;
 }
 
 extern "C" void *genf_thread_start( void *arg )

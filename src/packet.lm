@@ -130,24 +130,8 @@ void generatePacketCode( P: program )
 		send Output
 			"[Packet->Id] *[Packet->Id]::open( PacketWriter *writer )
 			"{
-			"	writer->reset();
-			"
-			"	/* Place the header. */
-			"	PacketHeader *header = (PacketHeader*) writer->buf.append(
-			"			0, sizeof(PacketHeader) + sizeof(PacketBlockHeader) );
-			"	
-			"	header->msgId = [Packet->Id]::ID;
-			"	header->writerId = 1; // writer->id;
-			"
-			"	/* Place the struct. */
-			"	long offset = 0;
-			"	[Packet->Id] *msg = ([Packet->Id]*) writer->allocBytes( sizeof([Packet->Id]), offset );
-			"
-			"	header->length = 0;
-			"	writer->toSend = header;
-			"	writer->content = msg;
-			"
-			"	return msg;
+			"	return ([Packet->Id]*) GenF::Packet::open( writer,
+			"		[Packet->Id]::ID, sizeof([Packet->Id]) );
 			"}
 			"
 

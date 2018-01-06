@@ -7,6 +7,7 @@ namespace GenF {
 
 	struct Packet
 	{
+		static void *open( PacketWriter *writer, int ID, int SZ );
 		static void send( PacketWriter *writer );
 	};
 
