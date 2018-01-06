@@ -81,7 +81,7 @@ void generateThreadHeader( Thread: thread )
 		"	void recvSingle();
 		"	int recvLoop();
 		"	bool poll();
-		"	virtual void data( SelectFd *fd );
+		"	virtual void dispatchPacket( SelectFd *fd );
 		"	void close( SelectFd *fd );
 		"
 

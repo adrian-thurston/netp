@@ -4,12 +4,19 @@ lib_LTLIBRARIES = libgenf.la
 
 include_HEADERS =
 
-libgenf_la_SOURCES = list.h thread.h thread.cc tls.cc connection.cc
+libgenf_la_SOURCES = \
+	list.h \
+	thread.h \
+	thread.cc \
+	tls.cc \
+	connection.cc \
+	packet.cc
+
 libgenf_la_CPPFLAGS = -Iinclude
 
 genfincdir = $(includedir)/genf
 
-genfinc_HEADERS = list.h thread.h
+genfinc_HEADERS = list.h thread.h packet.h
 
 pkgdata_DATA = with-aapl
 

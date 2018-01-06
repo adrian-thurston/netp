@@ -96,6 +96,6 @@ void Connection::close( )
 
 void PacketConnection::readReady()
 {
-	thread->data( selectFd );
+	thread->parsePacket( selectFd );
 }
 

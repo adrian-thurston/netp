@@ -427,10 +427,16 @@ public:
 	static RealmSet enabledRealms;
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
-	virtual void data( SelectFd *fd ) {}
+
+	/* FIXME: Can remove? */
 	virtual void writeReady( SelectFd *fd ) {}
+
 	virtual void notifyAccept( SelectFd *fd ) {}
 	virtual void notifyAccept( int fd ) {}
+
+	virtual void dispatchPacket( SelectFd *fd ) {}
+	void parsePacket( SelectFd *fd );
+	void closeForPacket( SelectFd *fd );
 
 	/*
 	 * SSL
