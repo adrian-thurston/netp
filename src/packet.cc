@@ -9,9 +9,9 @@ void Thread::closeForPacket( SelectFd *fd )
 
 char *Thread::pktFind( Rope *rope, long l )
 {
-	log_message( "pkt find: " << l );
-	RopeBlock *rb = rope->hblk;
+	// log_message( "pkt find: " << l );
 
+	RopeBlock *rb = rope->hblk;
 	while ( rb != 0 ) {
 		long avail = rope->length( rb );
 		if ( l < avail )
@@ -32,14 +32,16 @@ char *Thread::pktFind( Rope *rope, long l )
  */
 char *PacketWriter::allocBytes( int nb, long &offset )
 {
-	if ( buf.tblk == 0 || nb <= ( buf.tblk->size - buf.toff ) ) {
-		offset = buf.length() - sizeof(PacketHeader);
+	if ( buf.tblk != 0 && nb <= ( buf.tblk->size - buf.toff ) ) {
+		offset = buf.length();
+		// log_message( "alloc bytes offset: " << offset );
 		return buf.append( 0, nb );
 	}
 	else {
 		/* Need to move to block 1 or up, so we include the block header. */
-		offset = buf.length() - sizeof(PacketHeader) + sizeof(PacketBlockHeader);
+		offset = buf.length() + sizeof(PacketBlockHeader);
 		char *data = buf.append( 0, sizeof(PacketBlockHeader) + nb );
+		// log_message( "alloc bytes offset: " << offset );
 		return data + sizeof(PacketBlockHeader);
 	}
 }
@@ -49,16 +51,16 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 	writer->reset();
 
 	/* Place the header. */
-	PacketHeader *header = (PacketHeader*) writer->buf.append(
-			0, sizeof(PacketHeader) + sizeof(PacketBlockHeader) );
+	long offset = 0;
+	PacketHeader *header = (PacketHeader*)writer->allocBytes( sizeof(PacketHeader), offset );
 	
-	log_message( "header: " << header << " rb.head: " << (PacketHeader*)writer->buf.data(writer->buf.hblk) );
+	// log_message( "header: " << header << " rb.head: " <<
+	//		(PacketHeader*)writer->buf.data(writer->buf.hblk) );
 
 	header->msgId = ID;
 	header->writerId = 934223439; // writer->id;
 
 	/* Place the struct. */
-	long offset = 0;
 	void *msg = writer->allocBytes( SZ, offset );
 
 	header->length = 0;
@@ -70,40 +72,37 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 
 
 /*
- * format:
- *   PacketHeader, which contains first nextLen, then ( nextLen, block )*
- * 
- * The block lengths include the size of the nextLen field (int)
- */
-
+ * List of blocks of form ( next-len, content ), where next-len refers to the
+ * size of the next block. The size of the first block is contained in the
+ * packet header, which is at the head of the content. To read, take in the
+ * first next-len and the packet header, then read the remainder of the first
+ * block.  */
 void GenF::Packet::send( PacketWriter *writer )
 {
 	RopeBlock *rb = writer->buf.hblk;
 	Connection *c = static_cast<Connection*>(writer->fd->local);
 
+	/* Length of first block goes into the header. */
 	writer->toSend->length = writer->length();
-	writer->toSend->firstLen = writer->buf.length(rb) - sizeof(PacketHeader);
+	writer->toSend->firstLen = writer->buf.length(rb);
+
+	// log_message( "first len: " << writer->toSend->firstLen );
 
 	/* First pass: set each nextlen. */
-	int n = 0;
 	for ( ; rb != 0; rb = rb->next ) {
 		char *data = writer->buf.data(rb);
-
-		int *nextLen;
-		if ( n == 0 ) {
-			/* First block explicitly contains the packet block header. */
-			nextLen = (int*)(data + sizeof(PacketHeader));
-		}
-		else {
-			nextLen = (int*)(data);
-		}
-
+		int *nextLen = (int*)(data);
 		*nextLen = rb->next != 0 ? writer->buf.length(rb->next) : 0;
-
-		n += 1;
 	}
 
 	/* Second pass: write the blocks. */
+
+	int blocks = 0;
+	for ( rb = writer->buf.hblk; rb != 0; rb = rb->next )
+		blocks += 1;
+
+	// log_message( "block list len: " << blocks );
+
 	for ( rb = writer->buf.hblk; rb != 0; rb = rb->next ) {
 		char *data = writer->buf.data(rb);
 		int blockLen = writer->buf.length(rb);
@@ -118,13 +117,19 @@ void GenF::Packet::send( PacketWriter *writer )
 	writer->buf.empty();
 }
 
+/* Read a fixed-size prefix of the first block into a temp space, extract the
+ * first length from the headers, allocate the full first block, copy the
+ * prefix we read into the block, then enter into block read loop, jumping in
+ * past the headers. * */
 void Thread::parsePacket( SelectFd *fd )
 {
+	// log_message( "parsing packet" );
+
 	Connection *c = static_cast<Connection*>(fd->local);
 	switch ( fd->recv.state ) {
 		case SelectFd::Recv::WantHead: {
-			const int sz = sizeof(fd->recv.head);
-			int len = c->read( (char*)&fd->recv.head + fd->recv.have, sz - fd->recv.have );
+			const int sz = sizeof(PacketBlockHeader) + sizeof(PacketHeader);
+			int len = c->read( (char*)&fd->recv.headBuf + fd->recv.have, sz - fd->recv.have );
 			if ( len < 0 ) {
 				/* EOF. */
 				// log_debug( DBG__PKTRECV, "packet head read closed" );
@@ -143,19 +148,27 @@ void Thread::parsePacket( SelectFd *fd )
 				return;
 			}
 
-			if ( len > 0 ) {
-				// log_debug( DBG__PKTRECV, "packet head read returned: " << len << " bytes" );
-			}
-
 			/* Completed read of header. */
-			fd->recv.nextLen = &fd->recv.head.firstLen;
+			// log_message( "have first block headers" );
+
+			/* Pull the size of the first block length from the header read so far. */
+			fd->recv.head = (PacketHeader*)(fd->recv.headBuf + sizeof(PacketBlockHeader));
+			fd->recv.need = fd->recv.head->firstLen;
+
+			/* Allocate the first block and move the header data in from the
+			 * temp read space. */
+			fd->recv.data = fd->recv.buf.appendBlock( fd->recv.head->firstLen );
+			memcpy( fd->recv.data, fd->recv.headBuf, sz );
+
+			/* Reset the head pointer to the header we just coppied in. */
+			fd->recv.head = (PacketHeader*)(fd->recv.data + sizeof(PacketBlockHeader));
+
+			/* Indicate we have the headers and enter into block read loop. */
+			fd->recv.have = sz;
 			fd->recv.state = SelectFd::Recv::WantBlock;
-		
-			fd->recv.need = *fd->recv.nextLen;
-			fd->recv.have = 0;
 
 			/* Deliberate fall through. */
-			fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
+			// log_message( "remaining need for first block: " << fd->recv.need - fd->recv.have );
 		}
 	
 		case SelectFd::Recv::WantBlock: {
@@ -186,12 +199,11 @@ void Thread::parsePacket( SelectFd *fd )
 					}
 				}
 	
-				fd->recv.nextLen = (int*)fd->recv.data;
-				if ( *fd->recv.nextLen == 0 )
+				fd->recv.need = *((int*)fd->recv.data);
+				fd->recv.have = 0;
+				if ( fd->recv.need == 0 )
 					break;
 	
-				fd->recv.need = *fd->recv.nextLen;
-				fd->recv.have = 0;
 				fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
 			}
 	
@@ -199,7 +211,8 @@ void Thread::parsePacket( SelectFd *fd )
 			fd->recv.need = 0;
 			fd->recv.have = 0;
 	
-			log_message( "writer id: " << fd->recv.head.writerId );
+			// log_message( "writer id: " << fd->recv.head->writerId );
+
 			dispatchPacket( fd );
 
 			fd->recv.buf.empty();

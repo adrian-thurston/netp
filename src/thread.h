@@ -154,7 +154,6 @@ struct SelectFd
 		Recv()
 		:
 			state(WantHead),
-			nextLen(0),
 			have(0)
 		{}
 
@@ -165,10 +164,11 @@ struct SelectFd
 		};
 
 		State state;
-		int *nextLen;
-		PacketHeader head;
+		PacketHeader *head;
 		Rope buf;
 		char *data;
+
+		char headBuf[sizeof(PacketBlockHeader)+sizeof(PacketHeader)];
 
 		/* If read fails in the middle of something we need, amount we have is
 		 * recorded here. */

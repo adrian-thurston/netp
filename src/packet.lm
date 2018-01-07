@@ -69,12 +69,12 @@ void packetReceives( Thread: thread )
 	send Output
 		"void [Thread->Id]Gen::dispatchPacket( SelectFd *fd )
 		"{
-		"		switch ( fd->recv.head.msgId ) {
+		"		switch ( fd->recv.head->msgId ) {
 
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
 			"			case (int) [Packet->Id]::ID: {
-			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recv.buf, sizeof(PacketBlockHeader) );
+			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recv.buf, sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`string] {
