@@ -117,6 +117,21 @@ void GenF::Packet::send( PacketWriter *writer )
 	writer->buf.empty();
 }
 
+void GenF::Packet::send( PacketWriter *writer, Rope &blocks )
+{
+	Connection *c = static_cast<Connection*>(writer->fd->local);
+	for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
+		char *data = blocks.data(rb);
+		int blockLen = blocks.length(rb);
+
+		int res = c->write( data, blockLen );
+		if ( res < blockLen )
+			log_ERROR( "failed to send full block" );
+
+		// log_debug( DBG__PKTSEND, "packet send result: " << res );
+	}
+}
+
 /* Read a fixed-size prefix of the first block into a temp space, extract the
  * first length from the headers, allocate the full first block, copy the
  * prefix we read into the block, then enter into block read loop, jumping in
