@@ -142,10 +142,10 @@ void PacketConnection::parsePacket( SelectFd *fd )
 {
 	// log_message( "parsing packet" );
 
-	switch ( fd->recv.state ) {
+	switch ( recv.state ) {
 		case SelectFd::Recv::WantHead: {
 			const int sz = sizeof(PacketBlockHeader) + sizeof(PacketHeader);
-			int len = read( (char*)&fd->recv.headBuf + fd->recv.have, sz - fd->recv.have );
+			int len = read( (char*)&recv.headBuf + recv.have, sz - recv.have );
 			if ( len < 0 ) {
 				/* EOF. */
 				// log_debug( DBG__PKTRECV, "packet head read closed" );
@@ -153,14 +153,16 @@ void PacketConnection::parsePacket( SelectFd *fd )
 				return;
 			}
 			else if ( len == 0 ) {
-				// log_debug( DBG__PKTRECV, "packet head read delayed: : " << strerror(errno) );
+				// log_debug( DBG__PKTRECV, "packet head read delayed: : " <<
+				//		strerror(errno) );
 				return;
 			}
-			else if ( fd->recv.have + len < sz )  {
-				// log_debug( DBG__PKTRECV, "packet head read is short: " << len << " bytes" );
+			else if ( recv.have + len < sz )  {
+				// log_debug( DBG__PKTRECV, "packet head read is short: " <<
+				//		len << " bytes" );
 
 				/* Don't have it all. Need to wait for more. */
-				fd->recv.have += len;
+				recv.have += len;
 				return;
 			}
 
@@ -168,29 +170,29 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			// log_message( "have first block headers" );
 
 			/* Pull the size of the first block length from the header read so far. */
-			fd->recv.head = (PacketHeader*)(fd->recv.headBuf + sizeof(PacketBlockHeader));
-			fd->recv.need = fd->recv.head->firstLen;
+			recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
+			recv.need = recv.head->firstLen;
 
 			/* Allocate the first block and move the header data in from the
 			 * temp read space. */
-			fd->recv.data = fd->recv.buf.appendBlock( fd->recv.head->firstLen );
-			memcpy( fd->recv.data, fd->recv.headBuf, sz );
+			recv.data = recv.buf.appendBlock( recv.head->firstLen );
+			memcpy( recv.data, recv.headBuf, sz );
 
 			/* Reset the head pointer to the header we just coppied in. */
-			fd->recv.head = (PacketHeader*)(fd->recv.data + sizeof(PacketBlockHeader));
+			recv.head = (PacketHeader*)(recv.data + sizeof(PacketBlockHeader));
 
 			/* Indicate we have the headers and enter into block read loop. */
-			fd->recv.have = sz;
-			fd->recv.state = SelectFd::Recv::WantBlock;
+			recv.have = sz;
+			recv.state = SelectFd::Recv::WantBlock;
 
 			/* Deliberate fall through. */
-			// log_message( "remaining need for first block: " << fd->recv.need - fd->recv.have );
+			// log_message( "remaining need for first block: " << recv.need - recv.have );
 		}
 	
 		case SelectFd::Recv::WantBlock: {
 			while ( true ) {
-				while ( fd->recv.have < fd->recv.need ) {
-					int len = read( fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
+				while ( recv.have < recv.need ) {
+					int len = read( recv.data + recv.have, recv.need - recv.have );
 					if ( len < 0 ) {
 						/* EOF. */
 						// log_debug( DBG__PKTRECV, "packet data read closed" );
@@ -199,39 +201,42 @@ void PacketConnection::parsePacket( SelectFd *fd )
 					}
 					else if ( len == 0 ) {
 						/* continue. */
-						// log_debug( DBG__PKTRECV, "packet data read delayed: : " << strerror(errno) );
+						// log_debug( DBG__PKTRECV, "packet data read delayed: " <<
+						//		strerror(errno) );
 						return;
 					}
-					else if ( fd->recv.have + len < fd->recv.need )  {
-						// log_debug( DBG__PKTRECV, "packet data read is short: " << len << " bytes" );
+					else if ( recv.have + len < recv.need )  {
+						// log_debug( DBG__PKTRECV, "packet data read is short: " <<
+						//		len << " bytes" );
 						/* Don't have it all. Need to wait for more. */
-						fd->recv.have += len;
+						recv.have += len;
 						return;
 					}
 	
 					if ( len > 0 ) {
-						// log_debug( DBG__PKTRECV, "packet data read returned: " << len << " bytes" );
-						fd->recv.have += len;
+						// log_debug( DBG__PKTRECV, "packet data read returned: " <<
+						//		len << " bytes" );
+						recv.have += len;
 					}
 				}
 	
-				fd->recv.need = *((int*)fd->recv.data);
-				fd->recv.have = 0;
-				if ( fd->recv.need == 0 )
+				recv.need = *((int*)recv.data);
+				recv.have = 0;
+				if ( recv.need == 0 )
 					break;
 	
-				fd->recv.data = fd->recv.buf.appendBlock( fd->recv.need );
+				recv.data = recv.buf.appendBlock( recv.need );
 			}
 	
-			fd->recv.state = SelectFd::Recv::WantHead;
-			fd->recv.need = 0;
-			fd->recv.have = 0;
+			recv.state = SelectFd::Recv::WantHead;
+			recv.need = 0;
+			recv.have = 0;
 	
-			// log_message( "writer id: " << fd->recv.head->writerId );
+			// log_message( "writer id: " << recv.head->writerId );
 
-			thread->dispatchPacket( fd, fd->recv );
+			thread->dispatchPacket( fd, recv );
 
-			fd->recv.buf.empty();
+			recv.buf.empty();
 			break;
 		}
 	}

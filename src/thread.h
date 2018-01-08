@@ -239,8 +239,6 @@ struct SelectFd
 	bool tlsWriteWantsRead;
 	bool tlsReadWantsWrite;
 
-	Recv recv;
-
 	unsigned short port;
 
 	SelectFd *prev, *next;
@@ -292,6 +290,8 @@ struct PacketConnection
 	virtual void readReady();
 	virtual void writeReady() {}
 	virtual void failure( FailType failType ) {}
+
+	SelectFd::Recv recv;
 
 	void parsePacket( SelectFd *fd );
 };
