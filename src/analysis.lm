@@ -15,6 +15,13 @@ context message
 	MessageDef: message_def
 end
 
+context _struct
+	Id: str
+	StructDef: struct_def
+	NumID: int
+	AppID: int
+end
+
 context packet
 	Id: str
 	PacketDef: packet_def
@@ -92,6 +99,30 @@ message consMessage( MessageDef: message_def )
 	Message->Id = $MessageDef.id
 	Message->MessageDef = MessageDef
 	return Message
+}
+
+#
+# Struct Map
+#
+global StructMap: map<str, _struct> = new map<str, _struct>()
+
+_struct findStruct( Id: id )
+{
+	Struct: _struct = StructMap->find( $Id )
+	if ! Struct {
+		send stderr "[OptInputFn]:[Id.line]: failed to locate packet [Id]
+		exit( 1 )
+	}
+	return Struct
+}
+
+_struct consStruct( StructDef: struct_def, ApplicationId: int )
+{
+	Struct: _struct = new _struct()
+	Struct->Id = $StructDef.id
+	Struct->AppID = ApplicationId
+	Struct->StructDef = StructDef
+	return Struct
 }
 
 #
@@ -205,6 +236,12 @@ void useDecls( P: program )
 
 		ApplicationId: int = findApplicationId( UseP )
 
+		UseStructMap: map<str, _struct> = new map<str, _struct>()
+		for StructDef: struct_def in UseP {
+			Struct: _struct = consStruct( StructDef, ApplicationId )[]
+			UseStructMap->insert( $StructDef.id, Struct )
+		}
+
 		UsePacketMap: map<str, packet> = new map<str, packet>()
 		for PacketDef: packet_def in UseP {
 			Packet: packet = consPacket( PacketDef, ApplicationId )[]
@@ -216,6 +253,9 @@ void useDecls( P: program )
 			Packet->NumID = ID
 			ID = ID + 1
 		}
+
+		for Struct: _struct in UseStructMap
+			StructMap->insert( Struct->Id, Struct )
 
 		for Packet: packet in UsePacketMap
 			PacketMap->insert( Packet->Id, Packet )
@@ -238,6 +278,11 @@ void semanticAnalysis( P: program )
 	for MessageDef: message_def in P {
 		Message: message = consMessage( MessageDef )[]
 		MessageMap->insert( $MessageDef.id, Message )
+	}
+
+	for StructDef: struct_def in P {
+		Struct: _struct = consStruct( StructDef, ApplicationId )[]
+		StructMap->insert( $StructDef.id, Struct )
 	}
 
 	for PacketDef: packet_def in P {

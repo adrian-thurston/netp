@@ -10,6 +10,8 @@ void Thread::closeForPacket( SelectFd *fd )
 char *Thread::pktFind( Rope *rope, long l )
 {
 	// log_message( "pkt find: " << l );
+	if ( l == 0 )
+		return 0;
 
 	RopeBlock *rb = rope->hblk;
 	while ( rb != 0 ) {
@@ -62,6 +64,7 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 
 	/* Place the struct. */
 	void *msg = writer->allocBytes( SZ, offset );
+	memset( msg, 0, SZ );
 
 	header->length = 0;
 	writer->toSend = header;

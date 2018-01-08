@@ -19,6 +19,34 @@ void generatePacketHeader( P: program )
 		~struct PacketWriter;
 		~
 
+	for Struct: _struct in StructMap {
+		send Output
+			"struct [Struct->Id]
+			"{
+
+		for FD: struct_field_def in Struct->StructDef {
+			switch FD.struct_field_type
+			case [`bool] {
+				send Output
+					"	bool [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	char *[FD.id];
+					"	void set_[FD.id]( PacketWriter *writer, const char *d );
+			}
+		}
+
+		send Output
+			"	[Struct->Id] *next;
+			"};
+			"
+	}
+
 	for Packet: packet in PacketMap {
 		send Output
 			"struct [Packet->Id]
@@ -39,6 +67,14 @@ void generatePacketHeader( P: program )
 				send Output
 					"	char *[FD.id];
 					"	void set_[FD.id]( PacketWriter *writer, const char *d );
+			}
+			case [list_type] {
+				TypeId: id = FD.pkt_field_type.list_type.id
+				send Output
+					"	[TypeId] *head_[FD.id];
+					"	[TypeId] *tail_[FD.id];
+					"	[TypeId] *alloc_[FD.id]( PacketWriter *writer, [Packet->Id] *pkt );
+
 			}
 		}
 
@@ -74,14 +110,42 @@ void packetReceives( Thread: thread )
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
 			"			case (int) [Packet->Id]::ID: {
-			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( &fd->recv.buf, sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( 
+			"					&fd->recv.buf, sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`string] {
 				send Output
 					"			pkt->[FD.id] = pktFind( &fd->recv.buf, (long)pkt->[FD.id] );
 			}
+			case [L: list_type] {
+				TypeId: id = L.id
+				send Output
+					"			pkt->head_[FD.id] = ([TypeId]*)pktFind( &fd->recv.buf,
+					"					(long)pkt->head_[FD.id] );
+					"			[TypeId] *el = pkt->head_[FD.id];
+					"			while ( el != 0 ) {
+
+				Struct: _struct = findStruct( TypeId )
+				for SFD: struct_field_def in Struct->StructDef {
+					switch SFD.struct_field_type
+					case [`string] {
+						send Output
+							"			el->[SFD.id] = pktFind( &fd->recv.buf,
+							"					(long)el->[SFD.id] );
+					}
+				}
+
+				send Output
+					"				el->next = ([TypeId]*)pktFind( &fd->recv.buf,
+					"						(long)el->next );
+					"				el = el->next;
+					"			}
+			}
 		}
+
 		send Output
 			"				recv[Packet->Id]( fd, pkt );
 			"				break;
@@ -110,6 +174,24 @@ void generatePacketCode( P: program )
 		~#include <genf/thread.h>
 		~
 
+	for Struct: _struct in StructMap {
+		for FD: struct_field_def in Struct->StructDef {
+			switch FD.struct_field_type
+			case [`string] {
+				send Output
+					"void [Struct->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
+					"{
+					"	int length = strlen( src ) + 1;
+					"	long offset = 0;
+					"	char *dest = writer->allocBytes( length, offset );
+					"	[FD.id] = (char*)offset;
+					"	memcpy( dest, src, length );
+					"}
+					"
+			}
+		}
+	}
+
 	for Packet: packet in PacketMap {
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
@@ -122,6 +204,28 @@ void generatePacketCode( P: program )
 					"	char *dest = writer->allocBytes( length, offset );
 					"	(([Packet->Id]*)writer->content)->[FD.id] = (char*)offset;
 					"	memcpy( dest, src, length );
+					"}
+					"
+			}
+			case [L: list_type] {
+				TypeId: id = L.id
+				send Output
+					"[TypeId] *[Packet->Id]::alloc_[FD.id]( PacketWriter *writer, [Packet->Id] *pkt )
+					"{
+					"	long offset = 0;
+					"	[TypeId] *el = ([TypeId]*)writer->allocBytes( sizeof([TypeId]), offset );
+					"	memset( el, 0, sizeof([TypeId]) );
+					"	
+					"	el->next = 0;
+					"
+					"	if ( pkt->head_[FD.id] == 0 )
+					"		pkt->head_[FD.id] = ([TypeId]*)offset;
+					"	else
+					"		pkt->tail_[FD.id]->next = ([TypeId]*)offset;
+					"
+					"	pkt->tail_[FD.id] = el;
+					"
+					"	return el;
 					"}
 					"
 			}

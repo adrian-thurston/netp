@@ -3,8 +3,8 @@ lex
 	literal `thread `message `packet `option `module
 	literal `bool `string `long `attribute
 	literal `starts `sends `to `receives `show `store `kobj
-	literal `debug `use `import `appid `list `caps
-	literal `: `; `{ `} `, `( `) `*
+	literal `debug `use `import `appid `list `caps `struct
+	literal `: `; `{ `} `, `( `) `* `< `>
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
 	token string /'"' [^"]* '"'/
@@ -53,10 +53,25 @@ def msg_field_def
 def message_def
 	[`message id `{ msg_field_def* `} `;]
 
+def struct_field_type
+	[`bool]
+|	[`string]
+|	[`long]
+
+def struct_field_def
+	[struct_field_type id `;]
+
+def struct_def
+	[`struct id `{ struct_field_def* `} `;]
+
+def list_type
+	[`list `< id `>]
+
 def pkt_field_type
 	[`bool]
 |	[`string]
 |	[`long]
+|	[list_type]
 
 def pkt_field_def
 	[pkt_field_type id `;]
@@ -124,6 +139,7 @@ def caps_decl
 def definition
 	[option_def]
 |	[thread_def]
+|	[struct_def]
 |	[message_def]
 |	[packet_def]
 |	[starts_decl]
