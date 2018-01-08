@@ -100,16 +100,8 @@ void GenF::Packet::send( PacketWriter *writer )
 
 	// log_message( "block list len: " << blocks );
 
-	for ( rb = writer->buf.hblk; rb != 0; rb = rb->next ) {
-		char *data = writer->buf.data(rb);
-		int blockLen = writer->buf.length(rb);
-
-		int res = c->write( data, blockLen );
-		if ( res < blockLen )
-			log_ERROR( "failed to send full block" );
-
-		// log_debug( DBG__PKTSEND, "packet send result: " << res );
-	}
+	/* Ready to go, ship out. */
+	send( writer, writer->buf );
 
 	writer->buf.empty();
 }
