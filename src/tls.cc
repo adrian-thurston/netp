@@ -453,7 +453,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				selectFd->state = SelectFd::Established;
 				selectFd->wantRead = true;
 				selectFdList.append( selectFd );
-				notifyAccept( selectFd );
+				notifyAccept( pc );
 			}
 			else {
 				if ( errno != EAGAIN && errno != EWOULDBLOCK )

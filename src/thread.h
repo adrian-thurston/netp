@@ -433,7 +433,7 @@ public:
 	/* FIXME: Can remove? */
 	virtual void writeReady( SelectFd *fd ) {}
 
-	virtual void notifyAccept( SelectFd *fd ) {}
+	virtual void notifyAccept( PacketConnection *pc ) {}
 	virtual void notifyAccept( int fd ) {}
 
 	virtual void dispatchPacket( SelectFd *fd, SelectFd::Recv &recv ) {}

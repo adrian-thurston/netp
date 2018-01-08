@@ -23,7 +23,7 @@ struct ListenThread
 	void handleTimer();
 	void recvShutdown( Shutdown *msg );
 
-	void notifyAccept( SelectFd *fd );
+	void notifyAccept( PacketConnection *pc );
 };
 
 #endif /* _LISTEN_H */

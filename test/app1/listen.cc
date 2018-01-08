@@ -23,11 +23,11 @@ void ListenThread::handleTimer()
 	log_message( "tick" );
 }
 
-void ListenThread::notifyAccept( SelectFd *fd )
+void ListenThread::notifyAccept( PacketConnection *pc )
 {
-	log_message( "incoming connection fd: " << fd->fd << " sending big data" );
+	log_message( "incoming connection fd: " << pc->selectFd->fd << " sending big data" );
 
-	PacketWriter writer( fd );
+	PacketWriter writer( pc->selectFd );
 
 	for ( int i = 0; i < 100; i++ ) {
 		BigPacket *msg = BigPacket::open( &writer );
