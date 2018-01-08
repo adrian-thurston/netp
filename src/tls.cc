@@ -441,6 +441,9 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 
 			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 			if ( result >= 0 ) {
+				bool nb = makeNonBlocking( result );
+				if ( !nb )
+					log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
 				PacketConnection *pc = new PacketConnection( this, 0 );
 				SelectFd *selectFd = new SelectFd( this, result, 0 );
 				selectFd->local = pc;
