@@ -77,7 +77,6 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 void GenF::Packet::send( PacketWriter *writer )
 {
 	RopeBlock *rb = writer->buf.hblk;
-	Connection *c = static_cast<Connection*>(writer->fd->local);
 
 	/* Length of first block goes into the header. */
 	writer->toSend->length = writer->length();

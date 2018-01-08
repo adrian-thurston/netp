@@ -20,6 +20,7 @@ void ListenThread::recvShutdown( Shutdown *msg )
 
 void ListenThread::handleTimer()
 {
+	log_message( "tick" );
 }
 
 void ListenThread::notifyAccept( SelectFd *fd )
@@ -28,14 +29,16 @@ void ListenThread::notifyAccept( SelectFd *fd )
 
 	PacketWriter writer( fd );
 
-	BigPacket *msg = BigPacket::open( &writer );
-	msg->set_big3( &writer, ::data3 );
-	msg->set_big2( &writer, ::data2 );
-	msg->set_big1( &writer, ::data1 );
-	msg->l1 = ::l1;
-	msg->l2 = ::l2;
-	msg->l3 = ::l3;
-	BigPacket::send( &writer );
+	for ( int i = 0; i < 100; i++ ) {
+		BigPacket *msg = BigPacket::open( &writer );
+		msg->set_big3( &writer, ::data3 );
+		msg->set_big2( &writer, ::data2 );
+		msg->set_big1( &writer, ::data1 );
+		msg->l1 = ::l1;
+		msg->l2 = ::l2;
+		msg->l3 = ::l3;
+		BigPacket::send( &writer );
+	}
 }
 
 
@@ -48,7 +51,11 @@ int ListenThread::main()
 	selectFdList.tail->type = SelectFd::PktListen;
 	selectFdList.tail->wantRead = true;
 
-	selectLoop();
+	struct timeval t;
+	t.tv_sec = 1;
+	t.tv_usec = 0;
+
+	selectLoop( &t );
 
 	::close( listenFd );
 

@@ -22,17 +22,39 @@ void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 
 }
 
+struct DelatedRead
+	: public PacketConnection
+{
+	DelatedRead( Thread *thread, SelectFd *selectFd )
+		: PacketConnection( thread, selectFd ) {}
+
+	virtual void connectComplete()
+	{
+		log_message( "connection completed" );
+		/* Disable the read for now. */
+		selectFd->wantRead = false;
+	}
+};
+
 void MainThread::handleTimer()
 {
-	static bool done = false;
+	static int tick = 0;
+	static DelatedRead *pc;
 
-	if ( !done ) {
-		done = true;
+	log_message( "tick" );
+
+	if ( tick == 0 ) {
 
 		/* Connection to broker. */
-		PacketConnection *pc = new PacketConnection( this, 0 );
+		pc = new DelatedRead( this, 0 );
 		pc->initiatePkt( "localhost", 44726 );
 	}
+
+	if ( tick == 10 ) {
+		pc->selectFd->wantRead = true;
+	}
+
+	tick += 1;
 }
 
 int MainThread::main()
