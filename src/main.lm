@@ -44,8 +44,6 @@ void generateMainHeader( P: program )
 		~	bool poll();
 		~	void recvHeader( ItQueue *queue, ItHeader *header );
 		~
-		"	virtual void dispatchPacket( SelectFd *fd );
-		~
 		~	void handleSignal( int sig );
 		~	void signalSetup();
 		~	int signalLoop( struct timeval *timer = 0 );

@@ -1,12 +1,6 @@
 #include "thread.h"
 #include "packet.h"
 
-void Thread::closeForPacket( SelectFd *fd )
-{
-	::close( fd->fd );
-	fd->closed = true;
-}   
-
 char *Thread::pktFind( Rope *rope, long l )
 {
 	// log_message( "pkt find: " << l );
@@ -135,23 +129,27 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks )
 	}
 }
 
+void PacketConnection::readReady()
+{
+	parsePacket( selectFd );
+}
+
 /* Read a fixed-size prefix of the first block into a temp space, extract the
  * first length from the headers, allocate the full first block, copy the
  * prefix we read into the block, then enter into block read loop, jumping in
  * past the headers. * */
-void Thread::parsePacket( SelectFd *fd )
+void PacketConnection::parsePacket( SelectFd *fd )
 {
 	// log_message( "parsing packet" );
 
-	Connection *c = static_cast<Connection*>(fd->local);
 	switch ( fd->recv.state ) {
 		case SelectFd::Recv::WantHead: {
 			const int sz = sizeof(PacketBlockHeader) + sizeof(PacketHeader);
-			int len = c->read( (char*)&fd->recv.headBuf + fd->recv.have, sz - fd->recv.have );
+			int len = read( (char*)&fd->recv.headBuf + fd->recv.have, sz - fd->recv.have );
 			if ( len < 0 ) {
 				/* EOF. */
 				// log_debug( DBG__PKTRECV, "packet head read closed" );
-				closeForPacket( fd );
+				close();
 				return;
 			}
 			else if ( len == 0 ) {
@@ -192,11 +190,11 @@ void Thread::parsePacket( SelectFd *fd )
 		case SelectFd::Recv::WantBlock: {
 			while ( true ) {
 				while ( fd->recv.have < fd->recv.need ) {
-					int len = c->read( fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
+					int len = read( fd->recv.data + fd->recv.have, fd->recv.need - fd->recv.have );
 					if ( len < 0 ) {
 						/* EOF. */
 						// log_debug( DBG__PKTRECV, "packet data read closed" );
-						closeForPacket( fd );
+						close();
 						return;
 					}
 					else if ( len == 0 ) {
@@ -231,7 +229,7 @@ void Thread::parsePacket( SelectFd *fd )
 	
 			// log_message( "writer id: " << fd->recv.head->writerId );
 
-			dispatchPacket( fd );
+			thread->dispatchPacket( fd, fd->recv );
 
 			fd->recv.buf.empty();
 			break;

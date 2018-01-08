@@ -292,6 +292,8 @@ struct PacketConnection
 	virtual void readReady();
 	virtual void writeReady() {}
 	virtual void failure( FailType failType ) {}
+
+	void parsePacket( SelectFd *fd );
 };
 
 struct PacketHeader;
@@ -434,9 +436,7 @@ public:
 	virtual void notifyAccept( SelectFd *fd ) {}
 	virtual void notifyAccept( int fd ) {}
 
-	virtual void dispatchPacket( SelectFd *fd ) {}
-	void parsePacket( SelectFd *fd );
-	void closeForPacket( SelectFd *fd );
+	virtual void dispatchPacket( SelectFd *fd, SelectFd::Recv &recv ) {}
 
 	/*
 	 * SSL

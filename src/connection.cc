@@ -94,8 +94,4 @@ void Connection::close( )
 	closed = true;
 }
 
-void PacketConnection::readReady()
-{
-	thread->parsePacket( selectFd );
-}
 
