@@ -284,7 +284,7 @@ struct PacketConnection
 	: public Connection
 {
 	PacketConnection( Thread *thread, SelectFd *selectFd )
-		: Connection( thread, selectFd ), qho(0) { tlsConnect = false; }
+		: Connection( thread, selectFd ) { tlsConnect = false; }
 
 	virtual void connectComplete() {}
 	virtual void readReady();

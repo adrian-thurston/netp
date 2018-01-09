@@ -28,7 +28,7 @@ char *Thread::pktFind( Rope *rope, long l )
  */
 char *PacketWriter::allocBytes( int nb, long &offset )
 {
-	if ( buf.tblk != 0 && nb <= ( buf.tblk->size - buf.toff ) ) {
+	if ( buf.tblk != 0 && nb <= buf.available( buf.tblk ) ) {
 		offset = buf.length();
 		// log_message( "alloc bytes offset: " << offset );
 		return buf.append( 0, nb );
@@ -114,14 +114,27 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks )
 	PacketConnection *pc = dynamic_cast<PacketConnection*>(c);
 
 	if ( pc->selectFd->wantWrite ) {
+		log_message( "in want write mode queueing entire rope" );
+
+		for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
+			log_message( "-> queueing " << blocks.length( rb ) << " bytes" );
+		}
+
+
 		/* If in want write mode then there are queued blocks. Add to the queue
 		 * and let the writeReady callback deal with the output. */
-		for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next )
-			pc->queue.append( blocks.data(rb), blocks.length(rb) );
+		pc->queue.append( blocks );
 	}
 	else {
+		log_message( "packet send, sending blocks" );
+
 		/* Not blocked on writing, attempt to write the rope. */
-		for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
+		while ( true ) {
+			RopeBlock *rb = blocks.hblk;
+
+			if ( rb == 0 )
+				break;
+
 			char *data = blocks.data(rb);
 			int blockLen = blocks.length(rb);
 
@@ -129,19 +142,32 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks )
 			if ( res < 0 )
 				log_FATAL( "failed to send block, erroring out" );
 
+			log_message( " -> sent " << res << " of " << ( blockLen ) << " bytes" );
+
 			if ( res < blockLen ) {
 				/* Didn't write a whole block. Put the remainder of the block
 				 * and the message on the queue and go into wantWrite mode. */
 				log_message( "failed to send full block, queueing " <<
 						(blockLen-res) << " of " << blockLen );
 
-				pc->queue.append( data + res, blockLen - res);
-				rb = rb->next;
-				for ( ; rb != 0; rb = rb->next )
-					pc->queue.append( blocks.data(rb), blocks.length(rb) );
+				rb->hoff += res;
+				blocks.ropeLen -= res;
+
+				for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
+					log_message( "-> queueing " << blocks.length( rb ) << " bytes" );
+				}
+
+				pc->queue.append( blocks );
 				pc->selectFd->wantWrite = true;
 				break;
 			}
+
+			/* Consume the head block. */
+			blocks.ropeLen -= res;
+			blocks.hblk = blocks.hblk->next;
+			if ( blocks.hblk == 0 )
+				blocks.tblk = 0;
+			delete[] (char*)rb;
 
 			// log_debug( DBG__PKTSEND, "packet send result: " << res );
 		}
@@ -154,30 +180,41 @@ void PacketConnection::writeReady()
 		/* Queue is now empty. We can exit wantWrite mode. */
 		log_message( "write ready, queue empty, turning off want write" );
 		selectFd->wantWrite = false;
+		queue.empty();
 	}
 	else {
 		/* Have data to send out. */
-		log_message( "write ready, sending block" );
-		while ( queue.length() > 0 ) {
+		log_message( "write ready, sending blocks" );
+
+		while ( true ) {
 			RopeBlock *rb = queue.hblk;
+
+			if ( rb == 0 )
+				break;
+
 			char *data = queue.data(rb);
 			int blockLen = queue.length(rb);
-			int res = write( data + qho, blockLen - qho );
+			int res = write( data, blockLen );
 
-			log_message( " -> sent " << res << " of " << ( blockLen - qho ) << " bytes" );
+			log_message( " -> sent " << res << " of " << ( blockLen ) << " bytes" );
 
-			if ( res < (blockLen-qho) ) {
+			if ( res < 0 )
+				log_FATAL( "failed to send block, erroring out" );
+
+			if ( res < blockLen ) {
 				/* Didn't send the entire remainder of the block. Increqment
 				 * the queue head offset and wait for another write ready. */
-				qho += res;
+				rb->hoff += res;
+				queue.ropeLen -= res;
 				break;
 			}
 
-			qho = 0;
-			queue.ropeLen -= blockLen;
+			/* Consume the head block. */
+			queue.ropeLen -= res;
 			queue.hblk = queue.hblk->next;
 			if ( queue.hblk == 0 )
 				queue.tblk = 0;
+			delete[] (char*)rb;
 		}
 	}
 }
