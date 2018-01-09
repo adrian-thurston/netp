@@ -512,6 +512,9 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 					if ( readyMask & READ_READY ) {
 						c->readReady();
 					}
+
+					if ( readyMask & WRITE_READY && fd->wantWrite )
+						c->writeReady();
 					break;
 				}
 			}

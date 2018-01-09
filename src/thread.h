@@ -259,17 +259,10 @@ struct Connection
 	Connection( Thread *thread, SelectFd *fd )
 		: thread(thread), selectFd(fd), tlsConnect(true), closed(false), onSelectList(false) {}
 
-	void initiateTls( const char *host, uint16_t port );
-	void initiatePkt( const char *host, uint16_t port );
-
 	virtual void connectComplete() = 0;
 	virtual void readReady() = 0;
 	virtual void writeReady() = 0;
 	virtual void failure( FailType failType ) = 0;
-
-	/* -1: EOF, 0: try again, pos: data. */
-	int read( char *data, int len );
-	int write( char *data, int len );
 
 	Thread *thread;
 	SelectFd *selectFd;
@@ -278,20 +271,29 @@ struct Connection
 	bool onSelectList;
 
 	void close();
+
+	void initiateTls( const char *host, uint16_t port );
+	void initiatePkt( const char *host, uint16_t port );
+
+	/* -1: EOF, 0: try again, pos: data. */
+	int read( char *data, int len );
+	int write( char *data, int len );
 };
 
 struct PacketConnection
 	: public Connection
 {
 	PacketConnection( Thread *thread, SelectFd *selectFd )
-		: Connection( thread, selectFd ) { tlsConnect = false; }
+		: Connection( thread, selectFd ), qho(0) { tlsConnect = false; }
 
 	virtual void connectComplete() {}
 	virtual void readReady();
-	virtual void writeReady() {}
+	virtual void writeReady();
 	virtual void failure( FailType failType ) {}
 
 	SelectFd::Recv recv;
+	Rope queue;
+	int qho;
 
 	void parsePacket( SelectFd *fd );
 };

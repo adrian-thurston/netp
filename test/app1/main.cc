@@ -10,7 +10,9 @@ extern const char data2[];
 
 void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 {
-	log_message( "received BigPacket" );
+	static int bign = 1;
+
+	log_message( "received BigPacket: " << bign );
 
 	log_message( "big1 check ... " << ( strcmp( pkt->big1, ::data1 ) == 0 ? "OK" : "FAILED" ) );
 	log_message( "big2 check ... " << ( strcmp( pkt->big2, ::data2 ) == 0 ? "OK" : "FAILED" ) );
@@ -20,6 +22,7 @@ void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 	log_message( "l2 check   ... " << ( ( pkt->l2 != ::l2 ) == 0 ? "OK" : "FAILED" ) );
 	log_message( "l3 check   ... " << ( ( pkt->l3 != ::l3 ) == 0 ? "OK" : "FAILED" ) );
 
+	bign += 1;
 }
 
 struct DelatedRead
