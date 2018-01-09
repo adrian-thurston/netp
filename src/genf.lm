@@ -52,8 +52,7 @@ void addDefaultDefs( P: ref<program> )
 		"option bool background: -b --background;
 		"option bool overwritePidFile: -P;
 		"option string __debug: -D;
-		"debug _PKTSEND;
-		"debug _PKTRECV;
+		"debug _PACKET;
 		"debug _THREAD;
 		"thread Main;
 		DefList

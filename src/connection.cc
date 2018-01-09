@@ -32,9 +32,12 @@ int Connection::read( char *data, int len )
 int Connection::write( char *data, int len )
 {
 	if ( tlsConnect ) {
+		log_debug( DBG_CONNECTION, "TLS write of " << len << " bytes" );
 		return thread->tlsWrite( selectFd, data, len );
 	}
 	else {
+		log_debug( DBG_CONNECTION, "system write of " <<
+				len << " bytest to fd " << selectFd->fd );
 		int res = ::write( selectFd->fd, data, len );
 		if ( res < 0 ) {
 			if ( errno == EAGAIN || errno == EWOULDBLOCK ) {

@@ -176,9 +176,14 @@ void parseOption( P: program, OD: option_def, Src: str )
 		# Handle debug realms directly, rather than collecting into program
 		# state.
 		Else: str = ""
+		send Output
+			"	if ( strcmp( [Src], \"PACKET\" ) == 0 )
+			"		enabledRealms |= DBG_PACKET;
+			"	else if ( strcmp( [Src], \"CONNECTION\" ) == 0 )
+			"		enabledRealms |= DBG_CONNECTION;
 		for D: debug_def in P {
 			send Output
-				"	[Else]if ( strcmp( [Src], \"[D.id]\" ) == 0 )
+				"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
 				"		enabledRealms |= DBG_[D.id];
 			Else = "else "
 		}

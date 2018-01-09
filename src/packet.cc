@@ -3,7 +3,7 @@
 
 char *Thread::pktFind( Rope *rope, long l )
 {
-	// log_message( "pkt find: " << l );
+	log_debug( DBG_PACKET, "pkt find: " << l );
 	if ( l == 0 )
 		return 0;
 
@@ -30,14 +30,14 @@ char *PacketWriter::allocBytes( int nb, long &offset )
 {
 	if ( buf.tblk != 0 && nb <= buf.available( buf.tblk ) ) {
 		offset = buf.length();
-		// log_message( "alloc bytes offset: " << offset );
+		log_debug( DBG_PACKET, "alloc bytes offset: " << offset );
 		return buf.append( 0, nb );
 	}
 	else {
 		/* Need to move to block 1 or up, so we include the block header. */
 		offset = buf.length() + sizeof(PacketBlockHeader);
 		char *data = buf.append( 0, sizeof(PacketBlockHeader) + nb );
-		// log_message( "alloc bytes offset: " << offset );
+		log_debug( DBG_PACKET, "alloc bytes offset: " << offset );
 		return data + sizeof(PacketBlockHeader);
 	}
 }
@@ -50,8 +50,8 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 	long offset = 0;
 	PacketHeader *header = (PacketHeader*)writer->allocBytes( sizeof(PacketHeader), offset );
 	
-	// log_message( "header: " << header << " rb.head: " <<
-	//		(PacketHeader*)writer->buf.data(writer->buf.hblk) );
+	log_debug( DBG_PACKET, "header: " << header << " rb.head: " <<
+			(PacketHeader*)writer->buf.data(writer->buf.hblk) );
 
 	header->msgId = ID;
 	header->writerId = 934223439; // writer->id;
@@ -82,7 +82,7 @@ void GenF::Packet::send( PacketWriter *writer )
 	writer->toSend->length = writer->length();
 	writer->toSend->firstLen = writer->buf.length(rb);
 
-	// log_message( "first len: " << writer->toSend->firstLen );
+	log_debug( DBG_PACKET, "first len: " << writer->toSend->firstLen );
 
 	/* First pass: set each nextlen. */
 	for ( ; rb != 0; rb = rb->next ) {
@@ -97,10 +97,10 @@ void GenF::Packet::send( PacketWriter *writer )
 	for ( rb = writer->buf.hblk; rb != 0; rb = rb->next )
 		blocks += 1;
 
-	// log_message( "block list len: " << blocks );
+	log_debug( DBG_PACKET, "block list len: " << blocks );
 
 	/* Ready to go, ship out. */
-	send( writer, writer->buf );
+	send( writer, writer->buf, false );
 
 	writer->buf.empty();
 }
@@ -108,29 +108,35 @@ void GenF::Packet::send( PacketWriter *writer )
 /*
  * if in wantWrite mode then there 
  */
-void GenF::Packet::send( PacketWriter *writer, Rope &blocks )
+void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 {
 	Connection *c = static_cast<Connection*>(writer->fd->local);
 	PacketConnection *pc = dynamic_cast<PacketConnection*>(c);
 
 	if ( pc->selectFd->wantWrite ) {
-		log_message( "in want write mode queueing entire rope" );
+		log_debug( DBG_PACKET, "in want write mode queueing entire rope" );
 
 		for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
-			log_message( "-> queueing " << blocks.length( rb ) << " bytes" );
+			log_debug( DBG_PACKET, "-> queueing " << blocks.length( rb ) << " bytes" );
 		}
-
 
 		/* If in want write mode then there are queued blocks. Add to the queue
 		 * and let the writeReady callback deal with the output. */
-		pc->queue.append( blocks );
+		if ( canConsume )
+			pc->queue.append( blocks );
+		else {
+			for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
+				log_debug( DBG_PACKET, "-> queueing " << blocks.length( rb ) << " bytes" );
+				pc->queue.append( blocks.data( rb ), blocks.length( rb ) );
+			}
+		}
 	}
 	else {
-		log_message( "packet send, sending blocks" );
+		log_debug( DBG_PACKET, "packet send, sending blocks" );
 
 		/* Not blocked on writing, attempt to write the rope. */
+		RopeBlock *rb = blocks.hblk;
 		while ( true ) {
-			RopeBlock *rb = blocks.hblk;
 
 			if ( rb == 0 )
 				break;
@@ -142,34 +148,51 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks )
 			if ( res < 0 )
 				log_FATAL( "failed to send block, erroring out" );
 
-			log_message( " -> sent " << res << " of " << ( blockLen ) << " bytes" );
+			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
 
 			if ( res < blockLen ) {
 				/* Didn't write a whole block. Put the remainder of the block
 				 * and the message on the queue and go into wantWrite mode. */
-				log_message( "failed to send full block, queueing " <<
+				log_debug( DBG_PACKET, "failed to send full block, queueing " <<
 						(blockLen-res) << " of " << blockLen );
 
-				rb->hoff += res;
-				blocks.ropeLen -= res;
+				if ( canConsume ) {
+					/* Move data from blocks to the output queue. */
+					rb->hoff += res;
+					blocks.ropeLen -= res;
 
-				for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
-					log_message( "-> queueing " << blocks.length( rb ) << " bytes" );
+					for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
+						log_debug( DBG_PACKET, "-> queueing " << blocks.length( rb ) << " bytes" );
+					}
+
+					pc->queue.append( blocks );
 				}
-
-				pc->queue.append( blocks );
+				else {
+					/* Copy data from blocks to output queue. */
+					pc->queue.append( data + res, blockLen - res);
+					rb = rb->next;
+					for ( ; rb != 0; rb = rb->next )
+						pc->queue.append( blocks.data(rb), blocks.length(rb) );
+				}
 				pc->selectFd->wantWrite = true;
 				break;
 			}
 
-			/* Consume the head block. */
-			blocks.ropeLen -= res;
-			blocks.hblk = blocks.hblk->next;
-			if ( blocks.hblk == 0 )
-				blocks.tblk = 0;
-			delete[] (char*)rb;
+			if ( canConsume ) {
+				/* Consume the head block. */
+				blocks.ropeLen -= res;
+				blocks.hblk = blocks.hblk->next;
+				if ( blocks.hblk == 0 )
+					blocks.tblk = 0;
+				delete[] (char*)rb;
+				rb = blocks.hblk;
+			}
+			else {
+				rb = rb->next;
+			}
 
-			// log_debug( DBG__PKTSEND, "packet send result: " << res );
+
+			log_debug( DBG_PACKET, "packet send result: " << res );
 		}
 	}
 }
@@ -178,13 +201,13 @@ void PacketConnection::writeReady()
 {
 	if ( queue.length() == 0 ) {
 		/* Queue is now empty. We can exit wantWrite mode. */
-		log_message( "write ready, queue empty, turning off want write" );
+		log_debug( DBG_PACKET, "write ready, queue empty, turning off want write" );
 		selectFd->wantWrite = false;
 		queue.empty();
 	}
 	else {
 		/* Have data to send out. */
-		log_message( "write ready, sending blocks" );
+		log_debug( DBG_PACKET, "write ready, sending blocks" );
 
 		while ( true ) {
 			RopeBlock *rb = queue.hblk;
@@ -196,7 +219,7 @@ void PacketConnection::writeReady()
 			int blockLen = queue.length(rb);
 			int res = write( data, blockLen );
 
-			log_message( " -> sent " << res << " of " << ( blockLen ) << " bytes" );
+			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
 
 			if ( res < 0 )
 				log_FATAL( "failed to send block, erroring out" );
@@ -231,7 +254,7 @@ void PacketConnection::readReady()
  * past the headers. * */
 void PacketConnection::parsePacket( SelectFd *fd )
 {
-	// log_message( "parsing packet" );
+	log_debug( DBG_PACKET, "parsing packet" );
 
 	switch ( recv.state ) {
 		case SelectFd::Recv::WantHead: {
@@ -239,18 +262,17 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			int len = read( (char*)&recv.headBuf + recv.have, sz - recv.have );
 			if ( len < 0 ) {
 				/* EOF. */
-				// log_debug( DBG__PKTRECV, "packet head read closed" );
+				log_debug( DBG_PACKET, "packet head read closed" );
 				close();
 				return;
 			}
 			else if ( len == 0 ) {
-				// log_debug( DBG__PKTRECV, "packet head read delayed: : " <<
-				//		strerror(errno) );
+				log_debug( DBG_PACKET, "packet head read delayed" );
 				return;
 			}
 			else if ( recv.have + len < sz )  {
-				// log_debug( DBG__PKTRECV, "packet head read is short: " <<
-				//		len << " bytes" );
+				log_debug( DBG_PACKET, "packet head read is short: " <<
+						len << " bytes" );
 
 				/* Don't have it all. Need to wait for more. */
 				recv.have += len;
@@ -258,7 +280,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			}
 
 			/* Completed read of header. */
-			// log_message( "have first block headers" );
+			log_debug( DBG_PACKET, "have first block headers" );
 
 			/* Pull the size of the first block length from the header read so far. */
 			recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
@@ -277,7 +299,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			recv.state = SelectFd::Recv::WantBlock;
 
 			/* Deliberate fall through. */
-			// log_message( "remaining need for first block: " << recv.need - recv.have );
+			log_debug( DBG_PACKET, "remaining need for first block: " << recv.need - recv.have );
 		}
 	
 		case SelectFd::Recv::WantBlock: {
@@ -286,27 +308,26 @@ void PacketConnection::parsePacket( SelectFd *fd )
 					int len = read( recv.data + recv.have, recv.need - recv.have );
 					if ( len < 0 ) {
 						/* EOF. */
-						// log_debug( DBG__PKTRECV, "packet data read closed" );
+						log_debug( DBG_PACKET, "packet data read closed" );
 						close();
 						return;
 					}
 					else if ( len == 0 ) {
 						/* continue. */
-						// log_debug( DBG__PKTRECV, "packet data read delayed: " <<
-						//		strerror(errno) );
+						log_debug( DBG_PACKET, "packet data read delayed" );
 						return;
 					}
 					else if ( recv.have + len < recv.need )  {
-						// log_debug( DBG__PKTRECV, "packet data read is short: " <<
-						//		len << " bytes" );
+						log_debug( DBG_PACKET, "packet data read is short: " <<
+								len << " bytes" );
 						/* Don't have it all. Need to wait for more. */
 						recv.have += len;
 						return;
 					}
 	
 					if ( len > 0 ) {
-						// log_debug( DBG__PKTRECV, "packet data read returned: " <<
-						//		len << " bytes" );
+						log_debug( DBG_PACKET, "packet data read returned: " <<
+								len << " bytes" );
 						recv.have += len;
 					}
 				}
@@ -323,7 +344,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			recv.need = 0;
 			recv.have = 0;
 	
-			// log_message( "writer id: " << recv.head->writerId );
+			log_debug( DBG_PACKET, "writer id: " << recv.head->writerId );
 
 			thread->dispatchPacket( fd, recv );
 
