@@ -322,16 +322,14 @@ struct PacketListener
 	virtual Connection *accept( int fd );
 };
 
-
-struct PacketHeader;
 struct PacketWriter
 {
-	PacketWriter( SelectFd *fd )
+	PacketWriter( PacketConnection *pc )
 	:
-		fd(fd)
+		pc(pc)
 	{}
 
-	SelectFd *fd;
+	PacketConnection *pc;
 	PacketHeader *toSend;
 	void *content;
 	Rope buf;

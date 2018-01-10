@@ -110,8 +110,7 @@ void GenF::Packet::send( PacketWriter *writer )
  */
 void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 {
-	Connection *c = static_cast<Connection*>(writer->fd->local);
-	PacketConnection *pc = dynamic_cast<PacketConnection*>(c);
+	PacketConnection *pc = writer->pc;
 
 	if ( pc->selectFd->wantWrite ) {
 		log_debug( DBG_PACKET, "in want write mode queueing entire rope" );
@@ -144,7 +143,7 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 			char *data = blocks.data(rb);
 			int blockLen = blocks.length(rb);
 
-			int res = c->write( data, blockLen );
+			int res = pc->write( data, blockLen );
 			if ( res < 0 )
 				log_FATAL( "failed to send block, erroring out" );
 

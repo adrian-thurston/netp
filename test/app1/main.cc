@@ -25,10 +25,10 @@ void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 	bign += 1;
 }
 
-struct DelatedRead
+struct DelayedRead
 	: public PacketConnection
 {
-	DelatedRead( Thread *thread, SelectFd *selectFd )
+	DelayedRead( Thread *thread, SelectFd *selectFd )
 		: PacketConnection( thread, selectFd ) {}
 
 	virtual void connectComplete()
@@ -42,15 +42,15 @@ struct DelatedRead
 void MainThread::handleTimer()
 {
 	static int tick = 0;
-	static DelatedRead *pc;
+	static DelayedRead *pc;
 
 	log_message( "tick" );
 
 	if ( tick == 0 ) {
 
 		/* Connection to broker. */
-		pc = new DelatedRead( this, 0 );
-		pc->initiatePkt( "localhost", 44726 );
+		pc = new DelayedRead( this, 0 );
+		pc->initiate( "localhost", 44726, false );
 	}
 
 	if ( tick == 3 ) {
