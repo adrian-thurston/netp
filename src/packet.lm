@@ -1,3 +1,26 @@
+namespace packet_name
+	lex
+		literal `-
+		token component /[A-Z][a-z]*/
+	end
+
+	def name
+		[component*]
+	
+	str makeLower( Name: str )
+	{
+		Lower: str = ""
+		parse PN: packet_name::name[Name]
+		for C: packet_name::component in PN {
+			if Lower.length > 0
+				Lower = Lower + "-"
+			Lower = Lower + tolower($C)
+		}
+		return Lower
+	}
+
+end
+
 void generatePacketHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -81,11 +104,15 @@ void generatePacketHeader( P: program )
 		send Output
 			"	static [Packet->Id] *open( PacketWriter *writer );
 			"	static const unsigned short ID = [Packet->AppID * 1000 + Packet->NumID];
+			"	static const char name\[\];
+			"	static const char lower\[\];
 			"};
 			"
 	}
 
 	send Output
+		"const char *packetLowerName( unsigned short id );
+		"
 		~#endif
 		eos
 
@@ -161,6 +188,8 @@ void packetReceives( Thread: thread )
 		"
 		"
 }
+
+
 
 
 void generatePacketCode( P: program )
@@ -242,7 +271,28 @@ void generatePacketCode( P: program )
 			"}
 			"
 
+		Lower: str = packet_name::makeLower( Packet->Id )
+		send Output
+			"const char [Packet->Id]::name\[\] = \"[Packet->Id]\";
+			"const char [Packet->Id]::lower\[\] = \"[Lower]\";
+			"
+
 	}
+
+	send Output
+		"const char *packetLowerName( unsigned short id )
+		"{
+		"	switch ( id ) {
+
+	for Packet: packet in PacketMap {
+		send Output
+		"		case [Packet->Id]::ID: return [Packet->Id]::lower;
+	}
+
+	send Output
+		"	}
+		"	return \"unknown\";
+		"}
 
 	send Output [] eos
 
