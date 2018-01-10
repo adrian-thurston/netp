@@ -304,10 +304,11 @@ struct PacketConnection
 /* Connection factory. */
 struct Listener
 {
-	Listener( Thread *thread, SelectFd *selectFd )
-		: thread(thread), selectFd(selectFd) {}
+	Listener( Thread *thread );
 
 	virtual Connection *accept( int fd ) = 0;
+
+	void startListen( unsigned short port );
 
 	Thread *thread;
 	SelectFd *selectFd;
@@ -317,8 +318,8 @@ struct PacketListener
 :
 	public Listener
 {
-	PacketListener( Thread *thread, SelectFd *selectFd )
-		: Listener( thread, selectFd ) {}
+	PacketListener( Thread *thread )
+		: Listener( thread ) {}
 
 	virtual Connection *accept( int fd );
 };

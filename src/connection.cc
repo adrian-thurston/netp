@@ -3,6 +3,24 @@
 #include <openssl/ssl.h>
 #include <errno.h>
 
+Listener::Listener( Thread *thread )
+:
+	thread(thread)
+{
+	selectFd = new SelectFd( thread, -1, this );
+}
+
+void Listener::startListen( unsigned short port )
+{
+	int fd = thread->inetListen( port );
+
+	selectFd->type = SelectFd::ConnListen;
+	selectFd->fd = fd;
+	selectFd->wantRead = true;
+
+	thread->selectFdList.append( selectFd );
+}
+
 Connection *PacketListener::accept( int fd )
 {
 	bool nb = thread->makeNonBlocking( fd );
