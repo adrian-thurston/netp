@@ -23,6 +23,30 @@ void Listener::startListen( unsigned short port )
 	thread->selectFdList.append( selectFd );
 }
 
+Connection::Connection( Thread *thread, SelectFd *fd )
+:
+	thread(thread),
+	selectFd(fd),
+	tlsConnect(false),
+	closed(false),
+	onSelectList(false)
+{
+}
+
+void Connection::initiate( const char *host, uint16_t port, bool tls )
+{
+	selectFd = new SelectFd( thread, -1, 0 );
+	selectFd->local = this;
+
+	tlsConnect = tls;
+	selectFd->type = SelectFd::Connection;
+	selectFd->state = SelectFd::Lookup;
+	selectFd->port = port;
+
+	thread->asyncLookupHost( selectFd, host );
+}
+
+
 Connection *PacketListener::accept( int fd )
 {
 	bool nb = thread->makeNonBlocking( fd );
@@ -91,32 +115,6 @@ int Connection::write( char *data, int len )
 		}
 		return res;
 	}
-}
-
-void Connection::initiateTls( const char *host, uint16_t port )
-{
-	selectFd = new SelectFd( thread, 0, 0 );
-	selectFd->local = this;
-
-	tlsConnect = true;
-	selectFd->type = SelectFd::Connection;
-	selectFd->state = SelectFd::Lookup;
-	selectFd->port = port;
-
-	thread->asyncLookupHost( selectFd, host );
-}
-
-void Connection::initiatePkt( const char *host, uint16_t port )
-{
-	selectFd = new SelectFd( thread, -1, 0 );
-	selectFd->local = this;
-
-	tlsConnect = false;
-	selectFd->type = SelectFd::Connection;
-	selectFd->state = SelectFd::Lookup;
-	selectFd->port = port;
-
-	thread->asyncLookupHost( selectFd, host );
 }
 
 void Connection::close( )

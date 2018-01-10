@@ -259,8 +259,7 @@ struct Connection
 		LookupFailure
 	};
 
-	Connection( Thread *thread, SelectFd *fd )
-		: thread(thread), selectFd(fd), tlsConnect(true), closed(false), onSelectList(false) {}
+	Connection( Thread *thread, SelectFd *fd = 0 );
 
 	virtual void connectComplete() = 0;
 	virtual void readReady() = 0;
@@ -275,8 +274,7 @@ struct Connection
 
 	void close();
 
-	void initiateTls( const char *host, uint16_t port );
-	void initiatePkt( const char *host, uint16_t port );
+	void initiate( const char *host, uint16_t port, bool tls );
 
 	/* -1: EOF, 0: try again, pos: data. */
 	int read( char *data, int len );
