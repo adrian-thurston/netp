@@ -5,14 +5,16 @@
 
 Listener::Listener( Thread *thread )
 :
-	thread(thread)
+	thread(thread),
+	selectFd(0)
 {
-	selectFd = new SelectFd( thread, -1, this );
 }
 
 void Listener::startListen( unsigned short port )
 {
 	int fd = thread->inetListen( port );
+
+	selectFd = new SelectFd( thread, fd, this );
 
 	selectFd->type = SelectFd::ConnListen;
 	selectFd->fd = fd;
