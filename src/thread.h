@@ -182,7 +182,7 @@ struct SelectFd
 	enum Type {
 		User = 1,
 		Listen,
-		PktListen,
+		ConnListen,
 		Connection
 	};
 
@@ -300,6 +300,29 @@ struct PacketConnection
 
 	void parsePacket( SelectFd *fd );
 };
+
+/* Connection factory. */
+struct Listener
+{
+	Listener( Thread *thread, SelectFd *selectFd )
+		: thread(thread), selectFd(selectFd) {}
+
+	virtual Connection *accept( int fd ) = 0;
+
+	Thread *thread;
+	SelectFd *selectFd;
+};
+
+struct PacketListener
+:
+	public Listener
+{
+	PacketListener( Thread *thread, SelectFd *selectFd )
+		: Listener( thread, selectFd ) {}
+
+	virtual Connection *accept( int fd );
+};
+
 
 struct PacketHeader;
 struct PacketWriter

@@ -180,7 +180,7 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 			}
 			break;
 		case SelectFd::Listen:
-		case SelectFd::PktListen:
+		case SelectFd::ConnListen:
 			break;
 	}
 }
@@ -435,25 +435,14 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			break;
 		}
 
-		case SelectFd::PktListen: {
+		case SelectFd::ConnListen: {
 			sockaddr_in peer;
 			socklen_t len = sizeof(sockaddr_in);
 
 			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 			if ( result >= 0 ) {
-				bool nb = makeNonBlocking( result );
-				if ( !nb )
-					log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
-				PacketConnection *pc = new PacketConnection( this, 0 );
-				SelectFd *selectFd = new SelectFd( this, result, 0 );
-				selectFd->local = pc;
-				pc->selectFd = selectFd;
-				pc->tlsConnect = false;
-				selectFd->type = SelectFd::Connection;
-				selectFd->state = SelectFd::Established;
-				selectFd->wantRead = true;
-				selectFdList.append( selectFd );
-				notifyAccept( pc );
+				Listener *l = static_cast<Listener*>(fd->local);
+				l->accept( result );
 			}
 			else {
 				if ( errno != EAGAIN && errno != EWOULDBLOCK )

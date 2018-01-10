@@ -3,6 +3,26 @@
 #include <openssl/ssl.h>
 #include <errno.h>
 
+Connection *PacketListener::accept( int fd )
+{
+	bool nb = thread->makeNonBlocking( fd );
+	if ( !nb )
+		log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
+
+	PacketConnection *pc = new PacketConnection( thread, 0 );
+	SelectFd *selectFd = new SelectFd( thread, fd, 0 );
+	selectFd->local = static_cast<Connection*>(pc);
+	pc->selectFd = selectFd;
+	pc->tlsConnect = false;
+	selectFd->type = SelectFd::Connection;
+	selectFd->state = SelectFd::Established;
+	selectFd->wantRead = true;
+	thread->selectFdList.append( selectFd );
+	thread->notifyAccept( pc );
+
+	return pc;
+}
+
 int Connection::read( char *data, int len )
 {
 	if ( tlsConnect ) {

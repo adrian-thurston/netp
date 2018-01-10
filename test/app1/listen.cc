@@ -46,10 +46,15 @@ int ListenThread::main()
 {
 	log_message("starting up" );
 
-	int listenFd = inetListen( 44726 );
-	selectFdList.append( new SelectFd( this, listenFd, 0 ) );
-	selectFdList.tail->type = SelectFd::PktListen;
-	selectFdList.tail->wantRead = true;
+	int fd = inetListen( 44726 );
+
+	SelectFd *listenFd = new SelectFd( this, fd, 0 );
+	PacketListener *listener = new PacketListener( this, listenFd );
+	listenFd->local = static_cast<Listener*>(listener);
+
+	selectFdList.append( listenFd );
+	listenFd->type = SelectFd::ConnListen;
+	listenFd->wantRead = true;
 
 	struct timeval t;
 	t.tv_sec = 1;
@@ -57,7 +62,7 @@ int ListenThread::main()
 
 	selectLoop( &t );
 
-	::close( listenFd );
+	::close( listenFd->fd );
 
 	log_message( "exiting" );
 

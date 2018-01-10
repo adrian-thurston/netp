@@ -53,7 +53,7 @@ void MainThread::handleTimer()
 		pc->initiatePkt( "localhost", 44726 );
 	}
 
-	if ( tick == 10 ) {
+	if ( tick == 3 ) {
 		pc->selectFd->wantRead = true;
 	}
 
