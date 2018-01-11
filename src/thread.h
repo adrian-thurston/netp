@@ -425,6 +425,9 @@ public:
 
 	const Thread &log_prefix() { return *this; }
 
+	virtual const char *pkgDataDir() = 0;
+	virtual const char *pkgStateDir() = 0;
+
 	virtual	bool poll() = 0;
 	int inetListen( uint16_t port, bool transparent = false );
 	int selectLoop( timeval *timer = 0, bool wantPoll = true );
@@ -468,19 +471,16 @@ public:
 	/*
 	 * SSL
 	 */
-	void startTls()
-	{
-		tlsStartup();
-		threadClientCtx = sslClientCtx();
-	}
 
 	SSL_CTX *threadClientCtx;
 
-	SSL_CTX *sslClientCtx();
-	SSL_CTX *sslClientCtx( const char *verify, const char *key = 0, const char *cert = 0 );
+	SSL_CTX *sslCtxClientPublic();
+	SSL_CTX *sslCtxClientInternal();
+	SSL_CTX *sslCtxClient( const char *verify, const char *key = 0, const char *cert = 0 );
 
-	SSL_CTX *sslServerCtx( const char *key, const char *cert, const char *verify = 0 );
-	SSL_CTX *sslServerCtx( EVP_PKEY *pkey, X509 *x509 );
+	SSL_CTX *sslCtxServerInternal();
+	SSL_CTX *sslCtxServer( const char *key, const char *cert, const char *verify = 0 );
+	SSL_CTX *sslCtxServer( EVP_PKEY *pkey, X509 *x509 );
 
 	bool makeNonBlocking( int fd );
 

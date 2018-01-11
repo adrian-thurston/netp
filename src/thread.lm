@@ -45,6 +45,19 @@ void sendsToCode( Thread: thread )
 	}
 }
 
+void threadCommonHeader( Thread: thread )
+{
+	createChildDecls( Thread )
+	sendsToDecls( Thread )
+	recvDecls( Thread )
+	packetRecvDecls( Thread )
+	
+	send Output
+		"	virtual const char *pkgDataDir();
+		"	virtual const char *pkgStateDir();
+}
+
+
 void generateThreadHeader( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
@@ -62,6 +75,7 @@ void generateThreadHeader( Thread: thread )
 		~#include <genf/thread.h>
 		~#include "itq_gen.h"
 		~#include "packet_gen.h"
+		~#include "genf.h"
 		~
 
 	threadForwards( Thread )
@@ -84,10 +98,7 @@ void generateThreadHeader( Thread: thread )
 		"	void close( SelectFd *fd );
 		"
 
-	createChildDecls( Thread )
-	sendsToDecls( Thread )
-	recvDecls( Thread )
-	packetRecvDecls( Thread )
+	threadCommonHeader( Thread )
 
 	send Output
 		"};
@@ -226,6 +237,17 @@ void threadRecveives( Thread: thread )
 		"
 }
 
+void threadCommonCode( Thread: thread )
+{
+	send Output
+		"const char *[Thread->Id]Gen::pkgDataDir()
+		"	{ return PKGDATADIR; }
+		"
+		"const char *[Thread->Id]Gen::pkgStateDir()
+		"	{ return PKGSTATEDIR; }
+}
+
+
 void generateThreadCode( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
@@ -249,6 +271,8 @@ void generateThreadCode( Thread: thread )
 	sendsToCode( Thread )
 
 	packetReceives( Thread )
+
+	threadCommonCode( Thread )
 
 	send Output
 		"int [Thread->Id]Gen::start()

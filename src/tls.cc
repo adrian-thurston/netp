@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <aapl/astring.h>
 #include "config.h"
 
 #define PEER_CN_NAME_LEN 256
@@ -65,12 +66,20 @@ void Thread::tlsShutdown()
 
 }
 
-SSL_CTX *Thread::sslClientCtx()
+SSL_CTX *Thread::sslCtxClientPublic()
 {
-	return sslClientCtx( CA_CERT_FILE );
+	return sslCtxClient( CA_CERT_FILE );
 }
 
-SSL_CTX *Thread::sslClientCtx( const char *verify, const char *key, const char *cert )
+SSL_CTX *Thread::sslCtxClientInternal()
+{
+	String verify = String(pkgDataDir()) + "/verify.pem";
+	String key    = String(pkgDataDir()) + "/key.pem";
+	String cert   = String(pkgDataDir()) + "/cert.pem";
+	return sslCtxClient( verify, key, cert );
+}
+
+SSL_CTX *Thread::sslCtxClient( const char *verify, const char *key, const char *cert )
 {
 	/* Create the SSL_CTX. */
 	SSL_CTX *ctx = SSL_CTX_new(TLSv1_client_method());
@@ -102,7 +111,16 @@ SSL_CTX *Thread::sslClientCtx( const char *verify, const char *key, const char *
 	return ctx;
 }
 
-SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert, const char *verify )
+SSL_CTX *Thread::sslCtxServerInternal()
+{
+	String key    = String(pkgDataDir()) + "/key.pem";
+	String cert   = String(pkgDataDir()) + "/cert.pem";
+	String verify = String(pkgDataDir()) + "/verify.pem";
+
+	return sslCtxServer( key, cert, verify );
+}
+
+SSL_CTX *Thread::sslCtxServer( const char *key, const char *cert, const char *verify )
 {
 	/* Create the SSL_CTX. */
 	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
@@ -133,7 +151,7 @@ SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert, const char *ve
 	return ctx;
 }
 
-SSL_CTX *Thread::sslServerCtx( EVP_PKEY *pkey, X509 *x509 )
+SSL_CTX *Thread::sslCtxServer( EVP_PKEY *pkey, X509 *x509 )
 {
 	/* Create the SSL_CTX. */
 	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());

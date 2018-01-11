@@ -49,11 +49,9 @@ void generateMainHeader( P: program )
 		~	int signalLoop( struct timeval *timer = 0 );
 		~	int selectLoop( timeval *timer = 0, bool wantPoll = true );
 
-	createChildDecls( Thread )
-	sendsToDecls( Thread )
 	optDefine( P )
-	recvDecls( Thread )
-	packetRecvDecls( Thread )
+
+	threadCommonHeader( Thread )
 
 	send Output
 		~};
@@ -444,6 +442,8 @@ void generateMainCode( P: ref<program> )
 		~}
 
 	createChildDefs( Thread )
+
+	threadCommonCode( Thread )
 
 	send Output
 		~int MainGen::start()

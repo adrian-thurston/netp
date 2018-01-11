@@ -95,11 +95,7 @@ int ListenThread::main()
 	PacketListener *listener = new PacketListener( this );
 
 	listener->tlsAccept = true;
-	listener->serverCtx = sslServerCtx(
-			PKGDATADIR "/server.key",
-			PKGDATADIR "/server.crt",
-			PKGDATADIR "/verify.pem"
-	);
+	listener->serverCtx = sslCtxServerInternal();
 
 	listener->startListen( 44726, true );
 

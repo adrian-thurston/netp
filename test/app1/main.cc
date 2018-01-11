@@ -67,10 +67,7 @@ int MainThread::main()
 
 	tlsStartup( PKGSTATEDIR "/rand" );
 
-	threadClientCtx = sslClientCtx(
-			PKGDATADIR "/verify.pem",
-			PKGDATADIR "/client.key",
-			PKGDATADIR "/client.crt" );
+	threadClientCtx = sslCtxClientInternal();
 
 	UserThread *bare = new UserThread;
 	ListenThread *listen = new ListenThread;
