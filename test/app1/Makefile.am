@@ -11,6 +11,7 @@ app1_SOURCES = \
 	user.cc \
 	listen.h \
 	listen.cc \
+	data.cc \
 	$(BUILT_SOURCES)
 
 BUILT_SOURCES += \

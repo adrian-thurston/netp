@@ -477,9 +477,9 @@ public:
 	SSL_CTX *threadClientCtx;
 
 	SSL_CTX *sslClientCtx();
-	SSL_CTX *sslClientCtx( const char *cert );
+	SSL_CTX *sslClientCtx( const char *verify, const char *key = 0, const char *cert = 0 );
 
-	SSL_CTX *sslServerCtx( const char *key, const char *cert );
+	SSL_CTX *sslServerCtx( const char *key, const char *cert, const char *verify = 0 );
 	SSL_CTX *sslServerCtx( EVP_PKEY *pkey, X509 *x509 );
 
 	bool makeNonBlocking( int fd );

@@ -54,7 +54,7 @@ void MainThread::handleTimer()
 		pc->initiate( "localhost", 44726, true );
 	}
 
-	if ( tick == 3 ) {
+	if ( tick == 4 ) {
 		pc->selectFd->wantRead = true;
 	}
 
@@ -67,7 +67,10 @@ int MainThread::main()
 
 	tlsStartup( PKGSTATEDIR "/rand" );
 
-	threadClientCtx = sslClientCtx( PKGDATADIR "/certificate.pem" );
+	threadClientCtx = sslClientCtx(
+			PKGDATADIR "/verify.pem",
+			PKGDATADIR "/client.key",
+			PKGDATADIR "/client.crt" );
 
 	UserThread *bare = new UserThread;
 	ListenThread *listen = new ListenThread;

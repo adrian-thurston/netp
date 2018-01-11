@@ -70,7 +70,7 @@ SSL_CTX *Thread::sslClientCtx()
 	return sslClientCtx( CA_CERT_FILE );
 }
 
-SSL_CTX *Thread::sslClientCtx( const char *certFile )
+SSL_CTX *Thread::sslClientCtx( const char *verify, const char *key, const char *cert )
 {
 	/* Create the SSL_CTX. */
 	SSL_CTX *ctx = SSL_CTX_new(TLSv1_client_method());
@@ -78,16 +78,31 @@ SSL_CTX *Thread::sslClientCtx( const char *certFile )
 		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
 
 	/* Load the CA certificates that we will use to verify. */
-	int result = SSL_CTX_load_verify_locations( ctx, certFile, NULL );
+	int result = SSL_CTX_load_verify_locations( ctx, verify, NULL );
 	if ( !result ) {
 		log_ERROR( EC_SSL_CA_CERT_LOAD_FAILURE <<
-				" failed to load CA cert file " << certFile );
+				" failed to load CA cert file " << verify );
 	}
+
+	if ( key != 0 && cert != 0 ) {
+		SSL_CTX_set_verify( ctx, SSL_VERIFY_PEER, NULL );
+
+		result = SSL_CTX_use_PrivateKey_file( ctx, key, SSL_FILETYPE_PEM );
+		if ( result != 1 )
+			log_FATAL( "failed to load TLS key file " << key );
+
+		result = SSL_CTX_use_certificate_chain_file( ctx, cert );
+		if ( result != 1 )
+			log_FATAL( "failed to load TLS certificates file " << cert );
+
+	}
+
+	log_message( "client verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
 	return ctx;
 }
 
-SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert )
+SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert, const char *verify )
 {
 	/* Create the SSL_CTX. */
 	SSL_CTX *ctx = SSL_CTX_new(SSLv23_method());
@@ -101,6 +116,19 @@ SSL_CTX *Thread::sslServerCtx( const char *key, const char *cert )
 	result = SSL_CTX_use_certificate_chain_file( ctx, cert );
 	if ( result != 1 )
 		log_FATAL( "failed to load TLS certificates file " << cert );
+
+	if ( verify != 0 ) {
+		SSL_CTX_set_verify( ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL );
+
+		/* Load the CA certificates that we will use to verify. */
+		int result = SSL_CTX_load_verify_locations( ctx, verify, NULL );
+		if ( !result ) {
+			log_ERROR( EC_SSL_CA_CERT_LOAD_FAILURE <<
+					" failed to load CA cert file " << verify );
+		}
+	}
+
+	log_message( "server verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
 	return ctx;
 }
@@ -390,6 +418,10 @@ void Thread::tlsAccept( SelectFd *fd )
 		}
 	}
 	else {
+		long verifyResult = SSL_get_verify_result( fd->ssl );
+		log_message( "SSL_accept: verify result: " <<
+				( verifyResult == X509_V_OK ? "OK" : "FAILED" ) );
+
 		/* Success. Stop the select loop. Create a BIO for the ssl wrapper. */
 		BIO *bio = BIO_new(BIO_f_ssl());
 		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
