@@ -306,10 +306,13 @@ struct Listener
 
 	virtual Connection *accept( int fd ) = 0;
 
-	void startListen( unsigned short port );
+	void startListen( unsigned short port, bool tls );
 
 	Thread *thread;
 	SelectFd *selectFd;
+	bool tlsAccept;
+
+	SSL_CTX *serverCtx;
 };
 
 struct PacketListener
@@ -342,7 +345,6 @@ struct PacketWriter
 	void reset()
 		{ buf.empty(); }
 };
-
 
 struct Thread
 {
@@ -475,6 +477,7 @@ public:
 	SSL_CTX *threadClientCtx;
 
 	SSL_CTX *sslClientCtx();
+	SSL_CTX *sslClientCtx( const char *cert );
 
 	SSL_CTX *sslServerCtx( const char *key, const char *cert );
 	SSL_CTX *sslServerCtx( EVP_PKEY *pkey, X509 *x509 );
@@ -490,10 +493,14 @@ public:
 	void asyncLookupHost( SelectFd *fd, const char *host );
 	void asyncLookupQuery( SelectFd *fd, const char *host );
 
-	void connectLookupComplete( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
-	virtual void lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen ) {}
-	void _lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen );
-	void _lookupCallbackHost( SelectFd *fd, int status, int timeouts, struct hostent *hostent );
+	void connectLookupComplete( SelectFd *fd, int status, int timeouts,
+			unsigned char *abuf, int alen );
+	virtual void lookupCallbackQuery( SelectFd *fd, int status, int timeouts,
+			unsigned char *abuf, int alen ) {}
+	void _lookupCallbackQuery( SelectFd *fd, int status, int timeouts,
+			unsigned char *abuf, int alen );
+	void _lookupCallbackHost( SelectFd *fd, int status, int timeouts,
+			struct hostent *hostent );
 
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }

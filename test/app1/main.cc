@@ -2,6 +2,7 @@
 #include "user.h"
 #include "listen.h"
 #include "itq_gen.h"
+#include "genf.h"
 
 #include <unistd.h>
 
@@ -50,7 +51,7 @@ void MainThread::handleTimer()
 
 		/* Connection to broker. */
 		pc = new DelayedRead( this, 0 );
-		pc->initiate( "localhost", 44726, false );
+		pc->initiate( "localhost", 44726, true );
 	}
 
 	if ( tick == 3 ) {
@@ -63,6 +64,10 @@ void MainThread::handleTimer()
 int MainThread::main()
 {
 	log_message( "starting up" );
+
+	tlsStartup( PKGSTATEDIR "/rand" );
+
+	threadClientCtx = sslClientCtx( PKGDATADIR "/certificate.pem" );
 
 	UserThread *bare = new UserThread;
 	ListenThread *listen = new ListenThread;
@@ -90,6 +95,7 @@ int MainThread::main()
 
 	join();
 
+	tlsShutdown();
 	log_message( "exiting" );
 
 	return 0;

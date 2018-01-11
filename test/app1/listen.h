@@ -18,6 +18,8 @@ struct ListenThread
 		recvRequiresSignal = true;
 	}
 
+	virtual void tlsAcceptResult( SelectFd *fd, int sslError );
+
 	int main();
 
 	void handleTimer();

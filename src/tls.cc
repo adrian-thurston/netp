@@ -67,15 +67,21 @@ void Thread::tlsShutdown()
 
 SSL_CTX *Thread::sslClientCtx()
 {
+	return sslClientCtx( CA_CERT_FILE );
+}
+
+SSL_CTX *Thread::sslClientCtx( const char *certFile )
+{
 	/* Create the SSL_CTX. */
 	SSL_CTX *ctx = SSL_CTX_new(TLSv1_client_method());
 	if ( ctx == NULL )
 		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
 
 	/* Load the CA certificates that we will use to verify. */
-	int result = SSL_CTX_load_verify_locations( ctx, CA_CERT_FILE, NULL );
+	int result = SSL_CTX_load_verify_locations( ctx, certFile, NULL );
 	if ( !result ) {
-		log_ERROR( EC_SSL_CA_CERT_LOAD_FAILURE << " failed to load CA cert file " << CA_CERT_FILE );
+		log_ERROR( EC_SSL_CA_CERT_LOAD_FAILURE <<
+				" failed to load CA cert file " << certFile );
 	}
 
 	return ctx;
