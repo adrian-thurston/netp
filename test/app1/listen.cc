@@ -69,9 +69,9 @@ int ListenThread::main()
 	BpListener *listener = new BpListener( this );
 
 	listener->tlsAccept = true;
-	listener->serverCtx = sslCtxServerInternal();
+	SSL_CTX *sslCtx = sslCtxServerInternal();
 
-	listener->startListen( 44726, true );
+	listener->startListen( 44726, true, sslCtx );
 
 	struct timeval t;
 	t.tv_sec = 1;

@@ -17,6 +17,7 @@ struct MainThread
 	void handleTimer();
 	void recvBigPacket( SelectFd *fd, BigPacket *pkt );
 	int main();
+	SSL_CTX *sslCtx;
 };
 
 #endif

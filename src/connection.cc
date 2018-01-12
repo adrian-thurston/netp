@@ -7,20 +7,23 @@ Listener::Listener( Thread *thread )
 :
 	thread(thread),
 	selectFd(0),
-	tlsAccept(false)
+	tlsAccept(false),
+	sslCtx(0)
 {
 }
 
-void Listener::startListen( unsigned short port, bool tls )
+void Listener::startListen( unsigned short port, bool tls, SSL_CTX *sslCtx )
 {
 	int fd = thread->inetListen( port );
 
 	selectFd = new SelectFd( thread, fd, this );
 
+	this->tlsAccept = tls;
+	this->sslCtx = sslCtx;
+
 	selectFd->type = SelectFd::ConnListen;
 	selectFd->fd = fd;
 	selectFd->wantRead = true;
-	tlsAccept = tls;
 
 	thread->selectFdList.append( selectFd );
 }
@@ -30,17 +33,20 @@ Connection::Connection( Thread *thread, SelectFd *fd )
 	thread(thread),
 	selectFd(fd),
 	tlsConnect(false),
+	sslCtx(0),
 	closed(false),
 	onSelectList(false)
 {
 }
 
-void Connection::initiate( const char *host, uint16_t port, bool tls )
+void Connection::initiate( const char *host, uint16_t port, bool tls, SSL_CTX *sslCtx )
 {
 	selectFd = new SelectFd( thread, -1, 0 );
 	selectFd->local = this;
 
-	tlsConnect = tls;
+	this->tlsConnect = tls;
+	this->sslCtx = sslCtx;
+
 	selectFd->type = SelectFd::Connection;
 	selectFd->state = SelectFd::Lookup;
 	selectFd->port = port;
@@ -62,7 +68,7 @@ Connection *PacketListener::accept( int fd )
 
 	if ( tlsAccept ) {
 		pc->tlsConnect = true;
-		thread->startTlsServer( serverCtx, selectFd );
+		thread->startTlsServer( sslCtx, selectFd );
 		selectFd->type = SelectFd::Connection;
 		selectFd->state = SelectFd::TlsAccept;
 	}

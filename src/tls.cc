@@ -464,7 +464,7 @@ void Thread::tlsAccept( SelectFd *fd )
 void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 {
 	if ( conn->tlsConnect ) {
-		startTlsClient( threadClientCtx, fd, fd->remoteHost );
+		startTlsClient( conn->sslCtx, fd, fd->remoteHost );
 		// selectFdList.append( fd );
 		fd->type = SelectFd::Connection;
 		fd->state = SelectFd::TlsConnect;

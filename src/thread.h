@@ -270,13 +270,16 @@ struct Connection
 
 	Thread *thread;
 	SelectFd *selectFd;
+
 	bool tlsConnect;
+	SSL_CTX *sslCtx;
+
 	bool closed;
 	bool onSelectList;
 
 	void close();
 
-	void initiate( const char *host, uint16_t port, bool tls );
+	void initiate( const char *host, uint16_t port, bool tls, SSL_CTX *sslCtx );
 
 	/* -1: EOF, 0: try again, pos: data. */
 	int read( char *data, int len );
@@ -309,13 +312,12 @@ struct Listener
 
 	virtual Connection *accept( int fd ) = 0;
 
-	void startListen( unsigned short port, bool tls );
+	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx );
 
 	Thread *thread;
 	SelectFd *selectFd;
 	bool tlsAccept;
-
-	SSL_CTX *serverCtx;
+	SSL_CTX *sslCtx;
 };
 
 struct PacketListener
@@ -364,8 +366,7 @@ struct Thread
 		pendingNotifSignal( false ),
 		logFile( &std::cerr ),
 		selectTimeout( 0 ),
-		loop( true ),
-		threadClientCtx( 0 )
+		loop( true )
 	{
 	}
 
@@ -477,8 +478,6 @@ public:
 	/*
 	 * SSL
 	 */
-
-	SSL_CTX *threadClientCtx;
 
 	SSL_CTX *sslCtxClientPublic();
 	SSL_CTX *sslCtxClientInternal();

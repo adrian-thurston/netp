@@ -51,7 +51,7 @@ void MainThread::handleTimer()
 
 		/* Connection to broker. */
 		pc = new DelayedRead( this, 0 );
-		pc->initiate( "localhost", 44726, true );
+		pc->initiate( "localhost", 44726, true, sslCtx );
 	}
 
 	if ( tick == 4 ) {
@@ -67,7 +67,7 @@ int MainThread::main()
 
 	tlsStartup( PKGSTATEDIR "/rand" );
 
-	threadClientCtx = sslCtxClientInternal();
+	sslCtx = sslCtxClientInternal();
 
 	UserThread *bare = new UserThread;
 	ListenThread *listen = new ListenThread;
