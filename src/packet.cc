@@ -112,7 +112,7 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 {
 	PacketConnection *pc = writer->pc;
 
-	if ( pc->selectFd->wantWrite ) {
+	if ( pc->selectFd->wantWriteGet() ) {
 		log_debug( DBG_PACKET, "in want write mode queueing entire rope" );
 
 		for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
@@ -173,7 +173,7 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 					for ( ; rb != 0; rb = rb->next )
 						pc->queue.append( blocks.data(rb), blocks.length(rb) );
 				}
-				pc->selectFd->wantWrite = true;
+				pc->selectFd->wantWriteSet( true );
 				break;
 			}
 
@@ -201,7 +201,7 @@ void PacketConnection::writeReady()
 	if ( queue.length() == 0 ) {
 		/* Queue is now empty. We can exit wantWrite mode. */
 		log_debug( DBG_PACKET, "write ready, queue empty, turning off want write" );
-		selectFd->wantWrite = false;
+		selectFd->wantWriteSet( false );
 		queue.empty();
 	}
 	else {
@@ -343,8 +343,8 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			recv.need = 0;
 			recv.have = 0;
 	
-			log_debug( DBG_PACKET, "writer id: " << recv.head->writerId );
 
+			log_debug( DBG_PACKET, "dispatching packet parsing packet" );
 			thread->dispatchPacket( fd, recv );
 
 			recv.buf.empty();

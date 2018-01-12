@@ -391,12 +391,12 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 				bool wantRead =
 						( !fd->tlsEstablished ) ?
 						fd->wantRead :
-						( fd->tlsWantRead || ( fd->tlsWantWrite & fd->tlsWriteWantsRead ) );
+						( fd->tlsWantRead || ( fd->tlsWantWrite && fd->tlsWriteWantsRead ) );
 
 				bool wantWrite =
 						( !fd->tlsEstablished ) ?
 						fd->wantWrite :
-						( fd->tlsWantWrite || ( fd->tlsWantRead & fd->tlsReadWantsWrite ) );
+						( fd->tlsWantWrite || ( fd->tlsWantRead && fd->tlsReadWantsWrite ) );
 
 				if ( ( wantRead || wantWrite ) && fd->fd >= nfds )
 					nfds = fd->fd + 1;

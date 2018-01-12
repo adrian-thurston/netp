@@ -217,6 +217,34 @@ struct SelectFd
 		port(0)
 	{}
 
+	bool wantReadGet()
+	{
+		return ( !tlsEstablished ) ? wantRead :
+				( tlsWantRead || ( tlsWantWrite && tlsWriteWantsRead ) );
+	}
+
+	bool wantWriteGet()
+	{
+		return ( !tlsEstablished ) ? wantWrite :
+				( tlsWantWrite || ( tlsWantRead && tlsReadWantsWrite ) );
+	}
+
+	void wantReadSet( bool v )
+	{
+		if ( !tlsEstablished )
+			wantRead = v;
+		else
+			tlsWantRead = v;
+	}
+
+	void wantWriteSet( bool v )
+	{
+		if ( !tlsEstablished )
+			wantWrite = v;
+		else
+			tlsWantWrite = v;
+	}
+
 	void close();
 
 	Type type;
@@ -280,6 +308,13 @@ struct Connection
 	void close();
 
 	void initiate( const char *host, uint16_t port, bool tls, SSL_CTX *sslCtx );
+
+	bool isEstablished()
+	{
+		return selectFd != 0 &&
+			( selectFd->state == SelectFd::Established ||
+			selectFd->state == SelectFd::TlsEstablished );
+	}
 
 	/* -1: EOF, 0: try again, pos: data. */
 	int read( char *data, int len );

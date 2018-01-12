@@ -228,7 +228,6 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 				fd->state = SelectFd::TlsEstablished;
 				fd->tlsEstablished = true;
 				fd->tlsWantRead = true;
-				fd->wantWrite = false;
 			}
 			break;
 		case SelectFd::Listen:
