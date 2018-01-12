@@ -420,6 +420,8 @@ bool Thread::prepNextRound( SelectFd *fd, int result )
 
 void Thread::tlsAccept( SelectFd *fd )
 {
+	Connection *c = static_cast<Connection*>(fd->local);
+
 	bool nb = makeNonBlocking( fd->fd );
 	if ( !nb )
 		log_ERROR( "TLS accept: non-blocking IO not available" );
@@ -432,7 +434,8 @@ void Thread::tlsAccept( SelectFd *fd )
 		bool retry = prepNextRound( fd, result );
 		if ( !retry ) {
 			/* Notify of connection error. */
-			tlsAcceptResult( fd, result );
+			//tlsAcceptResult( fd, result );
+			c->failure( Connection::SslAcceptError );
 		}
 	}
 	else {
@@ -447,7 +450,14 @@ void Thread::tlsAccept( SelectFd *fd )
 
 		//fd->wantRead = fd->wantWrite = false;
 
-		tlsAcceptResult( fd, SSL_ERROR_NONE );
+		/* Go into established state and start reading. Will buffer until other
+		 * half is ready. */
+		fd->type = SelectFd::Connection;
+		fd->state = SelectFd::TlsEstablished;
+		fd->tlsEstablished = true;
+
+		// tlsAcceptResult( fd, SSL_ERROR_NONE );
+		c->notifyAccept();
 	}
 }
 

@@ -55,7 +55,7 @@ Connection *PacketListener::accept( int fd )
 	if ( !nb )
 		log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
 
-	PacketConnection *pc = new PacketConnection( thread, 0 );
+	PacketConnection *pc = connectionFactory( thread, 0 );
 	SelectFd *selectFd = new SelectFd( thread, fd, 0 );
 	selectFd->local = static_cast<Connection*>(pc);
 	pc->selectFd = selectFd;
@@ -72,7 +72,7 @@ Connection *PacketListener::accept( int fd )
 		selectFd->state = SelectFd::Established;
 		selectFd->wantRead = true;
 		thread->selectFdList.append( selectFd );
-		thread->notifyAccept( pc );
+		pc->notifyAccept();
 	}
 
 	return pc;

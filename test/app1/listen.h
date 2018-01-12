@@ -18,14 +18,11 @@ struct ListenThread
 		recvRequiresSignal = true;
 	}
 
-	virtual void tlsAcceptResult( SelectFd *fd, int sslError );
-
 	int main();
 
 	void handleTimer();
 	void recvShutdown( Shutdown *msg );
 
-	void notifyAccept( PacketConnection *pc );
 };
 
 #endif /* _LISTEN_H */

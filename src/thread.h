@@ -255,6 +255,7 @@ struct Connection
 		SslReadFailure = 1,
 		SslPeerFailedVerify,
 		SslPeerCnHostMismatch,
+		SslAcceptError,
 		AsyncConnectFailed,
 		LookupFailure
 	};
@@ -265,6 +266,7 @@ struct Connection
 	virtual void readReady() = 0;
 	virtual void writeReady() = 0;
 	virtual void failure( FailType failType ) = 0;
+	virtual void notifyAccept() = 0;
 
 	Thread *thread;
 	SelectFd *selectFd;
@@ -291,6 +293,7 @@ struct PacketConnection
 	virtual void readReady();
 	virtual void writeReady();
 	virtual void failure( FailType failType ) {}
+	virtual void notifyAccept() {}
 
 	SelectFd::Recv recv;
 	Rope queue;
@@ -321,6 +324,9 @@ struct PacketListener
 {
 	PacketListener( Thread *thread )
 		: Listener( thread ) {}
+
+	virtual PacketConnection *connectionFactory( Thread *thread, SelectFd *selectFd )
+		{ return new PacketConnection( thread, selectFd ); }
 
 	virtual Connection *accept( int fd );
 };
