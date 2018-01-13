@@ -57,7 +57,7 @@ void generateItqHeader( P: program )
 	}
 
 	# Starting point defined in thread.h
-	Bit: int = 3
+	Bit: int = 4
 	for D: debug_def in P {
 		send Output
 			"#define DBG_[D.id] [sprintf("0x%08x", Bit)] 

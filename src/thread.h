@@ -45,6 +45,7 @@
 
 #define DBG_PACKET     0x00000001
 #define DBG_CONNECTION 0x00000002
+/* user allocated start: 4 */
 
 struct ItWriter;
 struct ItQueue;
