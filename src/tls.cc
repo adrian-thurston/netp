@@ -223,7 +223,6 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 			}
 			break;
 		case SelectFd::Listen:
-		case SelectFd::ConnListen:
 			break;
 	}
 }
@@ -478,21 +477,6 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 		}
 
 		case SelectFd::Listen: {
-			sockaddr_in peer;
-			socklen_t len = sizeof(sockaddr_in);
-
-			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-			if ( result >= 0 ) {
-				notifyAccept( result );
-			}
-			else {
-				if ( errno != EAGAIN && errno != EWOULDBLOCK )
-					log_ERROR( "failed to accept connection: " << strerror(errno) );
-			}
-			break;
-		}
-
-		case SelectFd::ConnListen: {
 			sockaddr_in peer;
 			socklen_t len = sizeof(sockaddr_in);
 

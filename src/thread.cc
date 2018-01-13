@@ -640,7 +640,6 @@ void Thread::_lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsig
 			connectLookupComplete( fd, status, timeouts, abuf, alen );
 			break;
 		case SelectFd::Listen:
-		case SelectFd::ConnListen:
 			break;
 	}
 }

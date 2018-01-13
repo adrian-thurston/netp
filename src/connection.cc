@@ -21,7 +21,7 @@ void Listener::startListen( unsigned short port, bool tls, SSL_CTX *sslCtx )
 	this->tlsAccept = tls;
 	this->sslCtx = sslCtx;
 
-	selectFd->type = SelectFd::ConnListen;
+	selectFd->type = SelectFd::Listen;
 	selectFd->fd = fd;
 	selectFd->wantRead = true;
 

@@ -183,7 +183,6 @@ struct SelectFd
 	enum Type {
 		User = 1,
 		Listen,
-		ConnListen,
 		Connection
 	};
 
@@ -497,12 +496,6 @@ public:
 	static RealmSet enabledRealms;
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
-
-	/* FIXME: Can remove? */
-	virtual void writeReady( SelectFd *fd ) {}
-
-	virtual void notifyAccept( PacketConnection *pc ) {}
-	virtual void notifyAccept( int fd ) {}
 
 	virtual void dispatchPacket( SelectFd *fd, SelectFd::Recv &recv ) {}
 
