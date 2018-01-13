@@ -53,7 +53,6 @@ struct BpListener
 
 void ListenThread::recvShutdown( Shutdown *msg )
 {
-	log_debug( DBG_THREAD, "received shutdown" );
 	breakLoop();
 }
 

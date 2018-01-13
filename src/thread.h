@@ -43,9 +43,11 @@
 #define EC_CONF_PARSE_ERROR             168
 #define EC_WRITE_ON_NULL_SOCKET_BIO     169
 
-#define DBG_PACKET     0x00000001
-#define DBG_CONNECTION 0x00000002
-/* user allocated start: 4 */
+#define DBG_THREAD     0x00000001
+#define DBG_PACKET     0x00000002
+#define DBG_CONNECTION 0x00000004
+#define DBG_TLS        0x00000008
+/* user-allocated start: 16 */
 
 struct ItWriter;
 struct ItQueue;

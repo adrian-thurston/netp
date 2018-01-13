@@ -175,10 +175,14 @@ void parseOption( P: program, OD: option_def, Src: str )
 		# state.
 		Else: str = ""
 		send Output
-			"	if ( strcmp( [Src], \"PACKET\" ) == 0 )
+			"	if ( strcmp( [Src], \"THREAD\" ) == 0 )
+			"		enabledRealms |= DBG_THREAD;
+			"	else if ( strcmp( [Src], \"PACKET\" ) == 0 )
 			"		enabledRealms |= DBG_PACKET;
 			"	else if ( strcmp( [Src], \"CONNECTION\" ) == 0 )
 			"		enabledRealms |= DBG_CONNECTION;
+			"	else if ( strcmp( [Src], \"TLS\" ) == 0 )
+			"		enabledRealms |= DBG_TLS;
 		for D: debug_def in P {
 			send Output
 				"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )

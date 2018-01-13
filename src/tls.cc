@@ -98,7 +98,7 @@ SSL_CTX *Thread::sslCtxClient( const char *verify, const char *key, const char *
 
 	}
 
-	log_message( "client verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
+	log_debug( DBG_TLS, "client verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
 	return ctx;
 }
@@ -138,7 +138,7 @@ SSL_CTX *Thread::sslCtxServer( const char *key, const char *cert, const char *ve
 		}
 	}
 
-	log_message( "server verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
+	log_debug( DBG_TLS, "server verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
 	return ctx;
 }
@@ -430,7 +430,8 @@ void Thread::tlsAccept( SelectFd *fd )
 	}
 	else {
 		long verifyResult = SSL_get_verify_result( fd->ssl );
-		log_message( "SSL_accept: verify result: " <<
+
+		log_debug( DBG_TLS, "SSL_accept: verify result: " <<
 				( verifyResult == X509_V_OK ? "OK" : "FAILED" ) );
 
 		/* Success. Stop the select loop. Create a BIO for the ssl wrapper. */

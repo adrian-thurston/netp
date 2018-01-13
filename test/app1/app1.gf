@@ -5,7 +5,6 @@ option bool fetch: --fetch;
 thread User;
 thread Listen;
 
-debug THREAD;
 debug IP;
 debug TCP;
 
