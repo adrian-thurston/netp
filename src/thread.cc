@@ -20,7 +20,6 @@
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
-#include <signal.h>
 #include <sys/time.h>
 #include <fcntl.h>
 
@@ -293,16 +292,6 @@ static int funnelSig = 0;
 void thread_funnel_handler( int s )
 {
 	funnelSig = s;
-}
-
-void Thread::funnelSigs( sigset_t *set )
-{
-	sigaddset( set, SIGHUP );
-	sigaddset( set, SIGINT );
-	sigaddset( set, SIGQUIT );
-	// sigaddset( set, SIGKILL );
-	sigaddset( set, SIGTERM );
-	sigaddset( set, SIGCHLD );
 }
 
 int Thread::signalLoop( sigset_t *set, struct timeval *timer )

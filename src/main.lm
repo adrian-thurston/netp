@@ -20,9 +20,9 @@ void generateMainHeader( P: program )
 
 	send Output
 		~struct MainGen
-		~	: public Thread
+		~	: public MainBase
 		~{
-		~	MainGen() : Thread("main") {}
+		~	MainGen() : MainBase("main") {}
 		~
 		~	void init( int argc, char *const*argv )
 		~	{
@@ -44,10 +44,6 @@ void generateMainHeader( P: program )
 		~	bool poll();
 		~	void recvHeader( ItQueue *queue, ItHeader *header );
 		~
-		~	void handleSignal( int sig );
-		~	void signalSetup();
-		~	int signalLoop( struct timeval *timer = 0 );
-		~	int selectLoop( timeval *timer = 0, bool wantPoll = true );
 
 	optDefine( P )
 
@@ -316,7 +312,6 @@ void generateMainCode( P: ref<program> )
 		~#include <stdlib.h>
 		~#include <limits.h>
 		~#include <string.h>
-		~#include <signal.h>
 		~#include <sys/time.h>
 		~#include <sys/types.h>
 		~#include <sys/stat.h>
@@ -459,96 +454,6 @@ void generateMainCode( P: ref<program> )
 		~}
 		~
 
-	#
-	# Signal setup.
-	#
-	# Set a null sigusr handler for all threads to use. We use sigusr to break
-	# from system calls and don't need to take action in the handler.
-	#
-	# Also mask the signals we wish to funnel to the main thread. All threads
-	# will inherit this signal mask. The main thread uses an atomic unmask to
-	# receive the sigs in the various loops it supports.
-	#
-	send Output
-		~static void sigusrHandler( int s )
-		~{
-		~}
-		~
-		~
-		~void MainGen::signalSetup()
-		~{
-		~	signal( SIGUSR1, sigusrHandler );
-		~	signal( SIGUSR2, sigusrHandler );
-		~
-		~	sigset_t set;
-		~	sigemptyset( &set );
-		~
-		~	funnelSigs( &set );
-		~
-		~	sigaddset( &set, SIGUSR1 );
-		~	sigaddset( &set, SIGUSR2 );
-		~
-		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
-		~}
-		~
-
-	send Output
-		~void MainGen::handleSignal( int sig )
-		~{
-		~	switch ( sig ) {
-		~	case SIGHUP:
-		~	{
-		~		log_message( "received SIGHUP" );
-		~		break;
-		~	}
-		~	case SIGINT:
-		~	case SIGQUIT:
-		~	// case SIGKILL:
-		~	case SIGTERM:
-		~	{
-		~		log_message( "breaking from signal loop" );
-		~		breakLoop();
-		~		break;
-		~	}
-		~	case SIGCHLD:
-		~		/* Be quiet on a sigchld. */
-		~		break;
-		~	default: {
-		~		log_message( "received sig: " << sig );
-		~		break;
-		~	}}
-		~}
-		~
-		~int MainGen::signalLoop( struct timeval *timer )
-		~{
-		~	sigset_t set;
-		~	sigfillset( &set );
-		~
-		~	sigemptyset( &set );
-		~	funnelSigs( &set );
-		~	sigaddset( &set, SIGUSR1 );
-		~	sigaddset( &set, SIGUSR2 );
-		~	pthread_sigmask( SIG_SETMASK, &set, 0 );
-		~
-		~	return Thread::signalLoop( &set, timer );
-		~}
-		~
-
-	send Output
-		~int MainGen::selectLoop( timeval *timer, bool wantPoll )
-		~{
-		~	sigset_t set;
-		~	sigemptyset( &set );
-		~
-		~	signal( SIGHUP,  thread_funnel_handler );
-		~	signal( SIGINT,  thread_funnel_handler );
-		~	signal( SIGQUIT, thread_funnel_handler );
-		~	// signal( SIGKILL, thread_funnel_handler );
-		~	signal( SIGTERM, thread_funnel_handler );
-		~	signal( SIGCHLD, thread_funnel_handler );
-		~
-		~	return pselectLoop( &set, timer, wantPoll );
-		~}
 
 	joinDef( Thread )
 	sendsToCode( Thread )

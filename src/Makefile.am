@@ -8,6 +8,7 @@ libgenf_la_SOURCES = \
 	list.h \
 	thread.h \
 	thread.cc \
+	signal.cc \
 	tls.cc \
 	connection.cc \
 	packet.cc

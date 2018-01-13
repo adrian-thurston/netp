@@ -555,6 +555,19 @@ public:
 	char *pktFind( Rope *rope, long l );
 };
 
+struct MainBase
+:
+	public Thread
+{
+	MainBase( const char *type )
+		: Thread( type ) {}
+
+	void handleSignal( int sig );
+	void signalSetup();
+	int signalLoop( struct timeval *timer = 0 );
+	int selectLoop( timeval *timer = 0, bool wantPoll = true );
+};
+
 extern "C" void *genf_thread_start( void *arg );
 void thread_funnel_handler( int s );
 
