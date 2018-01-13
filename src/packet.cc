@@ -113,21 +113,22 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 	PacketConnection *pc = writer->pc;
 
 	if ( pc->selectFd->wantWriteGet() ) {
-		log_debug( DBG_PACKET, "in want write mode queueing entire rope" );
+		log_debug( DBG_PACKET, "in want write mode "
+				"queueing entire rope: " <<
+				pc->selectFd->tlsEstablished << " " <<
+				pc->selectFd->tlsWantWrite << " " <<
+				pc->selectFd->wantWrite );
 
-		for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
-			log_debug( DBG_PACKET, "-> queueing " << blocks.length( rb ) << " bytes" );
-		}
+		for ( RopeBlock *drb = blocks.hblk; drb != 0; drb = drb->next )
+			log_debug( DBG_PACKET, "-> queueing " << blocks.length( drb ) << " bytes" );
 
 		/* If in want write mode then there are queued blocks. Add to the queue
 		 * and let the writeReady callback deal with the output. */
 		if ( canConsume )
 			pc->queue.append( blocks );
 		else {
-			for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
-				log_debug( DBG_PACKET, "-> queueing " << blocks.length( rb ) << " bytes" );
+			for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next )
 				pc->queue.append( blocks.data( rb ), blocks.length( rb ) );
-			}
 		}
 	}
 	else {
@@ -142,10 +143,12 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 
 			char *data = blocks.data(rb);
 			int blockLen = blocks.length(rb);
-
 			int res = pc->write( data, blockLen );
-			if ( res < 0 )
-				log_FATAL( "failed to send block, erroring out" );
+			if ( res < 0 ) {
+				log_debug( DBG_PACKET, "packet write: closed" );
+				pc->close();
+				pc->packetClosed();
+			}
 
 			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
 
@@ -155,14 +158,14 @@ void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 				log_debug( DBG_PACKET, "failed to send full block, queueing " <<
 						(blockLen-res) << " of " << blockLen );
 
+				for ( RopeBlock *drb = blocks.hblk; drb != 0; drb = drb->next )
+					log_debug( DBG_PACKET, "-> queueing " << blocks.length( drb ) << " bytes" );
+
 				if ( canConsume ) {
 					/* Move data from blocks to the output queue. */
 					rb->hoff += res;
 					blocks.ropeLen -= res;
 
-					for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next ) {
-						log_debug( DBG_PACKET, "-> queueing " << blocks.length( rb ) << " bytes" );
-					}
 
 					pc->queue.append( blocks );
 				}
@@ -217,9 +220,11 @@ void PacketConnection::writeReady()
 			char *data = queue.data(rb);
 			int blockLen = queue.length(rb);
 			int res = write( data, blockLen );
-
-			if ( res < 0 )
-				log_FATAL( "failed to send block, erroring out" );
+			if ( res < 0 ) {
+				log_debug( DBG_PACKET, "packet write: closed" );
+				close();
+				packetClosed();
+			}
 
 			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
 
@@ -261,16 +266,17 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			int len = read( (char*)&recv.headBuf + recv.have, sz - recv.have );
 			if ( len < 0 ) {
 				/* EOF. */
-				log_debug( DBG_PACKET, "packet head read closed" );
+				log_debug( DBG_PACKET, "packet head read: closed" );
 				close();
+				packetClosed();
 				return;
 			}
 			else if ( len == 0 ) {
-				log_debug( DBG_PACKET, "packet head read delayed" );
+				log_debug( DBG_PACKET, "packet head read: delayed" );
 				return;
 			}
 			else if ( recv.have + len < sz )  {
-				log_debug( DBG_PACKET, "packet head read is short: " <<
+				log_debug( DBG_PACKET, "packet head read: is short: got " <<
 						len << " bytes" );
 
 				/* Don't have it all. Need to wait for more. */
@@ -279,7 +285,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			}
 
 			/* Completed read of header. */
-			log_debug( DBG_PACKET, "have first block headers" );
+			log_debug( DBG_PACKET, "packet: have first block headers" );
 
 			/* Pull the size of the first block length from the header read so far. */
 			recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
@@ -307,17 +313,18 @@ void PacketConnection::parsePacket( SelectFd *fd )
 					int len = read( recv.data + recv.have, recv.need - recv.have );
 					if ( len < 0 ) {
 						/* EOF. */
-						log_debug( DBG_PACKET, "packet data read closed" );
+						log_debug( DBG_PACKET, "packet data read: closed" );
 						close();
+						packetClosed();
 						return;
 					}
 					else if ( len == 0 ) {
 						/* continue. */
-						log_debug( DBG_PACKET, "packet data read delayed" );
+						log_debug( DBG_PACKET, "packet data read: delayed" );
 						return;
 					}
 					else if ( recv.have + len < recv.need )  {
-						log_debug( DBG_PACKET, "packet data read is short: " <<
+						log_debug( DBG_PACKET, "packet data read: is short: got " <<
 								len << " bytes" );
 						/* Don't have it all. Need to wait for more. */
 						recv.have += len;

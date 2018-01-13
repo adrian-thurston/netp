@@ -461,7 +461,6 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 		fd->state = SelectFd::TlsConnect;
 	}
 	else {
-		/* FIXME: some type of notification here? */
 		fd->type = SelectFd::Connection;
 		fd->state = SelectFd::Established;
 		fd->wantRead = true;

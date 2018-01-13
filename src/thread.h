@@ -331,6 +331,8 @@ struct PacketConnection
 	virtual void readReady();
 	virtual void writeReady();
 
+	virtual void packetClosed() {}
+
 	SelectFd::Recv recv;
 	Rope queue;
 
