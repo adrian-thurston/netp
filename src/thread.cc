@@ -414,9 +414,6 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 
 					FD_SET( fd->fd, &writeSet );
 				}
-
-				/* Use this opportunity to reset the round abort flag. */
-				fd->abortRound = false;
 			}
 
 			fd = next;
@@ -533,16 +530,14 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 					continue;
 
 				/* Check for round abort on the FD. */
-				if ( !fd->abortRound ) {
-					uint8_t readyField = 0;
-					if ( FD_ISSET( fd->fd, &readSet ) )
-						readyField |= READ_READY;
-					if ( FD_ISSET( fd->fd, &writeSet ) )
-						readyField |= WRITE_READY;
+				uint8_t readyField = 0;
+				if ( FD_ISSET( fd->fd, &readSet ) )
+					readyField |= READ_READY;
+				if ( FD_ISSET( fd->fd, &writeSet ) )
+					readyField |= WRITE_READY;
 
-					if ( readyField )
-						_selectFdReady( fd, readyField );
-				}
+				if ( readyField )
+					_selectFdReady( fd, readyField );
 			}
 		}
 

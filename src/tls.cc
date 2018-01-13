@@ -31,14 +31,6 @@ static unsigned long cryptoId(void)
 	return ((unsigned long) pthread_self());
 } 
 
-void SelectFd::close()
-{
-	SSL_shutdown( ssl );
-	SSL_free( ssl );
-	::close( fd );
-	closed = true;
-}
-
 /* Do this once at startup. */
 void Thread::tlsStartup( const char *randFile )
 {

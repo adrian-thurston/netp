@@ -218,10 +218,10 @@ void PacketConnection::writeReady()
 			int blockLen = queue.length(rb);
 			int res = write( data, blockLen );
 
-			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
-
 			if ( res < 0 )
 				log_FATAL( "failed to send block, erroring out" );
+
+			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
 
 			if ( res < blockLen ) {
 				/* Didn't send the entire remainder of the block. Increqment

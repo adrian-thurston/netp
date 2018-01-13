@@ -203,7 +203,6 @@ struct SelectFd
 		local(local),
 		wantRead(false),
 		wantWrite(false),
-		abortRound(false),
 		ssl(0),
 		bio(0),
 		remoteHost(0),
@@ -245,8 +244,6 @@ struct SelectFd
 			tlsWantWrite = v;
 	}
 
-	void close();
-
 	Type type;
 	State state;
 	Thread *thread;
@@ -254,7 +251,6 @@ struct SelectFd
 	void *local;
 	bool wantRead;
 	bool wantWrite;
-	bool abortRound;
 	SSL *ssl;
 	BIO *bio;
 	const char *remoteHost;
@@ -290,11 +286,11 @@ struct Connection
 
 	Connection( Thread *thread, SelectFd *fd = 0 );
 
+	virtual void failure( FailType failType ) = 0;
 	virtual void connectComplete() = 0;
+	virtual void notifyAccept() = 0;
 	virtual void readReady() = 0;
 	virtual void writeReady() = 0;
-	virtual void failure( FailType failType ) = 0;
-	virtual void notifyAccept() = 0;
 
 	Thread *thread;
 	SelectFd *selectFd;
@@ -327,15 +323,14 @@ struct PacketConnection
 	PacketConnection( Thread *thread, SelectFd *selectFd )
 		: Connection( thread, selectFd ) { tlsConnect = false; }
 
+	virtual void failure( FailType failType ) {}
 	virtual void connectComplete() {}
+	virtual void notifyAccept() {}
 	virtual void readReady();
 	virtual void writeReady();
-	virtual void failure( FailType failType ) {}
-	virtual void notifyAccept() {}
 
 	SelectFd::Recv recv;
 	Rope queue;
-	int qho;
 
 	void parsePacket( SelectFd *fd );
 };
