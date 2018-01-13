@@ -214,12 +214,12 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 			break;
 		case SelectFd::Connection:
 			if ( sslError == SSL_ERROR_NONE ) {
-				Connection *c = static_cast<Connection*>(fd->local);
-				c->connectComplete();
-
 				fd->state = SelectFd::TlsEstablished;
 				fd->tlsEstablished = true;
 				fd->tlsWantRead = true;
+
+				Connection *c = static_cast<Connection*>(fd->local);
+				c->connectComplete();
 			}
 			break;
 		case SelectFd::Listen:
