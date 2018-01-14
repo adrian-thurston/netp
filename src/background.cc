@@ -5,8 +5,8 @@
 #include <errno.h>
 #include "thread.h"
 
-extern const char *_PIDFILE;
-extern const char *_LOGFILE;
+const char *_PIDFILE = 0;
+const char *_LOGFILE = 0;
 
 void on_exit(void)
 {

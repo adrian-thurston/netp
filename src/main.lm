@@ -336,8 +336,8 @@ void generateMainCode( P: ref<program> )
 		~#define PIDFILE PIDDIR "/" PACKAGE ".pid"
 
 	send Output
-		~const char *_PIDFILE = 0;
-		~const char *_LOGFILE = 0;
+		~extern const char *_PIDFILE;
+		~extern const char *_LOGFILE;
 		~void on_exit(void);
 		~FILE *pidExists( bool overwritePidFile );
 		~FILE *openPidFile( bool overwritePidFile );
