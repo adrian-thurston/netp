@@ -540,14 +540,11 @@ public:
 	bool hostMatch( SelectFd *selectFd, const char *name );
 
 	void clientConnect( SelectFd *fd );
-	virtual bool sslReadReady( SelectFd *fd ) { return false; }
 	int tlsWrite( SelectFd *fd, char *data, int len );
 	int tlsRead( SelectFd *fd, void *buf, int len );
 
 	void tlsStartup( const char *randFile = 0 );
 	void tlsShutdown();
-
-	virtual void writeRetry( SelectFd *fd ) {}
 
 	void tlsError( RealmSet realm, int e );
 	void tlsAccept( SelectFd *fd );
