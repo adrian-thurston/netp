@@ -567,7 +567,32 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 			if ( result >= 0 ) {
 				Listener *l = static_cast<Listener*>(fd->local);
-				l->accept( result );
+
+				bool nb = makeNonBlocking( result );
+				if ( !nb )
+					log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
+
+				Connection *pc = l->connectionFactory( this, 0 );
+				SelectFd *selectFd = new SelectFd( this, result, 0 );
+				selectFd->local = static_cast<Connection*>(pc);
+				pc->selectFd = selectFd;
+
+				if ( l->tlsAccept ) {
+					pc->tlsConnect = true;
+					pc->sslCtx = l->sslCtx;
+					pc->checkHost = l->checkHost;
+					startTlsServer( pc->sslCtx, selectFd );
+					selectFd->type = SelectFd::Connection;
+					selectFd->state = SelectFd::TlsAccept;
+				}
+				else {
+					pc->tlsConnect = false;
+					selectFd->type = SelectFd::Connection;
+					selectFd->state = SelectFd::Established;
+					selectFd->wantRead = true;
+					selectFdList.append( selectFd );
+					pc->notifyAccept();
+				}
 			}
 			else {
 				if ( errno != EAGAIN && errno != EWOULDBLOCK )

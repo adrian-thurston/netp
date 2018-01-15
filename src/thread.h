@@ -345,15 +345,15 @@ struct Listener
 {
 	Listener( Thread *thread );
 
-	virtual Connection *accept( int fd ) = 0;
-
-	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
-
 	Thread *thread;
 	SelectFd *selectFd;
 	bool tlsAccept;
 	SSL_CTX *sslCtx;
 	bool checkHost;
+
+	virtual Connection *connectionFactory( Thread *thread, SelectFd *selectFd ) = 0;
+
+	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 };
 
 struct PacketListener
@@ -363,10 +363,8 @@ struct PacketListener
 	PacketListener( Thread *thread )
 		: Listener( thread ) {}
 
-	virtual PacketConnection *connectionFactory( Thread *thread, SelectFd *selectFd )
+	virtual Connection *connectionFactory( Thread *thread, SelectFd *selectFd )
 		{ return new PacketConnection( thread, selectFd ); }
-
-	virtual Connection *accept( int fd );
 };
 
 struct PacketWriter

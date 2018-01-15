@@ -70,7 +70,7 @@ int ListenThread::main()
 	listener->tlsAccept = true;
 	SSL_CTX *sslCtx = sslCtxServerInternal();
 
-	listener->startListen( 44726, true, sslCtx );
+	listener->startListen( 44726, true, sslCtx, false );
 
 	struct timeval t;
 	t.tv_sec = 1;

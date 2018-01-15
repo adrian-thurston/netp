@@ -51,7 +51,7 @@ void MainThread::handleTimer()
 
 		/* Connection to broker. */
 		pc = new DelayedRead( this, 0 );
-		pc->initiate( "localhost", 44726, true, sslCtx );
+		pc->initiate( "localhost", 44726, true, sslCtx, false );
 	}
 
 	if ( tick == 4 ) {

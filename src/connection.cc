@@ -59,38 +59,6 @@ void Connection::initiate( const char *host, uint16_t port, bool tls,
 	thread->asyncLookupHost( selectFd, host );
 }
 
-
-Connection *PacketListener::accept( int fd )
-{
-	bool nb = thread->makeNonBlocking( fd );
-	if ( !nb )
-		log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
-
-	PacketConnection *pc = connectionFactory( thread, 0 );
-	SelectFd *selectFd = new SelectFd( thread, fd, 0 );
-	selectFd->local = static_cast<Connection*>(pc);
-	pc->selectFd = selectFd;
-
-	if ( tlsAccept ) {
-		pc->tlsConnect = true;
-		pc->sslCtx = sslCtx;
-		pc->checkHost = checkHost;
-		thread->startTlsServer( sslCtx, selectFd );
-		selectFd->type = SelectFd::Connection;
-		selectFd->state = SelectFd::TlsAccept;
-	}
-	else {
-		pc->tlsConnect = false;
-		selectFd->type = SelectFd::Connection;
-		selectFd->state = SelectFd::Established;
-		selectFd->wantRead = true;
-		thread->selectFdList.append( selectFd );
-		pc->notifyAccept();
-	}
-
-	return pc;
-}
-
 int Connection::read( char *data, int len )
 {
 	if ( tlsConnect ) {
