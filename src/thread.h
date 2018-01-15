@@ -299,13 +299,14 @@ struct Connection
 
 	bool tlsConnect;
 	SSL_CTX *sslCtx;
+	bool checkHost;
 
 	bool closed;
 	bool onSelectList;
 
 	void close();
 
-	void initiate( const char *host, uint16_t port, bool tls, SSL_CTX *sslCtx );
+	void initiate( const char *host, uint16_t port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 
 	bool isEstablished()
 	{
@@ -346,12 +347,13 @@ struct Listener
 
 	virtual Connection *accept( int fd ) = 0;
 
-	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx );
+	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 
 	Thread *thread;
 	SelectFd *selectFd;
 	bool tlsAccept;
 	SSL_CTX *sslCtx;
+	bool checkHost;
 };
 
 struct PacketListener
@@ -534,6 +536,10 @@ public:
 			unsigned char *abuf, int alen );
 	void _lookupCallbackHost( SelectFd *fd, int status, int timeouts,
 			struct hostent *hostent );
+
+	int checkName( const char *name, ASN1_STRING *pattern );
+	bool hostMatch( X509 *cert, const char *name );
+	bool hostMatch( SelectFd *selectFd, const char *name );
 
 	void clientConnect( SelectFd *fd );
 	virtual bool sslReadReady( SelectFd *fd ) { return false; }

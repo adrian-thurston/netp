@@ -1,6 +1,7 @@
 
 #include <valgrind/memcheck.h>
 #include <thread.h>
+#include <strings.h>
 
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
@@ -163,6 +164,8 @@ SSL_CTX *Thread::sslCtxServer( EVP_PKEY *pkey, X509 *x509 )
 
 void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char *remoteHost )
 {
+	log_debug( DBG_CONNECTION, "starting TLS client" );
+
 	bool nb = makeNonBlocking( selectFd->fd );
 	if ( !nb )
 		log_ERROR( "TLS start client: non-blocking IO not available" );
@@ -227,6 +230,98 @@ void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
 	}
 }
 
+/* Test name against pattern, allowing for a *. wildcard at the head of the
+ * pattern, matching any subdomain. */
+int Thread::checkName( const char *name, ASN1_STRING *pattern )
+{
+	const char *subj = name;
+	size_t slen = strlen( name );
+
+	const char *pat = (const char*)ASN1_STRING_data( pattern );
+	size_t plen = ASN1_STRING_length( pattern );
+
+	/* If pattern starts with *. then take off the most specific component. */
+	if ( plen > 2 && pat[0] == '*' && pat[1] == '.' ) {
+		plen -= 1;
+		pat += 1;
+
+		/* Take one level off the name. */
+		subj = strchr( name, '.');
+		if ( subj == NULL )
+			return false;
+		slen -= ( subj - name );
+	}
+
+	if ( slen == plen && strncasecmp( subj, pat, slen ) == 0 )
+		return true;
+
+	return false;
+}
+
+/* RFC6125, RFC2818 */
+bool Thread::hostMatch( X509 *cert, const char *name )
+{
+	/* Check subjectAltName extension first. */
+	STACK_OF(GENERAL_NAME) *altnames = (STACK_OF(GENERAL_NAME)*) X509_get_ext_d2i( 
+			cert, NID_subject_alt_name, NULL, NULL );
+
+	if ( altnames ) {
+		int n = sk_GENERAL_NAME_num( altnames );
+
+		for ( int i = 0; i < n; i++ ) {
+			GENERAL_NAME *altname = sk_GENERAL_NAME_value( altnames, i );
+			if ( altname->type != GEN_DNS )
+				continue;
+
+			ASN1_STRING *pat = altname->d.dNSName;
+
+			if ( checkName( name, pat ) ) {
+				GENERAL_NAMES_free( altnames );
+				return true;
+			}
+		}
+
+		GENERAL_NAMES_free(altnames);
+		return false;
+	}
+ 
+	/* Check common name from subject. */
+	X509_NAME *sname = X509_get_subject_name( cert );
+	if ( sname == NULL )
+		return false; 
+ 
+	int i = -1;
+	while ( true ) {
+		i = X509_NAME_get_index_by_NID( sname, NID_commonName, i );
+		if ( i < 0 )
+			break;
+
+		X509_NAME_ENTRY *entry = X509_NAME_get_entry( sname, i );
+		ASN1_STRING *pat = X509_NAME_ENTRY_get_data( entry );
+		if ( checkName( name, pat ) )
+			return true;
+	}
+ 
+	return false;
+}
+ 
+bool Thread::hostMatch( SelectFd *selectFd, const char *name )
+{
+	/* Check the common name. */
+	X509 *peer = SSL_get_peer_certificate( selectFd->ssl );
+	if ( peer == 0 )
+		return false;
+
+#ifdef HAVE_X509_CHECK_HOST
+	bool result =  X509_check_host( peer, name, strlen( name ), 0, 0 ) == 1;
+#else
+	bool result = hostMatch( peer, name );
+#endif
+
+	X509_free( peer );
+	return result;
+}
+
 void Thread::clientConnect( SelectFd *fd )
 {
 	int result = SSL_connect( fd->ssl );
@@ -238,44 +333,32 @@ void Thread::clientConnect( SelectFd *fd )
 		if ( !retry ) {
 			/* Not a retry failure. */
 			_tlsConnectResult( fd, result );
+			log_ERROR( "SSL_connect failure" );
 		}
 	}
 	else {
+		Connection *c = static_cast<Connection*>(fd->local);
+		log_debug( DBG_CONNECTION, "successful SSL_connect" );
+
 		/* Check the verification result. */
 		long verifyResult = SSL_get_verify_result( fd->ssl );
 		if ( verifyResult != X509_V_OK ) {
 			fd->sslVerifyError = true;
 
 			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
-			Connection *c = static_cast<Connection*>(fd->local);
 			c->failure( Connection::SslPeerFailedVerify );
 			c->close();
 		}
 		else {
-			/* Check the cert chain. The chain length is automatically checked by
-			 * OpenSSL when we set the verify depth in the CTX */
-
-			/* Check the common name. */
-			X509 *peer = SSL_get_peer_certificate( fd->ssl );
-			char peer_CN[PEER_CN_NAME_LEN];
-			X509_NAME_get_text_by_NID( X509_get_subject_name(peer),
-					NID_commonName, peer_CN, PEER_CN_NAME_LEN );
-
-#ifdef HAVE_X509_CHECK_HOST
-			int cr = X509_check_host( peer, fd->remoteHost, strlen(fd->remoteHost), 0, 0 );
-			if ( cr != 1 ) {
+			if ( c->checkHost && !hostMatch( fd, fd->remoteHost ) ) {
 				fd->sslVerifyError = true;
 
-				log_ERROR( "ssl peer cn host mismatch: requested " <<
-						fd->remoteHost << " but cert is for " << peer_CN );
+				log_ERROR( "unable to match peer host to: " << fd->remoteHost );
 
-				Connection *c = static_cast<Connection*>(fd->local);
 				c->failure( Connection::SslPeerCnHostMismatch );
 				c->close();
 			}
-			else
-#endif
-			{
+			else {
 				/* Would like to require or implement this. Not available on 14.04. */
 				/* #error no X509_check_host */
 
@@ -454,6 +537,7 @@ void Thread::tlsAccept( SelectFd *fd )
 
 void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 {
+	log_debug( DBG_CONNECTION, "async connect completed" );
 	if ( conn->tlsConnect ) {
 		startTlsClient( conn->sslCtx, fd, fd->remoteHost );
 		// selectFdList.append( fd );
