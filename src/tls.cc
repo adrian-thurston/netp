@@ -540,7 +540,6 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 	log_debug( DBG_CONNECTION, "async connect completed" );
 	if ( conn->tlsConnect ) {
 		startTlsClient( conn->sslCtx, fd, fd->remoteHost );
-		// selectFdList.append( fd );
 		fd->type = SelectFd::Connection;
 		fd->state = SelectFd::TlsConnect;
 	}
