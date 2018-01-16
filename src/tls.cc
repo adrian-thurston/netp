@@ -181,7 +181,7 @@ void Thread::startTlsClient( SSL_CTX *clientCtx, SelectFd *selectFd, const char 
 	selectFd->ssl = ssl;
 	selectFd->bio = bio;
 
-	if ( selectFd->remoteHost == 0 )
+	if ( selectFd->remoteHost == 0 && remoteHost != 0 )
 		selectFd->remoteHost = strdup(remoteHost);
 
 	selectFd->wantRead = false;
@@ -322,7 +322,7 @@ bool Thread::hostMatch( SelectFd *selectFd, const char *name )
 	return result;
 }
 
-void Thread::clientConnect( SelectFd *fd )
+void Thread::tlsConnect( SelectFd *fd )
 {
 	int result = SSL_connect( fd->ssl );
 	if ( result <= 0 ) {
@@ -345,7 +345,7 @@ void Thread::clientConnect( SelectFd *fd )
 		if ( verifyResult != X509_V_OK ) {
 			fd->sslVerifyError = true;
 
-			log_ERROR( "ssl peer failed verify: " << fd->remoteHost );
+			log_ERROR( "ssl peer failed verify: " << fd );
 			c->failure( Connection::SslPeerFailedVerify );
 			c->close();
 		}
@@ -634,7 +634,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 					break;
 
 				case SelectFd::TlsConnect:
-					clientConnect( fd );
+					tlsConnect( fd );
 					break;
 
 				case SelectFd::TlsEstablished: {
@@ -648,9 +648,8 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				}
 				case SelectFd::Established: {
 					Connection *c = static_cast<Connection*>(fd->local);
-					if ( readyMask & READ_READY ) {
+					if ( readyMask & READ_READY )
 						c->readReady();
-					}
 
 					if ( readyMask & WRITE_READY && fd->wantWrite )
 						c->writeReady();

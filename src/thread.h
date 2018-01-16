@@ -539,7 +539,7 @@ public:
 	bool hostMatch( X509 *cert, const char *name );
 	bool hostMatch( SelectFd *selectFd, const char *name );
 
-	void clientConnect( SelectFd *fd );
+	void tlsConnect( SelectFd *fd );
 	int tlsWrite( SelectFd *fd, char *data, int len );
 	int tlsRead( SelectFd *fd, void *buf, int len );
 
