@@ -306,6 +306,7 @@ struct Connection
 
 	void close();
 
+	void initiate( sockaddr_in *sa, bool tls, SSL_CTX *sslCtx, bool checkHost );
 	void initiate( const char *host, uint16_t port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 
 	bool isEstablished()

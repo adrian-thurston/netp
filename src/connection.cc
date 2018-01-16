@@ -42,6 +42,26 @@ Connection::Connection( Thread *thread, SelectFd *fd )
 {
 }
 
+void Connection::initiate( sockaddr_in *addr, bool tls, SSL_CTX *sslCtx, bool checkHost )
+{
+	selectFd = new SelectFd( thread, -1, 0 );
+	selectFd->local = this;
+
+	this->tlsConnect = tls;
+	this->sslCtx = sslCtx;
+	this->checkHost = checkHost;
+
+	selectFd->type = SelectFd::Connection;
+	selectFd->state = SelectFd::Connect;
+
+	int connFd = thread->inetConnect( addr, true );
+
+	selectFd->fd = connFd;
+	selectFd->wantWrite = true;
+	onSelectList = true;
+	thread->selectFdList.append( selectFd );
+}
+
 void Connection::initiate( const char *host, uint16_t port, bool tls,
 		SSL_CTX *sslCtx, bool checkHost )
 {

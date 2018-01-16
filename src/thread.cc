@@ -633,6 +633,7 @@ void Thread::_lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsig
 	}
 }
 
+
 void Thread::_lookupCallbackHost( SelectFd *fd, int status, int timeouts, struct hostent *hostent )
 {
 	Connection *c = static_cast<Connection*>(fd->local);
