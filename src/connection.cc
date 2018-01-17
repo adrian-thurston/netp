@@ -34,10 +34,10 @@ void Listener::startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool
 	startListenOnFd( fd, tls, sslCtx, checkHost );
 }
 
-Connection::Connection( Thread *thread, SelectFd *fd )
+Connection::Connection( Thread *thread )
 :
 	thread(thread),
-	selectFd(fd),
+	selectFd(0),
 	tlsConnect(false),
 	sslCtx(0),
 	checkHost(false),

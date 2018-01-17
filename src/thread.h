@@ -286,7 +286,7 @@ struct Connection
 		LookupFailure
 	};
 
-	Connection( Thread *thread, SelectFd *fd = 0 );
+	Connection( Thread *thread );
 
 	virtual void failure( FailType failType ) = 0;
 	virtual void connectComplete() = 0;
@@ -324,8 +324,8 @@ struct Connection
 struct PacketConnection
 	: public Connection
 {
-	PacketConnection( Thread *thread, SelectFd *selectFd )
-		: Connection( thread, selectFd ) { tlsConnect = false; }
+	PacketConnection( Thread *thread )
+		: Connection( thread ) { tlsConnect = false; }
 
 	virtual void failure( FailType failType ) {}
 	virtual void connectComplete() {}
@@ -366,7 +366,7 @@ struct PacketListener
 		: Listener( thread ) {}
 
 	virtual Connection *connectionFactory( int fd )
-		{ return new PacketConnection( thread, 0 ); }
+		{ return new PacketConnection( thread ); }
 };
 
 struct PacketWriter
