@@ -571,7 +571,7 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				if ( !nb )
 					log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
 
-				Connection *pc = l->connectionFactory( this, 0 );
+				Connection *pc = l->connectionFactory( result );
 				SelectFd *selectFd = new SelectFd( this, result, 0 );
 				selectFd->local = static_cast<Connection*>(pc);
 				pc->selectFd = selectFd;

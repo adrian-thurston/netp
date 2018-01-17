@@ -46,8 +46,9 @@ struct BpListener
 	public PacketListener
 {
 	BpListener( Thread *thread ) : PacketListener( thread ) {}
-	virtual BpConnection *connectionFactory( Thread *thread, SelectFd *selectFd )
-		{ return new BpConnection( thread, selectFd ); }
+
+	virtual BpConnection *connectionFactory( int fd )
+		{ return new BpConnection( thread, 0 ); }
 };
 
 

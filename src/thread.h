@@ -352,8 +352,9 @@ struct Listener
 	SSL_CTX *sslCtx;
 	bool checkHost;
 
-	virtual Connection *connectionFactory( Thread *thread, SelectFd *selectFd ) = 0;
+	virtual Connection *connectionFactory( int fd ) = 0;
 
+	void startListenOnFd( int fd, bool tls, SSL_CTX *sslCtx, bool checkHost );
 	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 };
 
@@ -364,8 +365,8 @@ struct PacketListener
 	PacketListener( Thread *thread )
 		: Listener( thread ) {}
 
-	virtual Connection *connectionFactory( Thread *thread, SelectFd *selectFd )
-		{ return new PacketConnection( thread, selectFd ); }
+	virtual Connection *connectionFactory( int fd )
+		{ return new PacketConnection( thread, 0 ); }
 };
 
 struct PacketWriter

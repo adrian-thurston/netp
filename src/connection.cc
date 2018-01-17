@@ -13,10 +13,8 @@ Listener::Listener( Thread *thread )
 {
 }
 
-void Listener::startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost )
+void Listener::startListenOnFd( int fd, bool tls, SSL_CTX *sslCtx, bool checkHost )
 {
-	int fd = thread->inetListen( port );
-
 	selectFd = new SelectFd( thread, fd, this );
 
 	this->tlsAccept = tls;
@@ -28,6 +26,12 @@ void Listener::startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool
 	selectFd->wantRead = true;
 
 	thread->selectFdList.append( selectFd );
+}
+
+void Listener::startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost )
+{
+	int fd = thread->inetListen( port );
+	startListenOnFd( fd, tls, sslCtx, checkHost );
 }
 
 Connection::Connection( Thread *thread, SelectFd *fd )
