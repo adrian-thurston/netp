@@ -464,8 +464,6 @@ public:
 
 	void funnelSigs( sigset_t *set );
 
-	virtual void handleTimer() {};
-
 	const Thread &log_prefix() { return *this; }
 
 	virtual const char *pkgDataDir() = 0;
@@ -480,9 +478,17 @@ public:
 
 	virtual void recvSingle() {}
 
+	/* Handle select FD ready for user mode connections. */
+	virtual void userFdReady( SelectFd *selectFd, uint8_t readyField ) {}
+
+	void listenReady( SelectFd *fd, uint8_t readyMask );
 	void asyncConnect( SelectFd *fd, Connection *conn );
-	void _selectFdReady( SelectFd *selectFd, uint8_t readyField );
-	virtual void selectFdReady( SelectFd *selectFd, uint8_t readyField ) {}
+	void connConnectReady( SelectFd *fd, uint8_t readyMask );
+	void connTlsAcceptReady( SelectFd *fd );
+	void connTlsConnectReady( SelectFd *fd );
+	void selectFdReady( SelectFd *selectFd, uint8_t readyField );
+
+	virtual void handleTimer() {};
 	virtual void handleSignal( int sig ) {}
 
 	static const uint8_t READ_READY  = 0x01;
@@ -528,20 +534,15 @@ public:
 	void asyncLookupHost( SelectFd *fd, const char *host );
 	void asyncLookupQuery( SelectFd *fd, const char *host );
 
-	void connectLookupComplete( SelectFd *fd, int status, int timeouts,
+	void lookupCallbackQuery( SelectFd *fd, int status, int timeouts,
 			unsigned char *abuf, int alen );
-	virtual void lookupCallbackQuery( SelectFd *fd, int status, int timeouts,
-			unsigned char *abuf, int alen ) {}
-	void _lookupCallbackQuery( SelectFd *fd, int status, int timeouts,
-			unsigned char *abuf, int alen );
-	void _lookupCallbackHost( SelectFd *fd, int status, int timeouts,
+	void lookupCallbackHost( SelectFd *fd, int status, int timeouts,
 			struct hostent *hostent );
 
 	int checkName( const char *name, ASN1_STRING *pattern );
 	bool hostMatch( X509 *cert, const char *name );
 	bool hostMatch( SelectFd *selectFd, const char *name );
 
-	void tlsConnect( SelectFd *fd );
 	int tlsWrite( SelectFd *fd, char *data, int len );
 	int tlsRead( SelectFd *fd, void *buf, int len );
 
@@ -549,13 +550,8 @@ public:
 	void tlsShutdown();
 
 	void tlsError( RealmSet realm, int e );
-	void tlsAccept( SelectFd *fd );
 
 	bool prepNextRound( SelectFd *fd, int result );
-
-	void _tlsConnectResult( SelectFd *fd, int sslError );
-	virtual void tlsConnectResult( SelectFd *fd, int sslError ) {}
-	virtual void tlsAcceptResult( SelectFd *fd, int sslError ) {}
 
 	char *pktFind( Rope *rope, long l );
 };

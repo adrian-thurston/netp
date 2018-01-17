@@ -526,7 +526,7 @@ int Thread::pselectLoop( sigset_t *sigmask, timeval *timer, bool wantPoll )
 					readyField |= WRITE_READY;
 
 				if ( readyField )
-					_selectFdReady( fd, readyField );
+					selectFdReady( fd, readyField );
 			}
 		}
 
@@ -552,24 +552,20 @@ int Thread::selectLoop( timeval *timer, bool wantPoll )
 	return pselectLoop( &set, timer, wantPoll );
 }
 
-static void lookupCallbackQuery( void *arg, int status, int timeouts, unsigned char *abuf, int alen )
+/* Static callback for ares_query. Calls into class. */
+static void lookupCallbackQuery( void *arg, int status, int timeouts,
+		unsigned char *abuf, int alen )
 {
 	SelectFd *fd = static_cast<SelectFd*>(arg);
-	fd->thread->_lookupCallbackQuery( fd, status, timeouts, abuf, alen );
+	fd->thread->lookupCallbackQuery( fd, status, timeouts, abuf, alen );
 }
 
-static void lookupCallbackHost( void *arg, int status, int timeouts, struct hostent *hostent )
+/* Static callback for ares_gethostbyname. Calls into class. */
+static void lookupCallbackHost( void *arg, int status, int timeouts,
+		struct hostent *hostent )
 {
 	SelectFd *fd = static_cast<SelectFd*>(arg);
-	fd->thread->_lookupCallbackHost( fd, status, timeouts, hostent );
-}
-
-
-void Thread::asyncLookupHost( SelectFd *selectFd, const char *host )
-{
-	if ( selectFd->remoteHost == 0 )
-		selectFd->remoteHost = strdup(host);
-	ares_gethostbyname( ac, host, AF_INET, ::lookupCallbackHost, selectFd );
+	fd->thread->lookupCallbackHost( fd, status, timeouts, hostent );
 }
 
 void Thread::asyncLookupQuery( SelectFd *selectFd, const char *host )
@@ -579,8 +575,15 @@ void Thread::asyncLookupQuery( SelectFd *selectFd, const char *host )
 	ares_query( ac, host, ns_c_in, ns_t_a, ::lookupCallbackQuery, selectFd );
 }
 
+void Thread::asyncLookupHost( SelectFd *selectFd, const char *host )
+{
+	if ( selectFd->remoteHost == 0 )
+		selectFd->remoteHost = strdup(host);
+	ares_gethostbyname( ac, host, AF_INET, ::lookupCallbackHost, selectFd );
+}
 
-void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
+void Thread::lookupCallbackQuery( SelectFd *fd, int status, int timeouts,
+		unsigned char *abuf, int alen )
 {
 	Connection *c = static_cast<Connection*>(fd->local);
 
@@ -619,22 +622,8 @@ void Thread::connectLookupComplete( SelectFd *fd, int status, int timeouts, unsi
 	}
 }
 
-void Thread::_lookupCallbackQuery( SelectFd *fd, int status, int timeouts, unsigned char *abuf, int alen )
-{
-	switch ( fd->type ) {
-		case SelectFd::User:
-			lookupCallbackQuery( fd, status, timeouts, abuf, alen );
-			break;
-		case SelectFd::Connection:
-			connectLookupComplete( fd, status, timeouts, abuf, alen );
-			break;
-		case SelectFd::Listen:
-			break;
-	}
-}
-
-
-void Thread::_lookupCallbackHost( SelectFd *fd, int status, int timeouts, struct hostent *hostent )
+void Thread::lookupCallbackHost( SelectFd *fd, int status, int timeouts,
+		struct hostent *hostent )
 {
 	Connection *c = static_cast<Connection*>(fd->local);
 

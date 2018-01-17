@@ -209,27 +209,6 @@ void Thread::startTlsServer( SSL_CTX *defaultCtx, SelectFd *selectFd )
 	selectFdList.append( selectFd );
 }
 
-void Thread::_tlsConnectResult( SelectFd *fd, int sslError )
-{
-	switch ( fd->type ) {
-		case SelectFd::User:
-			tlsConnectResult( fd, sslError );
-			break;
-		case SelectFd::Connection:
-			if ( sslError == SSL_ERROR_NONE ) {
-				fd->state = SelectFd::TlsEstablished;
-				fd->tlsEstablished = true;
-				fd->tlsWantRead = true;
-
-				Connection *c = static_cast<Connection*>(fd->local);
-				c->connectComplete();
-			}
-			break;
-		case SelectFd::Listen:
-			break;
-	}
-}
-
 /* Test name against pattern, allowing for a *. wildcard at the head of the
  * pattern, matching any subdomain. */
 int Thread::checkName( const char *name, ASN1_STRING *pattern )
@@ -322,7 +301,7 @@ bool Thread::hostMatch( SelectFd *selectFd, const char *name )
 	return result;
 }
 
-void Thread::tlsConnect( SelectFd *fd )
+void Thread::connTlsConnectReady( SelectFd *fd )
 {
 	int result = SSL_connect( fd->ssl );
 	if ( result <= 0 ) {
@@ -332,7 +311,6 @@ void Thread::tlsConnect( SelectFd *fd )
 		bool retry = prepNextRound( fd, result );
 		if ( !retry ) {
 			/* Not a retry failure. */
-			_tlsConnectResult( fd, result );
 			log_ERROR( "SSL_connect failure" );
 		}
 	}
@@ -369,7 +347,12 @@ void Thread::tlsConnect( SelectFd *fd )
 				/* Just wrapped the bio, update in select fd. */
 				fd->bio = bio;
 
-				_tlsConnectResult( fd, SSL_ERROR_NONE );
+				fd->state = SelectFd::TlsEstablished;
+				fd->tlsEstablished = true;
+				fd->tlsWantRead = true;
+
+				Connection *c = static_cast<Connection*>(fd->local);
+				c->connectComplete();
 			}
 		}
 	}
@@ -491,7 +474,7 @@ bool Thread::prepNextRound( SelectFd *fd, int result )
 	return fd->wantRead || fd->wantWrite;
 }
 
-void Thread::tlsAccept( SelectFd *fd )
+void Thread::connTlsAcceptReady( SelectFd *fd )
 {
 	Connection *c = static_cast<Connection*>(fd->local);
 
@@ -507,7 +490,6 @@ void Thread::tlsAccept( SelectFd *fd )
 		bool retry = prepNextRound( fd, result );
 		if ( !retry ) {
 			/* Notify of connection error. */
-			//tlsAcceptResult( fd, result );
 			c->failure( Connection::SslAcceptError );
 		}
 	}
@@ -526,11 +508,9 @@ void Thread::tlsAccept( SelectFd *fd )
 
 		/* Go into established state and start reading. Will buffer until other
 		 * half is ready. */
-		fd->type = SelectFd::Connection;
 		fd->state = SelectFd::TlsEstablished;
 		fd->tlsEstablished = true;
 
-		// tlsAcceptResult( fd, SSL_ERROR_NONE );
 		c->notifyAccept();
 	}
 }
@@ -540,63 +520,89 @@ void Thread::asyncConnect( SelectFd *fd, Connection *conn )
 	log_debug( DBG_CONNECTION, "async connect completed" );
 	if ( conn->tlsConnect ) {
 		startTlsClient( conn->sslCtx, fd, fd->remoteHost );
-		fd->type = SelectFd::Connection;
 		fd->state = SelectFd::TlsConnect;
 	}
 	else {
-		fd->type = SelectFd::Connection;
 		fd->state = SelectFd::Established;
 		fd->wantRead = true;
 		conn->connectComplete();
 	}
 }
 
-void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
+void Thread::listenReady( SelectFd *fd, uint8_t readyMask )
+{
+	sockaddr_in peer;
+	socklen_t len = sizeof(sockaddr_in);
+
+	int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
+	if ( result >= 0 ) {
+		Listener *l = static_cast<Listener*>(fd->local);
+
+		bool nb = makeNonBlocking( result );
+		if ( !nb )
+			log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
+
+		Connection *pc = l->connectionFactory( result );
+		SelectFd *selectFd = new SelectFd( this, result, 0 );
+		selectFd->local = static_cast<Connection*>(pc);
+		pc->selectFd = selectFd;
+
+		if ( l->tlsAccept ) {
+			pc->tlsConnect = true;
+			pc->sslCtx = l->sslCtx;
+			pc->checkHost = l->checkHost;
+			startTlsServer( pc->sslCtx, selectFd );
+			selectFd->type = SelectFd::Connection;
+			selectFd->state = SelectFd::TlsAccept;
+		}
+		else {
+			pc->tlsConnect = false;
+			selectFd->type = SelectFd::Connection;
+			selectFd->state = SelectFd::Established;
+			selectFd->wantRead = true;
+			selectFdList.append( selectFd );
+			pc->notifyAccept();
+		}
+	}
+	else {
+		if ( errno != EAGAIN && errno != EWOULDBLOCK )
+			log_ERROR( "failed to accept connection: " << strerror(errno) );
+	}
+}
+
+void Thread::connConnectReady( SelectFd *fd, uint8_t readyMask )
+{
+	Connection *c = static_cast<Connection*>(fd->local);
+
+	if ( readyMask & WRITE_READY ) {
+		/* Turn off want write. We must do this before any notification
+		 * below, which may want to turn it on. */
+		fd->wantWrite = false;
+
+		int option;
+		socklen_t optlen = sizeof(int);
+		getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
+		if ( option == 0 ) {
+			asyncConnect( fd, c );
+		}
+		else {
+			log_ERROR( "failed async connect: " << strerror(option) );
+			c->failure( Connection::AsyncConnectFailed );
+			c->close();
+		}
+	}
+}
+
+void Thread::selectFdReady( SelectFd *fd, uint8_t readyMask )
 {
 	switch ( fd->type ) {
 		case SelectFd::User: {
-			selectFdReady( fd, readyMask );
+			userFdReady( fd, readyMask );
 			break;
 		}
 
 		case SelectFd::Listen: {
-			sockaddr_in peer;
-			socklen_t len = sizeof(sockaddr_in);
-
-			int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-			if ( result >= 0 ) {
-				Listener *l = static_cast<Listener*>(fd->local);
-
-				bool nb = makeNonBlocking( result );
-				if ( !nb )
-					log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
-
-				Connection *pc = l->connectionFactory( result );
-				SelectFd *selectFd = new SelectFd( this, result, 0 );
-				selectFd->local = static_cast<Connection*>(pc);
-				pc->selectFd = selectFd;
-
-				if ( l->tlsAccept ) {
-					pc->tlsConnect = true;
-					pc->sslCtx = l->sslCtx;
-					pc->checkHost = l->checkHost;
-					startTlsServer( pc->sslCtx, selectFd );
-					selectFd->type = SelectFd::Connection;
-					selectFd->state = SelectFd::TlsAccept;
-				}
-				else {
-					pc->tlsConnect = false;
-					selectFd->type = SelectFd::Connection;
-					selectFd->state = SelectFd::Established;
-					selectFd->wantRead = true;
-					selectFdList.append( selectFd );
-					pc->notifyAccept();
-				}
-			}
-			else {
-				if ( errno != EAGAIN && errno != EWOULDBLOCK )
-					log_ERROR( "failed to accept connection: " << strerror(errno) );
-			}
+			listenReady( fd, readyMask );
 			break;
 		}
 		case SelectFd::Connection: {
@@ -604,36 +610,16 @@ void Thread::_selectFdReady( SelectFd *fd, uint8_t readyMask )
 				case SelectFd::Lookup:
 					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
 					break;
-				case SelectFd::Connect: {
-					Connection *c = static_cast<Connection*>(fd->local);
-
-					if ( readyMask & WRITE_READY ) {
-						/* Turn off want write. We must do this before any notification
-						 * below, which may want to turn it on. */
-						fd->wantWrite = false;
-
-						int option;
-						socklen_t optlen = sizeof(int);
-						getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
-						if ( option == 0 ) {
-							asyncConnect( fd, c );
-						}
-						else {
-							log_ERROR( "failed async connect: " << strerror(option) );
-							c->failure( Connection::AsyncConnectFailed );
-							c->close();
-						}
-					}
-
+				case SelectFd::Connect:
+					connConnectReady( fd, readyMask );
 					break;
-				}
 
 				case SelectFd::TlsAccept:
-					tlsAccept( fd );
+					connTlsAcceptReady( fd );
 					break;
 
 				case SelectFd::TlsConnect:
-					tlsConnect( fd );
+					connTlsConnectReady( fd );
 					break;
 
 				case SelectFd::TlsEstablished: {
