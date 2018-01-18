@@ -48,7 +48,8 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 
 	if ( writer->usingItWriter() ) {
 		/* Open up a passthrough message and stash it in writer. */
-		writer->pp = PacketPassthru::open( writer->itw );
+		writer->pp = (PacketPassthru*)itqOpen( writer->itw,
+				PacketPassthru::ID, sizeof(PacketPassthru) );
 	}
 
 	/* Place the header. */

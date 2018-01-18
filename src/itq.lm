@@ -16,7 +16,10 @@ void generateItqHeader( P: program )
 		~struct ItQueue;
 		~
 		~#include "itq.h"
+		~#include <stdlib.h>
 		~
+		~void *itqOpen( ItWriter *writer, int ID, size_t SZ );
+		~void *itqRead( ItQueue *queue, ItHeader *header, size_t SZ );
 
 	# ID 1 is reserved f
 	ID: int = 2
@@ -48,8 +51,13 @@ void generateItqHeader( P: program )
 		}
 
 		send Output
-			"	static [Message->Id] *open( ItWriter *writer );
-			"	static [Message->Id] *read( ItQueue *queue, ItHeader *header );
+			"	static [Message->Id] *open( ItWriter *writer )
+			"		{ return ([Message->Id]*)itqOpen( writer, [Message->Id]::ID, sizeof([Message->Id]) ); }
+			"
+			"	static [Message->Id] *read( ItQueue *queue, ItHeader *header )
+			"		{ return ([Message->Id]*)itqRead( queue, header, sizeof([Message->Id]) ); }
+			"
+			"
 			"	static const unsigned short ID = [ID];
 			"};
 			"
@@ -72,59 +80,6 @@ void generateItqHeader( P: program )
 	writeOutput( Output->tree, 'itq_gen.h' )
 }
 
-void generateItqReadWrite( P: program, Id: id )
-{
-	send Output
-		"[Id] *[Id]::read( ItQueue *queue, ItHeader *header )
-		"{
-		"	ItWriter *writer = queue->writerVect\[header->writerId\];
-		"	ItBlock *hblk = writer->hblk;
-		"	int offset = writer->hoff;
-		"
-		"	if ( offset + sizeof(ItHeader) > hblk->size ) {
-		"		hblk = hblk->next;
-		"		offset = 0;
-		"	}
-		"	offset += sizeof( ItHeader );
-		"
-		"	if ( offset + sizeof([Id]) > hblk->size ) {
-		"		hblk = hblk->next;
-		"		offset = 0;
-		"	}
-		"	[Id] *msg = ([Id]*)(hblk->data + offset);
-		"	offset += sizeof( [Id] );
-		"
-		"	return msg;
-		"}
-		"
-
-	send Output
-		"[Id] *[Id]::open( ItWriter *writer )
-		"{
-		"	writer->mlen = 0;
-		"
-		"	/* Place the header. */
-		"	ItHeader *header = (ItHeader*) writer->queue->allocBytes(
-		"			writer, sizeof(ItHeader) );
-		"	
-		"	header->msgId = [Id]::ID;
-		"	header->writerId = writer->id;
-		"
-		"	/* Length will get recorded on message send, after fields are populated. */
-		"	header->length = 0; 
-		"
-		"	/* Place the struct. */
-		"	[Id] *msg = ([Id]*) writer->queue->allocBytes(
-		"			writer, sizeof([Id]) );
-		"
-		"	writer->toSend = header;
-		"	writer->contents = msg;
-		"
-		"	return msg;
-		"}
-		"
-}
-
 void generateItqCode( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -137,8 +92,6 @@ void generateItqCode( P: program )
 		~#include "itq_gen.h"
 		~#include <genf/thread.h>
 		~
-
-	generateItqReadWrite( P, cons id "PacketPassthru" )
 
 	for MD: message_def in P {
 		for FD: msg_field_def in MD {
@@ -156,7 +109,6 @@ void generateItqCode( P: program )
 			}
 
 		}
-		generateItqReadWrite( P, MD.id )
 	}
 
 	send Output [] eos

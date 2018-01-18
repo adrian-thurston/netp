@@ -10,6 +10,7 @@ libgenf_la_SOURCES = \
 	thread.cc \
 	signal.cc \
 	background.cc \
+	itq.cc \
 	tls.cc \
 	connection.cc \
 	packet.cc

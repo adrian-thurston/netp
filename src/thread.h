@@ -62,6 +62,9 @@ struct ItHeader
 	ItHeader *next;
 };
 
+void *itqOpen( ItWriter *writer, int ID, size_t SZ );
+void *itqRead( ItQueue *queue, ItHeader *header, size_t SZ );
+
 struct ItBlock
 {
 	char *data;
@@ -146,8 +149,12 @@ struct ItQueue
 
 struct PacketPassthru
 {
-	static PacketPassthru *open( ItWriter *writer );
-	static PacketPassthru *read( ItQueue *queue, ItHeader *header );
+	static PacketPassthru *open( ItWriter *writer )
+		{ return (PacketPassthru*)itqOpen( writer, PacketPassthru::ID, sizeof(PacketPassthru) ); }
+
+	static PacketPassthru *read( ItQueue *queue, ItHeader *header )
+		{ return (PacketPassthru*)itqRead( queue, header, sizeof(PacketPassthru) ); }
+
 	void *rope;
 	static const unsigned short ID = 1;
 };
