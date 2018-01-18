@@ -16,8 +16,11 @@ struct BpConnection
 :
 	public PacketConnection
 {
-	BpConnection( Thread *thread, SelectFd *selectFd )
-		: PacketConnection( thread, selectFd ) {}
+	BpConnection( ListenThread *listenThread, SelectFd *selectFd )
+	:
+		PacketConnection( listenThread ),
+		listenThread(listenThread)
+	{}
 
 	void notifyAccept()
 	{
@@ -38,17 +41,27 @@ struct BpConnection
 			msg->l3 = ::l3;
 			BigPacket::send( &writer );
 		}
+
+		listenThread->bpConnection = this;
 	}
+
+	ListenThread *listenThread;
 };
 
 struct BpListener
 :
 	public PacketListener
 {
-	BpListener( Thread *thread ) : PacketListener( thread ) {}
+	BpListener( ListenThread *listenThread )
+	:
+		PacketListener( listenThread ),
+		listenThread(listenThread)
+	{}
 
 	virtual BpConnection *connectionFactory( int fd )
-		{ return new BpConnection( thread, 0 ); }
+		{ return new BpConnection( listenThread, 0 ); }
+
+	ListenThread *listenThread;
 };
 
 
@@ -59,7 +72,19 @@ void ListenThread::recvShutdown( Shutdown *msg )
 
 void ListenThread::handleTimer()
 {
-	log_message( "tick" );
+}
+
+void ListenThread::recvPassthru( PacketPassthru *msg )
+{
+	if ( bpConnection == 0 ) {
+		log_message( "received passthrough, but no BpConnection" );
+	}
+	else {
+		log_message( "received passthrough, forwarding" );
+		PacketWriter writer( bpConnection );
+		Rope *rope = (Rope*) msg->rope;
+		GenF::Packet::send( &writer, *rope, true );
+	}
 }
 
 int ListenThread::main()

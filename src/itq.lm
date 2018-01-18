@@ -18,7 +18,8 @@ void generateItqHeader( P: program )
 		~#include "itq.h"
 		~
 
-	ID: int = 1
+	# ID 1 is reserved f
+	ID: int = 2
 
 	for Message: message in MessageMap {
 		send Output
@@ -71,6 +72,59 @@ void generateItqHeader( P: program )
 	writeOutput( Output->tree, 'itq_gen.h' )
 }
 
+void generateItqReadWrite( P: program, Id: id )
+{
+	send Output
+		"[Id] *[Id]::read( ItQueue *queue, ItHeader *header )
+		"{
+		"	ItWriter *writer = queue->writerVect\[header->writerId\];
+		"	ItBlock *hblk = writer->hblk;
+		"	int offset = writer->hoff;
+		"
+		"	if ( offset + sizeof(ItHeader) > hblk->size ) {
+		"		hblk = hblk->next;
+		"		offset = 0;
+		"	}
+		"	offset += sizeof( ItHeader );
+		"
+		"	if ( offset + sizeof([Id]) > hblk->size ) {
+		"		hblk = hblk->next;
+		"		offset = 0;
+		"	}
+		"	[Id] *msg = ([Id]*)(hblk->data + offset);
+		"	offset += sizeof( [Id] );
+		"
+		"	return msg;
+		"}
+		"
+
+	send Output
+		"[Id] *[Id]::open( ItWriter *writer )
+		"{
+		"	writer->mlen = 0;
+		"
+		"	/* Place the header. */
+		"	ItHeader *header = (ItHeader*) writer->queue->allocBytes(
+		"			writer, sizeof(ItHeader) );
+		"	
+		"	header->msgId = [Id]::ID;
+		"	header->writerId = writer->id;
+		"
+		"	/* Length will get recorded on message send, after fields are populated. */
+		"	header->length = 0; 
+		"
+		"	/* Place the struct. */
+		"	[Id] *msg = ([Id]*) writer->queue->allocBytes(
+		"			writer, sizeof([Id]) );
+		"
+		"	writer->toSend = header;
+		"	writer->contents = msg;
+		"
+		"	return msg;
+		"}
+		"
+}
+
 void generateItqCode( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -83,6 +137,8 @@ void generateItqCode( P: program )
 		~#include "itq_gen.h"
 		~#include <genf/thread.h>
 		~
+
+	generateItqReadWrite( P, cons id "PacketPassthru" )
 
 	for MD: message_def in P {
 		for FD: msg_field_def in MD {
@@ -98,57 +154,9 @@ void generateItqCode( P: program )
 					"}
 					"
 			}
+
 		}
-
-		send Output
-			"[MD.id] *[MD.id]::open( ItWriter *writer )
-			"{
-			"	writer->mlen = 0;
-			"
-			"	/* Place the header. */
-			"	ItHeader *header = (ItHeader*) writer->queue->allocBytes(
-			"			writer, sizeof(ItHeader) );
-			"	
-			"	header->msgId = [MD.id]::ID;
-			"	header->writerId = writer->id;
-			"
-			"	/* Length will get recorded on message send, after fields are populated. */
-			"	header->length = 0; 
-			"
-			"	/* Place the struct. */
-			"	[MD.id] *msg = ([MD.id]*) writer->queue->allocBytes(
-			"			writer, sizeof([MD.id]) );
-			"
-			"	writer->toSend = header;
-			"	writer->contents = msg;
-			"
-			"	return msg;
-			"}
-			"
-
-		send Output
-			"[MD.id] *[MD.id]::read( ItQueue *queue, ItHeader *header )
-			"{
-			"	ItWriter *writer = queue->writerVect\[header->writerId\];
-			"	ItBlock *hblk = writer->hblk;
-			"	int offset = writer->hoff;
-			"
-			"	if ( offset + sizeof(ItHeader) > hblk->size ) {
-			"		hblk = hblk->next;
-			"		offset = 0;
-			"	}
-			"	offset += sizeof( ItHeader );
-			"
-			"	if ( offset + sizeof([MD.id]) > hblk->size ) {
-			"		hblk = hblk->next;
-			"		offset = 0;
-			"	}
-			"	[MD.id] *msg = ([MD.id]*)(hblk->data + offset);
-			"	offset += sizeof( [MD.id] );
-			"
-			"	return msg;
-			"}
-			"
+		generateItqReadWrite( P, MD.id )
 	}
 
 	send Output [] eos

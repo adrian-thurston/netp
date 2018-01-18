@@ -46,6 +46,11 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 {
 	writer->reset();
 
+	if ( writer->usingItWriter() ) {
+		/* Open up a passthrough message and stash it in writer. */
+		writer->pp = PacketPassthru::open( writer->itw );
+	}
+
 	/* Place the header. */
 	long offset = 0;
 	PacketHeader *header = (PacketHeader*)writer->allocBytes( sizeof(PacketHeader), offset );
@@ -66,7 +71,6 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
 
 	return msg;
 }
-
 
 /*
  * List of blocks of form ( next-len, content ), where next-len refers to the
@@ -100,9 +104,19 @@ void GenF::Packet::send( PacketWriter *writer )
 	log_debug( DBG_PACKET, "block list len: " << blocks );
 
 	/* Ready to go, ship out. */
-	send( writer, writer->buf, false );
+	if ( writer->usingItWriter() ) {
+		/* Transfer the packet data to the Itc message. */
+		Rope *r = new Rope;
+		r->transfer( writer->buf );
+		writer->pp->rope = r;
 
-	writer->buf.empty();
+		/* Send, without using a signal. */
+		writer->itw->queue->send( writer->itw, false );
+	}
+	else {
+		send( writer, writer->buf, false );
+		writer->buf.empty();
+	}
 }
 
 /*
@@ -285,7 +299,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			}
 
 			/* Completed read of header. */
-			log_debug( DBG_PACKET, "packet: have first block headers" );
+			log_debug( DBG_PACKET, "packet: have first block headers: " << len );
 
 			/* Pull the size of the first block length from the header read so far. */
 			recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));

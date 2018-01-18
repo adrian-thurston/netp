@@ -1,5 +1,14 @@
 void sendsToDecls( Thread: thread )
 {
+	send Output
+		"struct SendsPassthru
+		"{
+		"	ItWriter *writer;
+		"};
+		"
+		"SendsPassthru *registerSendsPassthru( Thread *recv );
+		"
+
 	for Sends: sends in Thread->SendsMap {
 		send Output
 			"struct SendsTo[Sends->Receiver->Id]
@@ -31,6 +40,15 @@ void recvDecls( Thread: thread )
 
 void sendsToCode( Thread: thread )
 {
+	send Output
+		"[Thread->Id]Thread::SendsPassthru *[Thread->Id]Gen::"
+				"registerSendsPassthru( Thread *recv )
+		"{
+		"	SendsPassthru *sendsTo = new SendsPassthru( );
+		"	sendsTo->writer = recv->control.registerWriter( this, recv );
+		"	return sendsTo;
+		"}
+
 	for Sends: sends in Thread->SendsMap {
 		send Output
 			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
@@ -186,6 +204,11 @@ void threadRecveives( Thread: thread )
 		"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
 		"{
 		"	switch ( header->msgId ) {
+		"		case PacketPassthru::ID: {
+		"			PacketPassthru *msg = PacketPassthru::read( queue, header );
+		"			recvPassthru( msg );
+		"			break;
+		"		}
 
 	for Message: message in Thread->RecvsList {
 		send Output

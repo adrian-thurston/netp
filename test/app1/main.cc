@@ -9,6 +9,13 @@
 extern const char data1[];
 extern const char data2[];
 
+void MainThread::recvSmallPacket( SelectFd *fd, SmallPacket *pkt )
+{
+	log_message( "l1 check   ... " << ( ( pkt->l1 != ::l1 ) == 0 ? "OK" : "FAILED" ) );
+	log_message( "l2 check   ... " << ( ( pkt->l2 != ::l2 ) == 0 ? "OK" : "FAILED" ) );
+	log_message( "l3 check   ... " << ( ( pkt->l3 != ::l3 ) == 0 ? "OK" : "FAILED" ) );
+}
+
 void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 {
 	static int bign = 1;
@@ -29,14 +36,15 @@ void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
 struct DelayedRead
 	: public PacketConnection
 {
-	DelayedRead( Thread *thread, SelectFd *selectFd )
-		: PacketConnection( thread, selectFd ) {}
+	DelayedRead( Thread *thread )
+		: PacketConnection( thread ) {}
 
 	virtual void connectComplete()
 	{
 		log_message( "connection completed" );
-		/* Disable the read for now. */
-		selectFd->wantRead = false;
+
+		// /* Disable the read for now. */
+		// selectFd->wantReadSet( false );
 	}
 };
 
@@ -45,18 +53,25 @@ void MainThread::handleTimer()
 	static int tick = 0;
 	static DelayedRead *pc;
 
-	log_message( "tick" );
-
-	if ( tick == 0 ) {
+	if ( tick == 2 ) {
+		log_message( "connecting to broker" );
 
 		/* Connection to broker. */
-		pc = new DelayedRead( this, 0 );
+		pc = new DelayedRead( this );
 		pc->initiate( "localhost", 44726, true, sslCtx, false );
 	}
 
-	if ( tick == 4 ) {
-		pc->selectFd->wantRead = true;
+	if ( tick == 6 ) {
+		// log_message( "triggering read" );
+		// pc->selectFd->wantReadSet( true );
 	}
+
+	PacketWriter back( sendsPassthruToListen->writer );
+	SmallPacket *sp = SmallPacket::open( &back );
+	sp->l1 = ::l1;
+	sp->l2 = ::l2;
+	sp->l3 = ::l3;
+	SmallPacket::send( &back );
 
 	tick += 1;
 }
@@ -74,6 +89,7 @@ int MainThread::main()
 
 	SendsToUser *sendsToUser = registerSendsToUser( bare );
 	SendsToListen *sendsToListen = registerSendsToListen( listen );
+	sendsPassthruToListen = registerSendsPassthru( listen );
 
 	sendsToUser->openHello();
 	sendsToUser->send();

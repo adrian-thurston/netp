@@ -10,6 +10,10 @@ namespace GenF {
 	struct Packet
 	{
 		static void *open( PacketWriter *writer, int ID, int SZ );
+
+		/* Send a received passthrough out on a connection. */
+		static void send( PacketWriter *writer, ItQueue *queue );
+
 		static void send( PacketWriter *writer );
 		static void send( PacketWriter *writer, Rope &blocks, bool canConsume );
 	};

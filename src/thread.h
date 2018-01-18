@@ -52,6 +52,7 @@
 struct ItWriter;
 struct ItQueue;
 struct Thread;
+struct PacketWriter;
 
 struct ItHeader
 {
@@ -141,6 +142,14 @@ struct ItQueue
 	/* A vector for finding writers. This lets us identify the writer in the
 	 * message header with only a byte. */
 	ItWriterVect writerVect;
+};
+
+struct PacketPassthru
+{
+	static PacketPassthru *open( ItWriter *writer );
+	static PacketPassthru *read( ItQueue *queue, ItHeader *header );
+	void *rope;
+	static const unsigned short ID = 1;
 };
 
 struct PacketHeader
@@ -373,13 +382,26 @@ struct PacketWriter
 {
 	PacketWriter( PacketConnection *pc )
 	:
-		pc(pc)
+		pc(pc),
+		itw(0)
 	{}
 
+	PacketWriter( ItWriter *itWriter )
+	:
+		pc(0),
+		itw(itWriter)
+	{}
+
+	/* One of two places we can send packets. */
 	PacketConnection *pc;
+	ItWriter *itw;
+
 	PacketHeader *toSend;
 	void *content;
 	Rope buf;
+	PacketPassthru *pp;
+
+	bool usingItWriter() { return itw != 0; }
 
 	char *allocBytes( int nb, long &offset );
 
@@ -387,7 +409,7 @@ struct PacketWriter
 		{ return buf.length(); }
 
 	void reset()
-		{ buf.empty(); }
+		{ buf.empty(); pp = 0;}
 };
 
 struct Thread
@@ -554,6 +576,8 @@ public:
 	bool prepNextRound( SelectFd *fd, int result );
 
 	char *pktFind( Rope *rope, long l );
+
+	virtual void recvPassthru( PacketPassthru *msg ) {}
 };
 
 struct MainBase

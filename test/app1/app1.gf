@@ -26,6 +26,12 @@ packet BigPacket
 	long   l3;
 };
 
+packet SmallPacket
+{
+	long l1;
+	long l2;
+	long l3;
+};
 
 Main starts User;
 Main starts Listen;
@@ -36,5 +42,7 @@ Main sends Shutdown to User;
 Main sends Shutdown to Listen;
 
 Listen sends BigPacket;
+Listen sends SmallPacket;
 Main receives BigPacket;
+Main receives SmallPacket;
 
