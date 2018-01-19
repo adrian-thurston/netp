@@ -75,11 +75,11 @@ static void kdata_destruct( struct kring_sock *krs )
 
 	switch ( krs->mode ) {
 		case KRING_WRITE: {
+			krs->ringset->ring[krs->ring_id].writer[krs->writer_id].allocated = false;
 			krs->ringset->ring[krs->ring_id].num_writers -= 1;
 			break;
 		}
 		case KRING_READ: {
-
 			/* One ring or all? */
 			if ( krs->ring_id != KDATA_RING_ID_ALL ) {
 				struct kdata_control *control = KDATA_CONTROL(krs->ringset->ring[krs->ring_id]);
