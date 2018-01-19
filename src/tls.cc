@@ -101,6 +101,8 @@ SSL_CTX *Thread::sslCtxClient( const char *verify, const char *key, const char *
 
 	log_debug( DBG_TLS, "client verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
+	SSL_CTX_set_mode( ctx, SSL_MODE_ENABLE_PARTIAL_WRITE );
+
 	return ctx;
 }
 
@@ -141,6 +143,8 @@ SSL_CTX *Thread::sslCtxServer( const char *key, const char *cert, const char *ve
 
 	log_debug( DBG_TLS, "server verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
+	SSL_CTX_set_mode( ctx, SSL_MODE_ENABLE_PARTIAL_WRITE );
+
 	return ctx;
 }
 
@@ -158,6 +162,8 @@ SSL_CTX *Thread::sslCtxServer( EVP_PKEY *pkey, X509 *x509 )
 	result = SSL_CTX_use_certificate( ctx, x509 );
 	if ( result != 1 )
 		log_FATAL( "failed to load TLS certificate" );
+
+	SSL_CTX_set_mode( ctx, SSL_MODE_ENABLE_PARTIAL_WRITE );
 
 	return ctx;
 }
