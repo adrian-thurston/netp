@@ -11,9 +11,15 @@ extern const char data2[];
 
 void MainThread::recvSmallPacket( SelectFd *fd, SmallPacket *pkt )
 {
+	static int sign = 1;
+
+	log_message( "received SmallPacket: " << sign );
+
 	log_message( "l1 check   ... " << ( ( pkt->l1 != ::l1 ) == 0 ? "OK" : "FAILED" ) );
 	log_message( "l2 check   ... " << ( ( pkt->l2 != ::l2 ) == 0 ? "OK" : "FAILED" ) );
 	log_message( "l3 check   ... " << ( ( pkt->l3 != ::l3 ) == 0 ? "OK" : "FAILED" ) );
+
+	sign += 1;
 }
 
 void MainThread::recvBigPacket( SelectFd *fd, BigPacket *pkt )
@@ -43,8 +49,8 @@ struct DelayedRead
 	{
 		log_message( "connection completed" );
 
-		// /* Disable the read for now. */
-		// selectFd->wantReadSet( false );
+		/* Disable the read for now. */
+		selectFd->wantReadSet( false );
 	}
 };
 
@@ -62,8 +68,8 @@ void MainThread::handleTimer()
 	}
 
 	if ( tick == 6 ) {
-		// log_message( "triggering read" );
-		// pc->selectFd->wantReadSet( true );
+		log_message( "triggering read" );
+		pc->selectFd->wantReadSet( true );
 	}
 
 	PacketWriter back( sendsPassthruToListen->writer );
