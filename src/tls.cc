@@ -346,13 +346,6 @@ void Thread::connTlsConnectReady( SelectFd *fd )
 				/* Would like to require or implement this. Not available on 14.04. */
 				/* #error no X509_check_host */
 
-				/* Create a BIO for the ssl wrapper. */
-				BIO *bio = BIO_new( BIO_f_ssl() );
-				BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
-
-				/* Just wrapped the bio, update in select fd. */
-				fd->bio = bio;
-
 				fd->state = SelectFd::TlsEstablished;
 				fd->tlsEstablished = true;
 				fd->tlsWantRead = true;
@@ -368,20 +361,20 @@ int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 {
 	fd->tlsReadWantsWrite = false;
 
-	int nbytes = BIO_read( fd->bio, buf, len );
+	int nbytes = SSL_read( fd->ssl, buf, len );
 
 	if ( nbytes > 0 ) {
 		/* FIXME: should this be controlled by a debug build option */
 		VALGRIND_MAKE_MEM_DEFINED( buf, nbytes );
 	}
 	else {
-		if ( BIO_should_retry( fd->bio ) ) {
-			/* Read failure is retry-related. */
-			fd->tlsReadWantsWrite = BIO_should_write(fd->bio);
-
-			/* Indicate wrote nothing for legit reason. */
+		int err = SSL_get_error( fd->ssl, nbytes );
+		if ( err == SSL_ERROR_WANT_WRITE ) {
+			fd->tlsReadWantsWrite = true;
 			nbytes = 0;
 		}
+		else if ( err == SSL_ERROR_WANT_READ )
+			nbytes = 0;
 		else {
 			/* Indicate error. */
 			nbytes = -1;
@@ -393,27 +386,30 @@ int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 
 int Thread::tlsWrite( SelectFd *fd, char *data, int length )
 {
+	if ( length <= 0 )
+		return 0;
+
 	fd->tlsWriteWantsRead = false;
 
-	int written = BIO_write( fd->bio, data, length );
+	int nbytes = SSL_write( fd->ssl, data, length );
 
-	if ( written <= 0 ) {
+	if ( nbytes <= 0 ) {
 		/* If the BIO is saying it we should retry later, go back into select.
 		 * */
-		if ( BIO_should_retry( fd->bio ) ) {
-			/* Write failure is retry-related. */
-			fd->tlsWriteWantsRead = BIO_should_read(fd->bio);
-
-			/* Indicate we wrote nothing for a legit reason. */
-			written = 0;
+		int err = SSL_get_error( fd->ssl, nbytes );
+		if ( err == SSL_ERROR_WANT_WRITE )
+			nbytes = 0;
+		else if ( err == SSL_ERROR_WANT_READ ) {
+			fd->tlsWriteWantsRead = true;
+			nbytes = 0;
 		}
 		else {
 			/* Indicate error. */
-			written = -1;
+			nbytes = -1;
 		}
 	}
 
-	return written;
+	return nbytes;
 }
 
 void Thread::tlsError( RealmSet realm, int e )
@@ -504,11 +500,6 @@ void Thread::connTlsAcceptReady( SelectFd *fd )
 
 		log_debug( DBG_TLS, "SSL_accept: verify result: " <<
 				( verifyResult == X509_V_OK ? "OK" : "FAILED" ) );
-
-		/* Success. Stop the select loop. Create a BIO for the ssl wrapper. */
-		BIO *bio = BIO_new(BIO_f_ssl());
-		BIO_set_ssl( bio, fd->ssl, BIO_NOCLOSE );
-		fd->bio = bio;
 
 		//fd->wantRead = fd->wantWrite = false;
 
