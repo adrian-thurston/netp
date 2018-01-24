@@ -7,3 +7,5 @@
 /genf.mk
 /init.d
 /init.d.sh
+/bootstrap.sh
+/bootstrap

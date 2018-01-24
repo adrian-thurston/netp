@@ -32,14 +32,14 @@ struct BpConnection
 		PacketWriter writer( this );
 
 		for ( int i = 0; i < 100; i++ ) {
-			BigPacket *msg = BigPacket::open( &writer );
+			Packet::BigPacket *msg = Packet::BigPacket::open( &writer );
 			msg->set_big3( &writer, ::data3 );
 			msg->set_big2( &writer, ::data2 );
 			msg->set_big1( &writer, ::data1 );
 			msg->l1 = ::l1;
 			msg->l2 = ::l2;
 			msg->l3 = ::l3;
-			BigPacket::send( &writer );
+			Packet::BigPacket::send( &writer );
 		}
 
 		listenThread->bpConnection = this;
@@ -83,7 +83,7 @@ void ListenThread::recvPassthru( PacketPassthru *msg )
 		log_message( "received passthrough, forwarding" );
 		PacketWriter writer( bpConnection );
 		Rope *rope = (Rope*) msg->rope;
-		GenF::Packet::send( &writer, *rope, true );
+		PacketBase::send( &writer, *rope, true );
 	}
 }
 

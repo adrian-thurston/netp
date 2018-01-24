@@ -40,3 +40,5 @@ itq_gen.h: main_gen.cc
 itq_gen.cc: main_gen.cc
 packet_gen.h: main_gen.cc
 packet_gen.cc: main_gen.cc
+listen_gen.h: main_gen.cc
+listen_gen.cc: main_gen.cc

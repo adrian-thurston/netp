@@ -41,6 +41,8 @@ void generatePacketHeader( P: program )
 		~
 		~struct PacketWriter;
 		~
+		~namespace Record {
+		~
 
 	for Struct: _struct in StructMap {
 		send Output
@@ -73,7 +75,7 @@ void generatePacketHeader( P: program )
 	for Packet: packet in PacketMap {
 		send Output
 			"struct [Packet->Id]
-			"	: public GenF::Packet
+			"	: public PacketBase
 			"{
 
 		for FD: pkt_field_def in Packet->PacketDef {
@@ -111,8 +113,10 @@ void generatePacketHeader( P: program )
 	}
 
 	send Output
-		"const char *packetLowerName( unsigned short id );
-		"
+		~}
+		~
+		~const char *packetLowerName( unsigned short id );
+		~
 		~#endif
 		eos
 
@@ -126,7 +130,7 @@ void packetRecvDecls( Thread: thread )
 
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
-			"	virtual void recv[Packet->Id]( SelectFd *fd, [Packet->Id] *pkt ) = 0;
+			"	virtual void recv[Packet->Id]( SelectFd *fd, Record::[Packet->Id] *pkt ) = 0;
 	}
 }
 
@@ -139,8 +143,8 @@ void packetReceives( Thread: thread )
 
 	for Packet: packet in Thread->RecvsPktList {
 		send Output
-			"			case (int) [Packet->Id]::ID: {
-			"			[Packet->Id] *pkt = ([Packet->Id]*) pktFind( 
+			"			case (int) Record::[Packet->Id]::ID: {
+			"			Record::[Packet->Id] *pkt = (Record::[Packet->Id]*) pktFind( 
 			"					&recv.buf, sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
 
 
@@ -153,9 +157,9 @@ void packetReceives( Thread: thread )
 			case [L: list_type] {
 				TypeId: id = L.id
 				send Output
-					"			pkt->head_[FD.id] = ([TypeId]*)pktFind( &recv.buf,
+					"			pkt->head_[FD.id] = (Record::[TypeId]*)pktFind( &recv.buf,
 					"					(long)pkt->head_[FD.id] );
-					"			[TypeId] *el = pkt->head_[FD.id];
+					"			Record::[TypeId] *el = pkt->head_[FD.id];
 					"			while ( el != 0 ) {
 
 				Struct: _struct = findStruct( TypeId )
@@ -169,7 +173,7 @@ void packetReceives( Thread: thread )
 				}
 
 				send Output
-					"				el->next = ([TypeId]*)pktFind( &recv.buf,
+					"				el->next = (Record::[TypeId]*)pktFind( &recv.buf,
 					"						(long)el->next );
 					"				el = el->next;
 					"			}
@@ -211,7 +215,7 @@ void generatePacketCode( P: program )
 			switch FD.struct_field_type
 			case [`string] {
 				send Output
-					"void [Struct->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
+					"void Record::[Struct->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
 					"	long offset = 0;
@@ -229,7 +233,7 @@ void generatePacketCode( P: program )
 			switch FD.pkt_field_type
 			case [`string] {
 				send Output
-					"void [Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
+					"void Record::[Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
 					"	long offset = 0;
@@ -242,7 +246,7 @@ void generatePacketCode( P: program )
 			case [L: list_type] {
 				TypeId: id = L.id
 				send Output
-					"[TypeId] *[Packet->Id]::alloc_[FD.id]( PacketWriter *writer, [Packet->Id] *pkt )
+					"Record::[TypeId] *Record::[Packet->Id]::alloc_[FD.id]( PacketWriter *writer, [Packet->Id] *pkt )
 					"{
 					"	long offset = 0;
 					"	[TypeId] *el = ([TypeId]*)writer->allocBytes( sizeof([TypeId]), offset );
@@ -264,17 +268,17 @@ void generatePacketCode( P: program )
 		}
 
 		send Output
-			"[Packet->Id] *[Packet->Id]::open( PacketWriter *writer )
+			"Record::[Packet->Id] *Record::[Packet->Id]::open( PacketWriter *writer )
 			"{
-			"	return ([Packet->Id]*) GenF::Packet::open( writer,
+			"	return ([Packet->Id]*) PacketBase::open( writer,
 			"		[Packet->Id]::ID, sizeof([Packet->Id]) );
 			"}
 			"
 
 		Lower: str = packet_name::makeLower( Packet->Id )
 		send Output
-			"const char [Packet->Id]::name\[\] = \"[Packet->Id]\";
-			"const char [Packet->Id]::lower\[\] = \"[Lower]\";
+			"const char Record::[Packet->Id]::name\[\] = \"[Packet->Id]\";
+			"const char Record::[Packet->Id]::lower\[\] = \"[Lower]\";
 			"
 
 	}
@@ -286,7 +290,7 @@ void generatePacketCode( P: program )
 
 	for Packet: packet in PacketMap {
 		send Output
-		"		case [Packet->Id]::ID: return [Packet->Id]::lower;
+		"		case Record::[Packet->Id]::ID: return Record::[Packet->Id]::lower;
 	}
 
 	send Output

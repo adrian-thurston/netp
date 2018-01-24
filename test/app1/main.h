@@ -15,8 +15,8 @@ struct MainThread
 	: public MainGen
 {
 	void handleTimer();
-	void recvSmallPacket( SelectFd *fd, SmallPacket *pkt );
-	void recvBigPacket( SelectFd *fd, BigPacket *pkt );
+	void recvSmallPacket( SelectFd *fd, Packet::SmallPacket *pkt );
+	void recvBigPacket( SelectFd *fd, Packet::BigPacket *pkt );
 	int main();
 	SSL_CTX *sslCtx;
 	SendsPassthru *sendsPassthruToListen;

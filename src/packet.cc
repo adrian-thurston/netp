@@ -42,7 +42,7 @@ char *PacketWriter::allocBytes( int nb, long &offset )
 	}
 }
 
-void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
+void *PacketBase::open( PacketWriter *writer, int ID, int SZ )
 {
 	writer->reset();
 
@@ -79,7 +79,7 @@ void *GenF::Packet::open( PacketWriter *writer, int ID, int SZ )
  * packet header, which is at the head of the content. To read, take in the
  * first next-len and the packet header, then read the remainder of the first
  * block.  */
-void GenF::Packet::send( PacketWriter *writer )
+void PacketBase::send( PacketWriter *writer )
 {
 	RopeBlock *rb = writer->buf.hblk;
 
@@ -123,7 +123,7 @@ void GenF::Packet::send( PacketWriter *writer )
 /*
  * if in wantWrite mode then there 
  */
-void GenF::Packet::send( PacketWriter *writer, Rope &blocks, bool canConsume )
+void PacketBase::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 {
 	PacketConnection *pc = writer->pc;
 
