@@ -10,7 +10,7 @@ struct shuttle
 	struct kobject kobj;
 };
 
-#define LINK_IPS 32
+#define LINK_IPS 256
 
 /* Passtrhough link. */
 struct link
