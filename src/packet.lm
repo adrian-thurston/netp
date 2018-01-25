@@ -54,10 +54,12 @@ void generatePacketHeader( P: program )
 			case [`bool] {
 				send Output
 					"	bool [FD.id];
+					"	void set_[FD.id]( long _[FD.id] ) { [FD.id] = _[FD.id]; }
 			}
 			case [`long] {
 				send Output
 					"	long [FD.id];
+					"	void set_[FD.id]( long _[FD.id] ) { [FD.id] = _[FD.id]; }
 			}
 			case [`string] {
 				send Output
@@ -83,10 +85,12 @@ void generatePacketHeader( P: program )
 			case [`bool] {
 				send Output
 					"	bool [FD.id];
+					"	void set_[FD.id]( long _[FD.id] ) { [FD.id] = _[FD.id]; }
 			}
 			case [`long] {
 				send Output
 					"	long [FD.id];
+					"	void set_[FD.id]( long _[FD.id] ) { [FD.id] = _[FD.id]; }
 			}
 			case [`string] {
 				send Output

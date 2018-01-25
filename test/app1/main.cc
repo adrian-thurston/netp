@@ -9,7 +9,7 @@
 extern const char data1[];
 extern const char data2[];
 
-void MainThread::recvSmallPacket( SelectFd *fd, Packet::SmallPacket *pkt )
+void MainThread::recvSmallPacket( SelectFd *fd, Record::SmallPacket *pkt )
 {
 	static int sign = 1;
 
@@ -22,7 +22,7 @@ void MainThread::recvSmallPacket( SelectFd *fd, Packet::SmallPacket *pkt )
 	sign += 1;
 }
 
-void MainThread::recvBigPacket( SelectFd *fd, Packet::BigPacket *pkt )
+void MainThread::recvBigPacket( SelectFd *fd, Record::BigPacket *pkt )
 {
 	static int bign = 1;
 
@@ -73,11 +73,11 @@ void MainThread::handleTimer()
 	}
 
 	PacketWriter back( sendsPassthruToListen->writer );
-	Packet::SmallPacket *sp = Packet::SmallPacket::open( &back );
-	sp->l1 = ::l1;
-	sp->l2 = ::l2;
-	sp->l3 = ::l3;
-	Packet::SmallPacket::send( &back );
+	Record::SmallPacket *sp = Record::SmallPacket::open( &back );
+	sp->set_l1( ::l1 );
+	sp->set_l2( ::l2 );
+	sp->set_l3( ::l3 );
+	Record::SmallPacket::send( &back );
 
 	tick += 1;
 }
