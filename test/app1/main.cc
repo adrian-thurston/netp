@@ -19,6 +19,12 @@ void MainThread::recvSmallPacket( SelectFd *fd, Record::SmallPacket *pkt )
 	log_message( "l2 check   ... " << ( ( pkt->l2 != ::l2 ) == 0 ? "OK" : "FAILED" ) );
 	log_message( "l3 check   ... " << ( ( pkt->l3 != ::l3 ) == 0 ? "OK" : "FAILED" ) );
 
+	for ( Record::SmallRec sr( pkt->rope, pkt->head_sr ); sr.valid(); sr.advance() ) {
+
+		log_message( "sr check   ... " <<
+				( ( sr.l1 != ::l2 ) == 0 ? "OK" : "FAILED" ) );
+	}
+
 	sign += 1;
 }
 
@@ -72,12 +78,24 @@ void MainThread::handleTimer()
 		pc->selectFd->wantReadSet( true );
 	}
 
-	PacketWriter back( sendsPassthruToListen->writer );
-	Packer::SmallPacket *sp = Packer::SmallPacket::open( &back );
-	sp->set_l1( ::l1 );
-	sp->set_l2( ::l2 );
-	sp->set_l3( ::l3 );
-	Packer::SmallPacket::send( &back );
+	Packer::SmallPacket sp( sendsPassthruToListen->writer );
+
+	sp.set_l1( ::l1 );
+	sp.set_l2( ::l2 );
+	sp.set_l3( ::l3 );
+
+	Packer::SmallRec rec;
+
+	sp.alloc_sr( rec );
+	rec.set_l1( ::l2 );
+
+	sp.alloc_sr( rec );
+	rec.set_l1( ::l2 );
+
+	sp.alloc_sr( rec );
+	rec.set_l1( ::l2 );
+
+	sp.send();
 
 	tick += 1;
 }

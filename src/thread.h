@@ -582,7 +582,7 @@ public:
 
 	bool prepNextRound( SelectFd *fd, int result );
 
-	char *pktFind( Rope *rope, long l );
+	static char *pktFind( Rope *rope, long l );
 
 	virtual void recvPassthru( PacketPassthru *msg ) {}
 };

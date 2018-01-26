@@ -3,7 +3,7 @@
 
 char *Thread::pktFind( Rope *rope, long l )
 {
-	log_debug( DBG_PACKET, "pkt find: " << l );
+	// log_debug( DBG_PACKET, "pkt find: " << l );
 	if ( l == 0 )
 		return 0;
 

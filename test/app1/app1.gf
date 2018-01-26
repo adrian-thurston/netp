@@ -26,11 +26,17 @@ packet BigPacket
 	long   l3;
 };
 
+struct SmallRec
+{
+	long l1;
+};
+
 packet SmallPacket
 {
 	long l1;
 	long l2;
 	long l3;
+	list<SmallRec> sr;
 };
 
 Main starts User;
