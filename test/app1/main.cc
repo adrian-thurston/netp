@@ -73,11 +73,11 @@ void MainThread::handleTimer()
 	}
 
 	PacketWriter back( sendsPassthruToListen->writer );
-	Record::SmallPacket *sp = Record::SmallPacket::open( &back );
+	Packer::SmallPacket *sp = Packer::SmallPacket::open( &back );
 	sp->set_l1( ::l1 );
 	sp->set_l2( ::l2 );
 	sp->set_l3( ::l3 );
-	Record::SmallPacket::send( &back );
+	Packer::SmallPacket::send( &back );
 
 	tick += 1;
 }

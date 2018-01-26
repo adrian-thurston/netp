@@ -41,8 +41,7 @@ void generatePacketHeader( P: program )
 		~
 		~struct PacketWriter;
 		~
-		~namespace Record {
-		~
+		~namespace Packer {
 
 	for Struct: _struct in StructMap {
 		send Output
@@ -109,6 +108,76 @@ void generatePacketHeader( P: program )
 
 		send Output
 			"	static [Packet->Id] *open( PacketWriter *writer );
+			"	static const unsigned short ID = [Packet->AppID * 1000 + Packet->NumID];
+			"	static const char name\[\];
+			"	static const char lower\[\];
+			"};
+			"
+	}
+
+	send Output
+		~}
+		~
+		~namespace Record {
+		~
+
+	for Struct: _struct in StructMap {
+		send Output
+			"struct [Struct->Id]
+			"{
+
+		for FD: struct_field_def in Struct->StructDef {
+			switch FD.struct_field_type
+			case [`bool] {
+				send Output
+					"	bool [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	char *[FD.id];
+			}
+		}
+
+		send Output
+			"	[Struct->Id] *next;
+			"};
+			"
+	}
+
+	for Packet: packet in PacketMap {
+		send Output
+			"struct [Packet->Id]
+			"	: public PacketBase
+			"{
+
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output
+					"	bool [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	char *[FD.id];
+			}
+			case [list_type] {
+				TypeId: id = FD.pkt_field_type.list_type.id
+				send Output
+					"	[TypeId] *head_[FD.id];
+					"	[TypeId] *tail_[FD.id];
+
+			}
+		}
+
+		send Output
 			"	static const unsigned short ID = [Packet->AppID * 1000 + Packet->NumID];
 			"	static const char name\[\];
 			"	static const char lower\[\];
@@ -219,7 +288,7 @@ void generatePacketCode( P: program )
 			switch FD.struct_field_type
 			case [`string] {
 				send Output
-					"void Record::[Struct->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
+					"void Packer::[Struct->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
 					"	long offset = 0;
@@ -237,7 +306,7 @@ void generatePacketCode( P: program )
 			switch FD.pkt_field_type
 			case [`string] {
 				send Output
-					"void Record::[Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
+					"void Packer::[Packet->Id]::set_[FD.id]( PacketWriter *writer, const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
 					"	long offset = 0;
@@ -250,7 +319,7 @@ void generatePacketCode( P: program )
 			case [L: list_type] {
 				TypeId: id = L.id
 				send Output
-					"Record::[TypeId] *Record::[Packet->Id]::alloc_[FD.id]( PacketWriter *writer, [Packet->Id] *pkt )
+					"Packer::[TypeId] *Packer::[Packet->Id]::alloc_[FD.id]( PacketWriter *writer, [Packet->Id] *pkt )
 					"{
 					"	long offset = 0;
 					"	[TypeId] *el = ([TypeId]*)writer->allocBytes( sizeof([TypeId]), offset );
@@ -272,13 +341,23 @@ void generatePacketCode( P: program )
 		}
 
 		send Output
-			"Record::[Packet->Id] *Record::[Packet->Id]::open( PacketWriter *writer )
+			"Packer::[Packet->Id] *Packer::[Packet->Id]::open( PacketWriter *writer )
 			"{
 			"	return ([Packet->Id]*) PacketBase::open( writer,
 			"		[Packet->Id]::ID, sizeof([Packet->Id]) );
 			"}
 			"
 
+		Lower: str = packet_name::makeLower( Packet->Id )
+		send Output
+			"const char Packer::[Packet->Id]::name\[\] = \"[Packet->Id]\";
+			"const char Packer::[Packet->Id]::lower\[\] = \"[Lower]\";
+			"
+
+	}
+
+
+	for Packet: packet in PacketMap {
 		Lower: str = packet_name::makeLower( Packet->Id )
 		send Output
 			"const char Record::[Packet->Id]::name\[\] = \"[Packet->Id]\";

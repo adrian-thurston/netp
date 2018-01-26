@@ -32,14 +32,14 @@ struct BpConnection
 		PacketWriter writer( this );
 
 		for ( int i = 0; i < 100; i++ ) {
-			Record::BigPacket *msg = Record::BigPacket::open( &writer );
+			Packer::BigPacket *msg = Packer::BigPacket::open( &writer );
 			msg->set_big3( &writer, ::data3 );
 			msg->set_big2( &writer, ::data2 );
 			msg->set_big1( &writer, ::data1 );
 			msg->set_l1( ::l1 );
 			msg->set_l2( ::l2 );
 			msg->set_l3( ::l3 );
-			Record::BigPacket::send( &writer );
+			Packer::BigPacket::send( &writer );
 		}
 
 		listenThread->bpConnection = this;
