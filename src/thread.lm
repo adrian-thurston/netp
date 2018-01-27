@@ -17,8 +17,11 @@ void sendsToDecls( Thread: thread )
 
 		for Message: message in Sends->MessageList {
 			send Output
-				"	[Message->Id] *open[Message->Id]()
-				"		{ return [Message->Id]::open( writer ); }
+				"	Message::[Message->Id] *open[Message->Id]()
+				"		{ return Message::[Message->Id]::open( writer ); }
+			send Output
+				"	Writer::[Message->Id]::Cons cons[Message->Id]()
+				"		{ return Writer::[Message->Id]::Cons( writer ); }
 		}
 
 		send Output
@@ -34,7 +37,7 @@ void recvDecls( Thread: thread )
 {
 	for Message: message in Thread->RecvsList {
 		send Output
-			"	virtual void recv[Message->Id]( [Message->Id] * ) = 0;
+			"	virtual void recv[Message->Id]( Message::[Message->Id] * ) = 0;
 	}
 }
 
@@ -204,16 +207,16 @@ void threadRecveives( Thread: thread )
 		"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
 		"{
 		"	switch ( header->msgId ) {
-		"		case PacketPassthru::ID: {
-		"			PacketPassthru *msg = PacketPassthru::read( queue, header );
+		"		case Message::PacketPassthru::ID: {
+		"			Message::PacketPassthru *msg = Message::PacketPassthru::read( queue, header );
 		"			recvPassthru( msg );
 		"			break;
 		"		}
 
 	for Message: message in Thread->RecvsList {
 		send Output
-			"		case [Message->Id]::ID: {
-			"			[Message->Id] *msg = [Message->Id]::read( queue, header );
+			"		case Message::[Message->Id]::ID: {
+			"			Message::[Message->Id] *msg = Message::[Message->Id]::read( queue, header );
 			"			recv[Message->Id]( msg );
 			"			break;
 			"		}

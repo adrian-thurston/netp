@@ -13,8 +13,8 @@ struct UserThread
 	void *cb( int status, int timeouts, unsigned char *abuf, int alen );
 
 	void handleTimer();
-	void recvShutdown( Shutdown *msg );
-	void recvHello( Hello *msg );
+	void recvShutdown( Message::Shutdown *msg );
+	void recvHello( Message::Hello *msg );
 };
 
 #endif

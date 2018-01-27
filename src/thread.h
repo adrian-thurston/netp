@@ -147,17 +147,25 @@ struct ItQueue
 	ItWriterVect writerVect;
 };
 
-struct PacketPassthru
+namespace Message
 {
-	static PacketPassthru *open( ItWriter *writer )
-		{ return (PacketPassthru*)itqOpen( writer, PacketPassthru::ID, sizeof(PacketPassthru) ); }
+	struct PacketPassthru
+	{
+		static PacketPassthru *open( ItWriter *writer )
+		{
+			return (PacketPassthru*)itqOpen( writer,
+					PacketPassthru::ID, sizeof(PacketPassthru) );
+		}
 
-	static PacketPassthru *read( ItQueue *queue, ItHeader *header )
-		{ return (PacketPassthru*)itqRead( queue, header, sizeof(PacketPassthru) ); }
+		static PacketPassthru *read( ItQueue *queue, ItHeader *header )
+		{
+			return (PacketPassthru*)itqRead( queue, header, sizeof(PacketPassthru) );
+		}
 
-	void *rope;
-	static const unsigned short ID = 1;
-};
+		void *rope;
+		static const unsigned short ID = 1;
+	};
+}
 
 struct PacketHeader
 {
@@ -406,7 +414,7 @@ struct PacketWriter
 	PacketHeader *toSend;
 	void *content;
 	Rope buf;
-	PacketPassthru *pp;
+	Message::PacketPassthru *pp;
 
 	bool usingItWriter() { return itw != 0; }
 
@@ -584,7 +592,7 @@ public:
 
 	static char *pktFind( Rope *rope, long l );
 
-	virtual void recvPassthru( PacketPassthru *msg ) {}
+	virtual void recvPassthru( Message::PacketPassthru *msg ) {}
 };
 
 struct MainBase

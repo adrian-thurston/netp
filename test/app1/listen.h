@@ -24,8 +24,8 @@ struct ListenThread
 	int main();
 
 	void handleTimer();
-	void recvShutdown( Shutdown *msg );
-	void recvPassthru( PacketPassthru *msg );
+	void recvShutdown( Message::Shutdown *msg );
+	void recvPassthru( Message::PacketPassthru *msg );
 
 	BpConnection *bpConnection;
 };

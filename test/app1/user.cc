@@ -12,7 +12,7 @@ UserThread::UserThread()
 	recvRequiresSignal = true;
 }
 
-void UserThread::recvHello( Hello *msg )
+void UserThread::recvHello( Message::Hello *msg )
 {
 	log_message( "received hello" );
 	ares_query( ac, "www.google.ca", ns_c_in, ns_t_a, ::cb, this );
@@ -24,7 +24,7 @@ void UserThread::handleTimer()
 	// log_message( "timer" );
 }
 
-void UserThread::recvShutdown( Shutdown *msg )
+void UserThread::recvShutdown( Message::Shutdown *msg )
 {
 	log_message( "received shutdown" );
 	breakLoop();

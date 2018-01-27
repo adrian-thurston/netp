@@ -65,7 +65,7 @@ struct BpListener
 };
 
 
-void ListenThread::recvShutdown( Shutdown *msg )
+void ListenThread::recvShutdown( Message::Shutdown *msg )
 {
 	breakLoop();
 }
@@ -74,7 +74,7 @@ void ListenThread::handleTimer()
 {
 }
 
-void ListenThread::recvPassthru( PacketPassthru *msg )
+void ListenThread::recvPassthru( Message::PacketPassthru *msg )
 {
 	if ( bpConnection == 0 ) {
 		log_message( "received passthrough, but no BpConnection" );

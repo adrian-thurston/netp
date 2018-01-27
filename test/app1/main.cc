@@ -115,8 +115,8 @@ int MainThread::main()
 	SendsToListen *sendsToListen = registerSendsToListen( listen );
 	sendsPassthruToListen = registerSendsPassthru( listen );
 
-	sendsToUser->openHello();
-	sendsToUser->send();
+	Writer::Hello hello( sendsToUser->consHello() );
+	hello.send();
 
 	create( bare );
 	create( listen );
