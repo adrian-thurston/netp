@@ -353,7 +353,8 @@ struct PacketConnection
 
 	virtual void failure( FailType failType ) {}
 	virtual void connectComplete() {}
-	virtual void notifyAccept() {}
+	virtual void notifyAccept()
+		{ selectFd->wantReadSet( true ); }
 	virtual void readReady();
 	virtual void writeReady();
 

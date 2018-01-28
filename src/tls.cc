@@ -478,6 +478,8 @@ bool Thread::prepNextRound( SelectFd *fd, int result )
 
 void Thread::connTlsAcceptReady( SelectFd *fd )
 {
+	log_debug( DBG_CONNECTION, "tls-accept socket is ready" );
+
 	Connection *c = static_cast<Connection*>(fd->local);
 
 	bool nb = makeNonBlocking( fd->fd );
@@ -490,12 +492,19 @@ void Thread::connTlsAcceptReady( SelectFd *fd )
 		result = SSL_get_error( fd->ssl, result );
 
 		bool retry = prepNextRound( fd, result );
+
+		log_debug( DBG_CONNECTION, "tls-accept did not succeed, retry: " <<
+				retry << " error: " << result );
+		tlsError( DBG_CONNECTION, result );
+
 		if ( !retry ) {
 			/* Notify of connection error. */
 			c->failure( Connection::SslAcceptError );
 		}
 	}
 	else {
+		log_debug( DBG_CONNECTION, "tls-accept successful" );
+
 		long verifyResult = SSL_get_verify_result( fd->ssl );
 
 		log_debug( DBG_TLS, "SSL_accept: verify result: " <<
@@ -531,8 +540,11 @@ void Thread::listenReady( SelectFd *fd, uint8_t readyMask )
 	sockaddr_in peer;
 	socklen_t len = sizeof(sockaddr_in);
 
+	log_debug( DBG_CONNECTION, "listen socket is ready" );
+
 	int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
 	if ( result >= 0 ) {
+
 		Listener *l = static_cast<Listener*>(fd->local);
 
 		bool nb = makeNonBlocking( result );
@@ -543,6 +555,8 @@ void Thread::listenReady( SelectFd *fd, uint8_t readyMask )
 		SelectFd *selectFd = new SelectFd( this, result, 0 );
 		selectFd->local = static_cast<Connection*>(pc);
 		pc->selectFd = selectFd;
+
+		log_debug( DBG_CONNECTION, "accepted connection, tls mode: " << l->tlsAccept );
 
 		if ( l->tlsAccept ) {
 			pc->tlsConnect = true;
