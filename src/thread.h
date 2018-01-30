@@ -520,10 +520,11 @@ public:
 	virtual void userFdReady( SelectFd *selectFd, uint8_t readyField ) {}
 
 	void listenReady( SelectFd *fd, uint8_t readyMask );
-	void asyncConnect( SelectFd *fd, Connection *conn );
 	void connConnectReady( SelectFd *fd, uint8_t readyMask );
 	void connTlsAcceptReady( SelectFd *fd );
 	void connTlsConnectReady( SelectFd *fd );
+	void connTlsEstablishedReady( SelectFd *fd, uint8_t readyMask );
+	void connEstablishedReady( SelectFd *fd, uint8_t readyMask );
 	void selectFdReady( SelectFd *selectFd, uint8_t readyField );
 
 	virtual void handleTimer() {};

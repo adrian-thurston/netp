@@ -307,56 +307,6 @@ bool Thread::hostMatch( SelectFd *selectFd, const char *name )
 	return result;
 }
 
-void Thread::connTlsConnectReady( SelectFd *fd )
-{
-	int result = SSL_connect( fd->ssl );
-	if ( result <= 0 ) {
-		/* No connect yet. May need more data. */
-		result = SSL_get_error( fd->ssl, result );
-
-		bool retry = prepNextRound( fd, result );
-		if ( !retry ) {
-			/* Not a retry failure. */
-			log_ERROR( "SSL_connect failure" );
-		}
-	}
-	else {
-		Connection *c = static_cast<Connection*>(fd->local);
-		log_debug( DBG_CONNECTION, "successful SSL_connect" );
-
-		/* Check the verification result. */
-		long verifyResult = SSL_get_verify_result( fd->ssl );
-		if ( verifyResult != X509_V_OK ) {
-			fd->sslVerifyError = true;
-
-			log_ERROR( "ssl peer failed verify: " << fd );
-			c->failure( Connection::SslPeerFailedVerify );
-			c->close();
-		}
-		else {
-			if ( c->checkHost && !hostMatch( fd, fd->remoteHost ) ) {
-				fd->sslVerifyError = true;
-
-				log_ERROR( "unable to match peer host to: " << fd->remoteHost );
-
-				c->failure( Connection::SslPeerCnHostMismatch );
-				c->close();
-			}
-			else {
-				/* Would like to require or implement this. Not available on 14.04. */
-				/* #error no X509_check_host */
-
-				fd->state = SelectFd::TlsEstablished;
-				fd->tlsEstablished = true;
-				fd->tlsWantRead = true;
-
-				Connection *c = static_cast<Connection*>(fd->local);
-				c->connectComplete();
-			}
-		}
-	}
-}
-
 int Thread::tlsRead( SelectFd *fd, void *buf, int len )
 {
 	fd->tlsReadWantsWrite = false;
@@ -476,6 +426,56 @@ bool Thread::prepNextRound( SelectFd *fd, int result )
 	return fd->wantRead || fd->wantWrite;
 }
 
+void Thread::connTlsConnectReady( SelectFd *fd )
+{
+	int result = SSL_connect( fd->ssl );
+	if ( result <= 0 ) {
+		/* No connect yet. May need more data. */
+		result = SSL_get_error( fd->ssl, result );
+
+		bool retry = prepNextRound( fd, result );
+		if ( !retry ) {
+			/* Not a retry failure. */
+			log_ERROR( "SSL_connect failure" );
+		}
+	}
+	else {
+		Connection *c = static_cast<Connection*>(fd->local);
+		log_debug( DBG_CONNECTION, "successful SSL_connect" );
+
+		/* Check the verification result. */
+		long verifyResult = SSL_get_verify_result( fd->ssl );
+		if ( verifyResult != X509_V_OK ) {
+			fd->sslVerifyError = true;
+
+			log_ERROR( "ssl peer failed verify: " << fd );
+			c->failure( Connection::SslPeerFailedVerify );
+			c->close();
+		}
+		else {
+			if ( c->checkHost && !hostMatch( fd, fd->remoteHost ) ) {
+				fd->sslVerifyError = true;
+
+				log_ERROR( "unable to match peer host to: " << fd->remoteHost );
+
+				c->failure( Connection::SslPeerCnHostMismatch );
+				c->close();
+			}
+			else {
+				/* Would like to require or implement this. Not available on 14.04. */
+				/* #error no X509_check_host */
+
+				fd->state = SelectFd::TlsEstablished;
+				fd->tlsEstablished = true;
+				fd->tlsWantRead = true;
+
+				Connection *c = static_cast<Connection*>(fd->local);
+				c->connectComplete();
+			}
+		}
+	}
+}
+
 void Thread::connTlsAcceptReady( SelectFd *fd )
 {
 	log_debug( DBG_CONNECTION, "tls-accept socket is ready" );
@@ -521,137 +521,4 @@ void Thread::connTlsAcceptReady( SelectFd *fd )
 	}
 }
 
-void Thread::asyncConnect( SelectFd *fd, Connection *conn )
-{
-	log_debug( DBG_CONNECTION, "async connect completed" );
-	if ( conn->tlsConnect ) {
-		startTlsClient( conn->sslCtx, fd, fd->remoteHost );
-		fd->state = SelectFd::TlsConnect;
-	}
-	else {
-		fd->state = SelectFd::Established;
-		fd->wantRead = true;
-		conn->connectComplete();
-	}
-}
 
-void Thread::listenReady( SelectFd *fd, uint8_t readyMask )
-{
-	sockaddr_in peer;
-	socklen_t len = sizeof(sockaddr_in);
-
-	log_debug( DBG_CONNECTION, "listen socket is ready" );
-
-	int result = ::accept( fd->fd, (sockaddr*)&peer, &len );
-	if ( result >= 0 ) {
-
-		Listener *l = static_cast<Listener*>(fd->local);
-
-		bool nb = makeNonBlocking( result );
-		if ( !nb )
-			log_ERROR( "pkt-listen, post-accept: non-blocking IO not available" );
-
-		Connection *pc = l->connectionFactory( result );
-		SelectFd *selectFd = new SelectFd( this, result, 0 );
-		selectFd->local = static_cast<Connection*>(pc);
-		pc->selectFd = selectFd;
-
-		log_debug( DBG_CONNECTION, "accepted connection, tls mode: " << l->tlsAccept );
-
-		if ( l->tlsAccept ) {
-			pc->tlsConnect = true;
-			pc->sslCtx = l->sslCtx;
-			pc->checkHost = l->checkHost;
-			startTlsServer( pc->sslCtx, selectFd );
-			selectFd->type = SelectFd::Connection;
-			selectFd->state = SelectFd::TlsAccept;
-		}
-		else {
-			pc->tlsConnect = false;
-			selectFd->type = SelectFd::Connection;
-			selectFd->state = SelectFd::Established;
-			selectFd->wantRead = true;
-			selectFdList.append( selectFd );
-			pc->notifyAccept();
-		}
-	}
-	else {
-		if ( errno != EAGAIN && errno != EWOULDBLOCK )
-			log_ERROR( "failed to accept connection: " << strerror(errno) );
-	}
-}
-
-void Thread::connConnectReady( SelectFd *fd, uint8_t readyMask )
-{
-	Connection *c = static_cast<Connection*>(fd->local);
-
-	if ( readyMask & WRITE_READY ) {
-		/* Turn off want write. We must do this before any notification
-		 * below, which may want to turn it on. */
-		fd->wantWrite = false;
-
-		int option;
-		socklen_t optlen = sizeof(int);
-		getsockopt( fd->fd, SOL_SOCKET, SO_ERROR, &option, &optlen );
-		if ( option == 0 ) {
-			asyncConnect( fd, c );
-		}
-		else {
-			log_ERROR( "failed async connect: " << strerror(option) );
-			c->failure( Connection::AsyncConnectFailed );
-			c->close();
-		}
-	}
-}
-
-void Thread::selectFdReady( SelectFd *fd, uint8_t readyMask )
-{
-	switch ( fd->type ) {
-		case SelectFd::User: {
-			userFdReady( fd, readyMask );
-			break;
-		}
-
-		case SelectFd::Listen: {
-			listenReady( fd, readyMask );
-			break;
-		}
-		case SelectFd::Connection: {
-			switch ( fd->state ) {
-				case SelectFd::Lookup:
-					/* Shouldn't happen. When in lookup state, events happen on the resolver. */
-					break;
-				case SelectFd::Connect:
-					connConnectReady( fd, readyMask );
-					break;
-
-				case SelectFd::TlsAccept:
-					connTlsAcceptReady( fd );
-					break;
-
-				case SelectFd::TlsConnect:
-					connTlsConnectReady( fd );
-					break;
-
-				case SelectFd::TlsEstablished: {
-					Connection *c = static_cast<Connection*>(fd->local);
-					if ( fd->tlsWantRead )
-						c->readReady();
-
-					if ( fd->tlsWantWrite )
-						c->writeReady();
-					break;
-				}
-				case SelectFd::Established: {
-					Connection *c = static_cast<Connection*>(fd->local);
-					if ( readyMask & READ_READY )
-						c->readReady();
-
-					if ( readyMask & WRITE_READY && fd->wantWrite )
-						c->writeReady();
-					break;
-				}
-			}
-		}
-	}
-}

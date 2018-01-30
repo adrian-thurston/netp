@@ -13,7 +13,10 @@ libgenf_la_SOURCES = \
 	itq.cc \
 	tls.cc \
 	connection.cc \
-	packet.cc
+	packet.cc \
+	select.cc \
+	lookup.cc \
+	inet.cc
 
 libgenf_la_CPPFLAGS = -Iinclude
 
