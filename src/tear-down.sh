@@ -34,8 +34,8 @@ for fn in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > $fn; done
 ip link set $OUTSIDE down
 ip link set $INSIDE down
 
-echo eth1 >/sys/shuttle/shuttle1/port_del
-echo eth2 >/sys/shuttle/shuttle1/port_del
+echo $INSIDE >/sys/shuttle/shuttle1/port_del
+echo $OUTSIDE >/sys/shuttle/shuttle1/port_del
 
 echo shuttle1 >/sys/shuttle/del
 
