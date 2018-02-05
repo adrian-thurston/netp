@@ -200,6 +200,7 @@ rx_handler_result_t shuttle_handle_frame( struct sk_buff **pskb )
 ssize_t link_port_add_store(
 		struct link *obj, const char *iface, const char *dir )
 {
+	struct net *net;
 	struct net_device *dev;
 	bool inside = false;
 
@@ -210,7 +211,8 @@ ssize_t link_port_add_store(
 	else
 		return -EINVAL;
 
-	dev = dev_get_by_name( &init_net, iface );
+	net = get_net_ns_by_pid( current->pid );
+	dev = dev_get_by_name( net, iface );
 	if ( !dev )
 		return -EINVAL;
 	
@@ -234,9 +236,11 @@ ssize_t link_port_add_store(
 ssize_t link_port_del_store(
 		struct link *obj, const char *iface )
 {
+	struct net *net;
 	struct net_device *dev;
 
-	dev = dev_get_by_name( &init_net, iface );
+	net = get_net_ns_by_pid( current->pid );
+	dev = dev_get_by_name( net, iface );
 	if ( !dev )
 		return -EINVAL;
 
@@ -514,6 +518,7 @@ static int create_netdev( struct link *link, const char *name )
 	int res;
 	struct net_device *dev;
 	struct shuttle_dev_priv *priv;
+	struct net *net;
 
 #if KERNVER == 3
 	dev = alloc_netdev( sizeof(struct shuttle_dev_priv), name, shuttle_dev_setup );
@@ -524,7 +529,8 @@ static int create_netdev( struct link *link, const char *name )
 	if (!dev)
 		return -ENOMEM;
 
-	dev_net_set( dev, &init_net );
+	net = get_net_ns_by_pid( current->pid );
+	dev_net_set( dev, net );
 	dev->rtnl_link_ops = &shuttle_link_ops;
 	
 	priv = netdev_priv( dev );
