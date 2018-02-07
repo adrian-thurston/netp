@@ -5,21 +5,21 @@ set -xe
 
 [ `whoami` = root ] || exit
 
-source ./interfaces.sh
+source @sysconfdir@/interfaces.sh
 
 ulimit -c unlimited
 echo 1 > /proc/sys/kernel/core_uses_pid
 echo "/tmp/core-%e-%s-%u-%g-%p-%t" > /proc/sys/kernel/core_pattern
 echo 2 > /proc/sys/fs/suid_dumpable
 
-insmod /home/thurston/devel/kring/src/kring.ko
+insmod @KRING_MOD@
 
 echo r0 4 > /sys/kring/add_data
 echo r1 4 > /sys/kring/add_data
 
 echo c0 > /sys/kring/add_cmd
 
-insmod ./shuttle.ko
+insmod @datadir@/shuttle.ko
 
 echo shuttle1 c0 r0 >/sys/shuttle/add
 
@@ -49,20 +49,21 @@ iptables -t mangle -A DIVERT -j ACCEPT
 ip rule add fwmark 101 lookup 101
 ip route add local default dev lo table 101
 
-iptables -t mangle -A PREROUTING -p tcp -m tcp --dport 443 -j TPROXY  --on-port 4430 --tproxy-mark 101/101
+iptables -t mangle -A PREROUTING -p tcp -m tcp \
+	--dport 443 -j TPROXY --on-port 4430 --tproxy-mark 101/101
 
-sleep 1
-
-cd /home/thurston/devel/broker/src
-./broker -b -P
-
-sleep 1
-
-cd /home/thurston/devel/netp/src
-./netp -b -P
-
-cd /home/thurston/devel/tlsproxy/src
-./tlsproxy -b -P
-
+#sleep 1
+#
+#cd /home/thurston/devel/broker/src
+#./broker -b -P
+#
+#sleep 1
+#
+#cd /home/thurston/devel/netp/src
+#./netp -b -P
+#
+#cd /home/thurston/devel/tlsproxy/src
+#./tlsproxy -b -P
+#
 # cd /home/thurston/devel/fetch/src
 # ./fetch -b -P

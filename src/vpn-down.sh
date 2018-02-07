@@ -3,6 +3,7 @@
 
 set -x
 
+ip netns exec inline bash @pkglibexecdir@/shuttle-down
 ip netns exec inline ip route del default via 10.50.1.1 dev con2
 ip netns exec inline ifconfig con2 0.0.0.0 down
 ip netns exec inline ifconfig lo 0.0.0.0 down
@@ -21,6 +22,4 @@ brctl delbr inline
 sysctl net.ipv4.ip_forward=0
 iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 
-pkill openvpn
-
-
+start-stop-daemon --stop --pidfile @piddir@/openvpn.pid

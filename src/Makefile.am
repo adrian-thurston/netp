@@ -1,13 +1,26 @@
+include $(srcdir)/genf.mk
+
 GENF = @GENF@
 KRING_SYMVERS = @KRING_SYMVERS@
 
+INSTALL_DIRS += @sysconfdir@
+
 data_DATA = shuttle.ko
 
-EXTRA_DIST = shuttle.gf attribute.c module.h avl.h avl.c
+pkgdata_DATA = openvpn.conf
+
+pkglibexec_SCRIPTS += \
+	shuttle-up \
+	shuttle-down \
+	vpn-up \
+	vpn-down \
+	config-iface
+
+EXTRA_DIST += shuttle.gf attribute.c module.h avl.h avl.c
 
 SOURCES = attribute.h attribute.c module.c avl.h avl.c
 
-BUILT_SOURCES = attribute.h module.c
+BUILT_SOURCES += attribute.h module.c
 
 MOBJS = attribute.o avl.o
 

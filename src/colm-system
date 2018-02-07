@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+
+set -x
+
+
+PKGS=/home/thurston/pkgs
+
+case $1 in
+	start)
+		$PKGS/shuttle/libexec/shuttle/vpn-up
+		sleep 1
+		ip netns exec inline $PKGS/broker/libexec/broker/init.d start
+		sleep 1
+		ip netns exec inline $PKGS/netp/libexec/netp/init.d start
+		ip netns exec inline $PKGS/tlsproxy/libexec/tlsproxy/init.d start
+	;;
+	stop)
+		ip netns exec inline $PKGS/netp/libexec/netp/init.d stop
+		ip netns exec inline $PKGS/tlsproxy/libexec/tlsproxy/init.d stop
+		ip netns exec inline $PKGS/broker/libexec/broker/init.d stop
+		sleep 1
+		$PKGS/shuttle/libexec/shuttle/vpn-down
+	;;
+esac

@@ -3,7 +3,7 @@
 
 set -x
 
-openvpn --config server-openvpn.conf
+openvpn --config @pkgdatadir@/openvpn.conf
 
 sleep 2
 
@@ -25,3 +25,4 @@ ip link set tap0 netns inline
 ip netns exec inline ifconfig lo 127.0.0.1 up
 ip netns exec inline ifconfig con2 10.50.1.240 netmask 255.255.255.0 up 
 ip netns exec inline ip route add default via 10.50.1.1 dev con2
+ip netns exec inline bash @pkglibexecdir@/shuttle-up

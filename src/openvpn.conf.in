@@ -1,0 +1,44 @@
+#
+# Server Configuration
+#
+
+dev tap
+cipher AES-256-CBC
+keepalive 10 60
+
+mode server
+tls-server
+
+ifconfig      10.50.1.1 255.255.255.0
+ifconfig-pool 10.50.1.2 10.50.1.254 255.255.255.0
+
+push "route-gateway 10.50.1.1"
+push "redirect-gateway"
+push "dhcp-option DNS 97.107.133.4"
+push "dhcp-option DNS 207.192.69.4"
+push "dhcp-option DNS 207.192.69.5"
+
+keepalive 10 60
+
+user nobody
+group nogroup
+persist-tun
+persist-key
+
+ifconfig-noexec
+route-noexec
+
+key  @pkgdatadir@/key.pem
+cert @pkgdatadir@/cert.pem
+ca   @pkgdatadir@/verify.pem
+
+dh   /usr/share/doc/openvpn/examples/sample-keys/dh2048.pem
+
+script-security 2
+up      @pkglibexecdir@/config-iface
+down    @pkglibexecdir@/config-iface
+
+daemon
+writepid @piddir@/openvpn.pid 
+log      @logdir@/openvpn.log
+status   @logdir@/openvpn.status 10 
