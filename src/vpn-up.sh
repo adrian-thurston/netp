@@ -5,7 +5,7 @@ set -x
 
 openvpn --config @pkgdatadir@/openvpn.conf
 
-sleep 2
+sleep 1
 
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 sysctl net.ipv4.ip_forward=1

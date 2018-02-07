@@ -9,15 +9,18 @@ case $1 in
 	start)
 		$PKGS/shuttle/libexec/shuttle/init.d start
 		sleep 1
-		ip netns exec inline $PKGS/broker/libexec/broker/init.d start
+		$PKGS/broker/libexec/broker/init.d start
 		sleep 1
-		ip netns exec inline $PKGS/netp/libexec/netp/init.d start
-		ip netns exec inline $PKGS/tlsproxy/libexec/tlsproxy/init.d start
+		$PKGS/netp/libexec/netp/init.d start
+		sleep 1
+		$PKGS/tlsproxy/libexec/tlsproxy/init.d start
 	;;
 	stop)
-		ip netns exec inline $PKGS/netp/libexec/netp/init.d stop
-		ip netns exec inline $PKGS/tlsproxy/libexec/tlsproxy/init.d stop
-		ip netns exec inline $PKGS/broker/libexec/broker/init.d stop
+		$PKGS/tlsproxy/libexec/tlsproxy/init.d stop
+		sleep 1
+		$PKGS/netp/libexec/netp/init.d stop
+		sleep 1
+		$PKGS/broker/libexec/broker/init.d stop
 		sleep 1
 		$PKGS/shuttle/libexec/shuttle/init.d stop
 	;;
