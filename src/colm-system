@@ -3,12 +3,11 @@
 
 set -x
 
-
 PKGS=/home/thurston/pkgs
 
 case $1 in
 	start)
-		$PKGS/shuttle/libexec/shuttle/vpn-up
+		$PKGS/shuttle/libexec/shuttle/init.d start
 		sleep 1
 		ip netns exec inline $PKGS/broker/libexec/broker/init.d start
 		sleep 1
@@ -20,6 +19,6 @@ case $1 in
 		ip netns exec inline $PKGS/tlsproxy/libexec/tlsproxy/init.d stop
 		ip netns exec inline $PKGS/broker/libexec/broker/init.d stop
 		sleep 1
-		$PKGS/shuttle/libexec/shuttle/vpn-down
+		$PKGS/shuttle/libexec/shuttle/init.d stop
 	;;
 esac

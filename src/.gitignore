@@ -18,7 +18,6 @@
 /attribute.h
 /genf.mk
 /genf.h.in
-/init.d.sh
 /init.d
 /bootstrap.sh
 /bootstrap
