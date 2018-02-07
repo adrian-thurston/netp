@@ -7,7 +7,7 @@ INSTALL_DIRS += @sysconfdir@
 
 data_DATA = shuttle.ko
 
-pkgdata_DATA = openvpn.conf
+pkgdata_DATA = openvpn.conf client.conf
 
 pkglibexec_SCRIPTS += \
 	shuttle-up \

@@ -9,15 +9,15 @@ nobind
 pull
 tls-client
 
-key   ./keys/key.pem
-cert  ./keys/cert.pem
-ca    ./keys/verify.pem
+key  @pkgdatadir@/key.pem
+cert @pkgdatadir@/cert.pem
+ca   @pkgdatadir@/verify.pem
 
 script-security 2
 up   /etc/openvpn/update-resolv-conf
 down /etc/openvpn/update-resolv-conf
 
 daemon
-writepid ./run/openvpn.pid
-log      ./run/openvpn.log
-status   ./run/openvpn.status 10 
+writepid @piddir@/openvpn.pid 
+log      @logdir@/openvpn.log
+status   @logdir@/openvpn.status 10 
