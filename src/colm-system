@@ -16,6 +16,10 @@ case $1 in
 		$PKGS/tlsproxy/libexec/tlsproxy/init.d start
 	;;
 	stop)
+		$PKGS/trader/libexec/trader/init.d stop
+		sleep 1
+		$PKGS/fetch/libexec/fetch/init.d stop
+		sleep 1
 		$PKGS/tlsproxy/libexec/tlsproxy/init.d stop
 		sleep 1
 		$PKGS/netp/libexec/netp/init.d stop
