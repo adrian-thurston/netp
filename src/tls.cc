@@ -115,6 +115,8 @@ SSL_CTX *Thread::sslCtxServerInternal()
 	return sslCtxServer( key, cert, verify );
 }
 
+static int ssl_session_ctx_id = 1;
+
 SSL_CTX *Thread::sslCtxServer( const char *key, const char *cert, const char *verify )
 {
 	/* Create the SSL_CTX. */
@@ -144,6 +146,9 @@ SSL_CTX *Thread::sslCtxServer( const char *key, const char *cert, const char *ve
 	log_debug( DBG_TLS, "server verify mode: " << SSL_CTX_get_verify_mode( ctx ) );
 
 	SSL_CTX_set_mode( ctx, SSL_MODE_ENABLE_PARTIAL_WRITE );
+
+	SSL_CTX_set_session_id_context( ctx,
+			 (const unsigned char*)&ssl_session_ctx_id, sizeof(ssl_session_ctx_id) );
 
 	return ctx;
 }
