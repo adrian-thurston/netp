@@ -163,6 +163,7 @@ void PacketBase::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 				log_debug( DBG_PACKET, "packet write: closed" );
 				pc->close();
 				pc->packetClosed();
+				break;
 			}
 
 			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
@@ -208,7 +209,6 @@ void PacketBase::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 				rb = rb->next;
 			}
 
-
 			log_debug( DBG_PACKET, "packet send result: " << res );
 		}
 	}
@@ -239,6 +239,7 @@ void PacketConnection::writeReady()
 				log_debug( DBG_PACKET, "packet write: closed" );
 				close();
 				packetClosed();
+				break;
 			}
 
 			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
