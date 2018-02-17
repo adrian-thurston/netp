@@ -32,7 +32,7 @@ key  @pkgdatadir@/key.pem
 cert @pkgdatadir@/cert.pem
 ca   @pkgdatadir@/verify.pem
 
-dh   /usr/share/doc/openvpn/examples/sample-keys/dh2048.pem
+dh   @DH_KEYS@
 
 script-security 2
 up      @pkglibexecdir@/config-iface
