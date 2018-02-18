@@ -7,13 +7,15 @@ INSTALL_DIRS += @sysconfdir@
 
 data_DATA = shuttle.ko
 
-pkgdata_DATA = openvpn.conf client.conf
+pkgdata_DATA = openvpn.conf
 
 pkglibexec_SCRIPTS += \
 	shuttle-up \
 	shuttle-down \
 	vpn-up \
 	vpn-down \
+	live-up \
+	live-down \
 	config-iface
 
 EXTRA_DIST += shuttle.gf attribute.c module.h avl.h avl.c

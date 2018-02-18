@@ -28,3 +28,5 @@
 /vpn-down
 /vpn-up
 /openvpn.conf
+/live-up
+/live-down
