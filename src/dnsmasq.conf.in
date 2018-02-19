@@ -1,0 +1,6 @@
+pid-file=@piddir@/dnsmasq.pid
+listen-address=10.50.2.1
+bind-interfaces
+dhcp-range=10.50.2.3,10.50.2.254
+dhcp-leasefile=@piddir@/leases.txt
+log-facility=@logdir@/dnsmasq.log

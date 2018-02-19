@@ -1,42 +1,42 @@
 #!/bin/bash
 #
 
-
 out=wlan0
 pipe=pipe0
 
 set -x
 
+# Create the bridge for forwarding to the outside world. 
+brctl addbr inline
+
+# Configure the bridge with an IP address and set up the forwarding to outside.
+ifconfig inline 10.50.2.1 netmask 255.255.255.0 up
+iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+iptables -I FORWARD -i inline -o wlan0 -j ACCEPT
+iptables -I FORWARD -i wlan0 -o inline -j ACCEPT
+
+# Run DHCP server.
+dnsmasq --conf-file=@pkgdatadir@/dnsmasq.conf
+
+# Create a veth pair for the data going out
+ip link add pipe0 type veth peer name pipe1
+
+# Put outside end on the bridge to outside.
+brctl addif inline pipe0
+ifconfig pipe0 up
+
 # Create the namespace.
 ip netns add inline
 
-# Create the veth pairs for connect and data.
-#ip link add con0 type veth peer name con1
-ip link add pipe0 type veth peer name pipe1
-
-# Move inside end of the pairs to inline network namespace.
-#ip link set con1 netns inline
+# Move inside end of the pair to inline network namespace.
 ip link set pipe1 netns inline
-
-# Put outside end of pairs on network. 
-#brctl addif sn01 con0
-brctl addif sn01 pipe0
-
-#sudo ifconfig con0 up
-sudo ifconfig pipe0 up
 
 # Move connection to internal network to network namespace.
 ip link set em1 netns inline
 
 # Set up network in inline namespace
 ip netns exec inline ifconfig lo 127.0.0.1 up
-#ip netns exec inline ifconfig con1 10.25.51.240 netmask 255.255.255.0 up 
-#ip netns exec inline ip route add default via 10.25.51.1 dev con1
 
-iptables -I FORWARD -i $out -o $pipe -j ACCEPT
-iptables -I FORWARD -i $pipe -o $out -j ACCEPT
-iptables -t nat -A POSTROUTING -o $out -j MASQUERADE
-
+# Configure shuttle and kring.
 ip netns exec inline bash @pkglibexecdir@/shuttle-up
-
-ip netns exec inline ifconfig shuttle1 10.25.51.240 netmask 255.255.255.0 up 
+ip netns exec inline ifconfig shuttle1 10.50.2.2 netmask 255.255.255.0 up 

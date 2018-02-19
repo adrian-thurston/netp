@@ -27,6 +27,8 @@
 /shuttle-up
 /vpn-down
 /vpn-up
-/openvpn.conf
 /live-up
 /live-down
+
+/openvpn.conf
+/dnsmasq.conf
