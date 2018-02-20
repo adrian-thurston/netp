@@ -16,6 +16,8 @@ pkglibexec_SCRIPTS += \
 	vpn-down \
 	live-up \
 	live-down \
+	comp-up \
+	comp-down \
 	config-iface
 
 EXTRA_DIST += shuttle.gf attribute.c module.h avl.h avl.c
