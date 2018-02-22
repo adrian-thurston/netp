@@ -7,19 +7,6 @@ INSTALL_DIRS += @sysconfdir@
 
 data_DATA = shuttle.ko
 
-pkgdata_DATA = openvpn.conf dnsmasq.conf
-
-pkglibexec_SCRIPTS += \
-	shuttle-up \
-	shuttle-down \
-	vpn-up \
-	vpn-down \
-	live-up \
-	live-down \
-	comp-up \
-	comp-down \
-	config-iface
-
 EXTRA_DIST += shuttle.gf attribute.c module.h avl.h avl.c
 
 SOURCES = attribute.h attribute.c module.c avl.h avl.c
