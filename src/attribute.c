@@ -403,7 +403,7 @@ netdev_tx_t shuttle_dev_xmit( struct sk_buff *skb, struct net_device *dev )
 {
 	struct shuttle_dev_priv *priv = netdev_priv( dev );
 
-	printk( "shuttle_dev_xmit, skb: %p, inside: %p\n", skb, priv->link->inside );
+	// printk( "shuttle_dev_xmit, skb: %p, inside: %p\n", skb, priv->link->inside );
 
 	/* Probably need to find the right mac address now. */
 	skb->dev = priv->link->inside;
