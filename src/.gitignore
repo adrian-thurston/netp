@@ -4,3 +4,13 @@
 /config.h.in
 /config.h.in~
 /stamp-h1
+/comp-down
+/comp-up
+/live-down
+/live-up
+/shuttle-down
+/shuttle-up
+/vpn-down
+/vpn-up
+/openvpn.conf
+/dnsmasq.conf
