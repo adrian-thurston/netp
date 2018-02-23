@@ -9,3 +9,5 @@ if [ "$script_type" = "up" ]; then
 	ip link set dev "$1" mtu "$tap_mtu"
 fi
 
+echo "$@" > /tmp/mtu
+

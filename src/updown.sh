@@ -1,19 +1,6 @@
 #!/bin/bash
 #
 
-set -e
-
-if [ '!' `whoami` = root ]; then
-	echo "updown: must run as root"
-	exit 1
-fi
-
-NET=10.50.10
-
-# $NET.1 - DNS server be it on the outside or provided by the inside vpn.
-# $NET.2 - inside shuttle IP address, necessary for proxy to work
-# $NET.3 - interface in protected network (optional)
-
 shuttle_up()
 {
 	OUTSIDE=$1
@@ -153,25 +140,26 @@ openvpn_up()
 
 bridge_up()
 {
-	bridge=$1
-	out=$2
+	BRIDGE=$1; shift;
 
 	# Create the bridge for forwarding to the outside world. 
-	godo brctl addbr $bridge
-	undo brctl delbr $bridge
+	godo brctl addbr $BRIDGE
+	undo brctl delbr $BRIDGE
 
 	# Configure the bridge with an IP address and set up the forwarding to outside.
-	godo ifconfig $bridge $NET.1 netmask 255.255.255.0 up
-	undo ifconfig $bridge 0.0.0.0 down
+	godo ifconfig $BRIDGE $NET.1 netmask 255.255.255.0 up
+	undo ifconfig $BRIDGE 0.0.0.0 down
 
-	godo iptables -t nat -A POSTROUTING -o $out -j MASQUERADE
-	undo iptables -t nat -D POSTROUTING -o $out -j MASQUERADE
+	for iface in $OUTSIDE_FORWARD; do 
+		godo iptables -t nat -A POSTROUTING -o $iface -j MASQUERADE
+		undo iptables -t nat -D POSTROUTING -o $iface -j MASQUERADE
 
-	godo iptables -I FORWARD -i $bridge -o $out -j ACCEPT
-	undo iptables -D FORWARD -i $bridge -o $out -j ACCEPT
+		godo iptables -I FORWARD -i $BRIDGE -o $iface -j ACCEPT
+		undo iptables -D FORWARD -i $BRIDGE -o $iface -j ACCEPT
 
-	godo iptables -I FORWARD -i $out -o $bridge -j ACCEPT
-	undo iptables -D FORWARD -i $out -o $bridge -j ACCEPT
+		godo iptables -I FORWARD -i $iface -o $BRIDGE -j ACCEPT
+		undo iptables -D FORWARD -i $iface -o $BRIDGE -j ACCEPT
+	done
 
 	# Create a veth pair for the data going out
 	godo ip link add pipe0 type veth peer name pipe1
@@ -219,7 +207,7 @@ inside_bridge()
 	undo ip netns exec prot ifconfig lo 0.0.0.0 down
 
 	godo ip netns exec prot ifconfig pipe3 $NET.3 \
-		broadcast $NET.255 netmask 255.255.255.0 up
+			broadcast $NET.255 netmask 255.255.255.0 up
 	undo ip netns exec prot ifconfig lo 0.0.0.0 down
 
 	godo ip netns exec prot route add default gw $NET.1 pipe3
@@ -235,7 +223,7 @@ comp_up()
 
 	inside_bridge
 
-	bridge_up inline wlan0
+	bridge_up inline
 
 	dnsmasq_up
 
@@ -253,7 +241,7 @@ live_up()
 	undo ip netns exec inline ip link set em1 netns 1
 
 	# Set up outside.
-	bridge_up inline wlan0
+	bridge_up inline
 	dnsmasq_up
 
 	# Configure shuttle and kring.
@@ -269,7 +257,7 @@ vpn_up()
 	openvpn_up
 
 	# Set up outside
-	bridge_up inline eth0
+	bridge_up inline
 
 	# Setup the shuttle inside the namespace.
 	shuttle_up pipe1 tap0
@@ -286,9 +274,30 @@ services_up()
 	godo @TLSPROXY_PREFIX@/libexec/tlsproxy/init.d start
 	undo @TLSPROXY_PREFIX@/libexec/tlsproxy/init.d stop
 
-#	godo @FETCH_PREFIX@/libexec/fetch/init.d start
-#	undo @FETCH_PREFIX@/libexec/fetch/init.d stop
+	godo @FETCH_PREFIX@/libexec/fetch/init.d start
+	undo @FETCH_PREFIX@/libexec/fetch/init.d stop
 }
+
+set -e
+
+SHUTTLE_NET=10.50.10
+SHUTTLE_IP="$SHUTTLE_NET.2"
+OUTSIDE_FORWARD="wlan0 eth0"
+
+if [ -f @sysconfdir@/updown.conf ]; then
+	source @sysconfdir@/updown.conf;
+fi
+
+if [ '!' `whoami` = root ]; then
+	echo "updown: must run as root"
+	exit 1
+fi
+
+NET="$SHUTTLE_NET"
+
+# $NET.1 - DNS server be it on the outside or provided by the inside vpn.
+# $NET.2 - inside shuttle IP address, necessary for proxy to work
+# $NET.3 - interface in protected network (optional)
 
 UNDO=@pkgstatedir@/undo
 
@@ -319,12 +328,22 @@ sysctl -q net.ipv4.ip_forward=1
 iptables -P FORWARD DROP
 
 case $1 in
-	up)
+	down)
+		if [ '!' -f $UNDO ]; then
+			echo "updown: nothing to bring down"
+			exit 1;
+		fi
+		tac $UNDO > $UNDO.tac
+		set -x
+		source $UNDO.tac
+		rm $UNDO $UNDO.tac
+	;;
+	*)
 		if [ -f $UNDO ]; then
 			echo "updown: some config is up already, bring down first"
 			exit 1;
 		fi
-		case $2 in
+		case $1 in
 			vpn)
 				vpn_up
 			;;
@@ -337,15 +356,5 @@ case $1 in
 		esac
 
 		services_up
-	;;
-	down)
-		if [ '!' -f $UNDO ]; then
-			echo "updown: nothing to bring down"
-			exit 1;
-		fi
-		tac $UNDO > $UNDO.tac
-		set -x
-		source $UNDO.tac
-		rm $UNDO $UNDO.tac
 	;;
 esac
