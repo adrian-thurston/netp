@@ -91,6 +91,85 @@ shuttle_down()
 	rmmod kring
 }
 
+dnsmasq_up()
+{
+	cat <<-EOF > @pkgstatedir@/dnsmasq.conf
+		pid-file=@piddir@/dnsmasq.pid
+		listen-address=10.50.2.1
+		bind-interfaces
+		dhcp-range=10.50.2.4,10.50.2.254
+		dhcp-leasefile=@piddir@/leases.txt
+		log-facility=@logdir@/dnsmasq.log
+	EOF
+
+	# Run DHCP server.
+	dnsmasq --conf-file=@pkgstatedir@/dnsmasq.conf
+}
+
+dnsmasq_down()
+{
+	# DHCP server down.
+	sudo kill `cat @piddir@/dnsmasq.pid`
+}
+
+openvpn_up()
+{
+	cat <<-EOF > @pkgstatedir@/openvpn.conf
+		#
+		# Server Configuration
+		#
+
+		dev tap
+		cipher AES-256-CBC
+		keepalive 10 60
+
+		mode server
+		tls-server
+
+		ifconfig      10.50.1.1 255.255.255.0
+		ifconfig-pool 10.50.1.2 10.50.1.254 255.255.255.0
+
+		push "route-gateway 10.50.1.1"
+		push "redirect-gateway"
+		push "dhcp-option DNS 97.107.133.4"
+		push "dhcp-option DNS 207.192.69.4"
+		push "dhcp-option DNS 207.192.69.5"
+
+		keepalive 10 60
+
+		user nobody
+		group nogroup
+		persist-tun
+		persist-key
+
+		ifconfig-noexec
+		route-noexec
+
+		key  @pkgdatadir@/key.pem
+		cert @pkgdatadir@/cert.pem
+		ca   @pkgdatadir@/verify.pem
+
+		dh   @DH_KEYS@
+
+		script-security 2
+		up      @pkglibexecdir@/config-iface
+		down    @pkglibexecdir@/config-iface
+
+		daemon
+		writepid @piddir@/openvpn.pid 
+		log      @logdir@/openvpn.log
+		status   @logdir@/openvpn.status 10 
+	EOF
+
+	openvpn --config @pkgstatedir@/openvpn.conf
+}
+
+openvpn_down()
+{
+	# Stop the VPN.
+	start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
+}
+
 comp_up()
 {
 	out=wlan0
@@ -105,8 +184,7 @@ comp_up()
 	iptables -I FORWARD -i inline -o wlan0 -j ACCEPT
 	iptables -I FORWARD -i wlan0 -o inline -j ACCEPT
 
-	# Run DHCP server.
-	dnsmasq --conf-file=@pkgdatadir@/dnsmasq.conf
+	dnsmasq_up
 
 	# Create a veth pair for the data going out
 	ip link add pipe0 type veth peer name pipe1
@@ -174,7 +252,7 @@ comp_down()
 	ip link del pipe0 type veth peer name pipe1
 
 	# DHCP server down.
-	sudo kill `cat @piddir@/dnsmasq.pid`
+	dnsmasq_down
 
 	# Deconfigure the outside bridge.
 	iptables -D FORWARD -i inline -o wlan0 -j ACCEPT
@@ -200,8 +278,7 @@ live_up()
 	iptables -I FORWARD -i inline -o wlan0 -j ACCEPT
 	iptables -I FORWARD -i wlan0 -o inline -j ACCEPT
 
-	# Run DHCP server.
-	dnsmasq --conf-file=@pkgdatadir@/dnsmasq.conf
+	dnsmasq_up
 
 	# Create a veth pair for the data going out
 	ip link add pipe0 type veth peer name pipe1
@@ -256,7 +333,7 @@ live_down()
 	ip link del pipe0 type veth peer name pipe1
 
 	# DHCP server down.
-	sudo kill `cat @piddir@/dnsmasq.pid`
+	dnsmasq_down
 
 	# Deconfigure the outside bridge.
 	iptables -D FORWARD -i inline -o wlan0 -j ACCEPT
@@ -271,7 +348,7 @@ live_down()
 vpn_up()
 {
 	# start VPN service.
-	openvpn --config @pkgdatadir@/openvpn.conf
+	openvpn_up
 
 	sleep 1
 
@@ -351,7 +428,7 @@ vpn_down()
 	brctl delbr inline
 
 	# Stop the VPN.
-	start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
+	openvpn_down
 }
 
 # Modes

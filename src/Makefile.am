@@ -1,11 +1,9 @@
 
-pkgdata_DATA = openvpn.conf dnsmasq.conf
-
 pkglibexec_SCRIPTS = updown config-iface
 
 SUFFIXES = .in .sh
 
-INSTALL_DIRS = @piddir@ @logdir@ @sysconfdir@
+INSTALL_DIRS = @piddir@ @logdir@ @sysconfdir@ @pkgstatedir@
 
 .in:
 	$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w" $(SED_SUBST)
