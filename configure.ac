@@ -5,7 +5,7 @@ AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/common.m4])
 
 AC_CHECK_KRING
-dnl AC_CHECK_SHUTTLE
+AC_CHECK_SHUTTLE
 
 DH_PATH=/usr/share/doc/openvpn/examples/sample-keys
 DH_SEL=""

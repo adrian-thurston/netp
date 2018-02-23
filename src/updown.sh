@@ -21,8 +21,7 @@ shuttle_up()
 
 	echo c0 > /sys/kring/add_cmd
 
-	#insmod @SHUTTLE_MOD@
-	insmod /home/thurston/pkgs/shuttle/share/shuttle.ko
+	insmod @SHUTTLE_MOD@
 
 	ip netns exec inline bash -c "echo shuttle1 c0 r0 >/sys/shuttle/add"
 
@@ -354,5 +353,13 @@ vpn_down()
 	# Stop the VPN.
 	start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
 }
+
+# Modes
+#  bare    - both ends pure wire
+#            needs IP address on network, interface names
+#  vpn     - outside bridge, inside vpn
+#            needs forward interfaces
+#  live    - outside bridge, inside netns and/or bare
+#            needs forward interfaces, inside config
 
 $1 $2 $3
