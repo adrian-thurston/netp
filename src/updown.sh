@@ -5,6 +5,12 @@ set -xe
 
 [ `whoami` = root ] || exit
 
+NET=10.50.10
+
+# $NET.1 - DNS server be it on the outside or provided by the inside vpn.
+# $NET.2 - inside shuttle IP address, necessary for proxy to work
+# $NET.3 - interface in protected network (optional)
+
 shuttle_up()
 {
 	OUTSIDE=$1
@@ -95,9 +101,9 @@ dnsmasq_up()
 {
 	cat <<-EOF > @pkgstatedir@/dnsmasq.conf
 		pid-file=@piddir@/dnsmasq.pid
-		listen-address=10.50.2.1
+		listen-address=$NET.1
 		bind-interfaces
-		dhcp-range=10.50.2.4,10.50.2.254
+		dhcp-range=$NET.4,$NET.254
 		dhcp-leasefile=@piddir@/leases.txt
 		log-facility=@logdir@/dnsmasq.log
 	EOF
@@ -126,10 +132,10 @@ openvpn_up()
 		mode server
 		tls-server
 
-		ifconfig      10.50.1.1 255.255.255.0
-		ifconfig-pool 10.50.1.2 10.50.1.254 255.255.255.0
+		ifconfig      $NET.1 255.255.255.0
+		ifconfig-pool $NET.4 $NET.254 255.255.255.0
 
-		push "route-gateway 10.50.1.1"
+		push "route-gateway $NET.1"
 		push "redirect-gateway"
 		push "dhcp-option DNS 97.107.133.4"
 		push "dhcp-option DNS 207.192.69.4"
@@ -179,7 +185,7 @@ comp_up()
 	brctl addbr inline
 
 	# Configure the bridge with an IP address and set up the forwarding to outside.
-	ifconfig inline 10.50.2.1 netmask 255.255.255.0 up
+	ifconfig inline $NET.1 netmask 255.255.255.0 up
 	iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 	iptables -I FORWARD -i inline -o wlan0 -j ACCEPT
 	iptables -I FORWARD -i wlan0 -o inline -j ACCEPT
@@ -206,17 +212,17 @@ comp_up()
 
 	# Configure shuttle and kring.
 	shuttle_up pipe1 pipe2
-	ip netns exec inline ifconfig shuttle1 10.50.2.2 netmask 255.255.255.0 up 
+	ip netns exec inline ifconfig shuttle1 $NET.2 netmask 255.255.255.0 up 
 
 	ip netns add prot
 	ip link set pipe3 netns prot
 	ip netns exec prot ifconfig lo 127.0.0.1 up
-	ip netns exec prot ifconfig pipe3 10.50.2.3 \
-		broadcast 10.50.2.255 netmask 255.255.255.0 up
-	ip netns exec prot route add default gw 10.50.2.1 pipe3
+	ip netns exec prot ifconfig pipe3 $NET.3 \
+		broadcast $NET.255 netmask 255.255.255.0 up
+	ip netns exec prot route add default gw $NET.1 pipe3
 
 	mkdir -p /etc/netns/prot
-	echo "nameserver 10.50.2.1" > /etc/netns/prot/resolv.conf
+	echo "nameserver $NET.1" > /etc/netns/prot/resolv.conf
 }
 
 comp_down()
@@ -273,7 +279,7 @@ live_up()
 	brctl addbr inline
 
 	# Configure the bridge with an IP address and set up the forwarding to outside.
-	ifconfig inline 10.50.2.1 netmask 255.255.255.0 up
+	ifconfig inline $NET.1 netmask 255.255.255.0 up
 	iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 	iptables -I FORWARD -i inline -o wlan0 -j ACCEPT
 	iptables -I FORWARD -i wlan0 -o inline -j ACCEPT
@@ -301,7 +307,7 @@ live_up()
 
 	# Configure shuttle and kring.
 	shuttle_up pipe1 em1
-	ip netns exec inline ifconfig shuttle1 10.50.2.2 netmask 255.255.255.0 up 
+	ip netns exec inline ifconfig shuttle1 $NET.2 netmask 255.255.255.0 up 
 }
 
 live_down()
@@ -360,7 +366,7 @@ vpn_up()
 	brctl addbr inline
 
 	# Configure it with an IP address.
-	ifconfig inline 10.50.1.1 netmask 255.255.255.0 up
+	ifconfig inline $NET.1 netmask 255.255.255.0 up
 
 	# Enable forwarding out.
 	iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
@@ -388,7 +394,7 @@ vpn_up()
 
 	# Setup the shuttle inside the namespace.
 	shuttle_up pipe1 tap0
-	ip netns exec inline ifconfig shuttle1 10.50.1.240 netmask 255.255.255.0 up 
+	ip netns exec inline ifconfig shuttle1 $NET.240 netmask 255.255.255.0 up 
 }
 
 vpn_down()
