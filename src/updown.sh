@@ -143,67 +143,69 @@ openvpn_up()
 	godo openvpn --config @pkgstatedir@/openvpn.conf
 
 	undo start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
+
+	# Move the device to the inline space.
+	godo ip link set tap0 netns inline
+	undo ip netns exec inline ip link set tap0 netns 1
 }
 
 bridge_up()
 {
+	bridge=$1
+	out=$2
+
 	# Create the bridge for forwarding to the outside world. 
-	godo brctl addbr inline
-	undo brctl delbr inline
+	godo brctl addbr $bridge
+	undo brctl delbr $bridge
 
 	# Configure the bridge with an IP address and set up the forwarding to outside.
-	godo ifconfig inline $NET.1 netmask 255.255.255.0 up
-	undo ifconfig inline 0.0.0.0 down
+	godo ifconfig $bridge $NET.1 netmask 255.255.255.0 up
+	undo ifconfig $bridge 0.0.0.0 down
 
-	godo iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
-	undo iptables -t nat -D POSTROUTING -o wlan0 -j MASQUERADE
+	godo iptables -t nat -A POSTROUTING -o $out -j MASQUERADE
+	undo iptables -t nat -D POSTROUTING -o $out -j MASQUERADE
 
-	godo iptables -I FORWARD -i inline -o wlan0 -j ACCEPT
-	undo iptables -D FORWARD -i inline -o wlan0 -j ACCEPT
+	godo iptables -I FORWARD -i $bridge -o $out -j ACCEPT
+	undo iptables -D FORWARD -i $bridge -o $out -j ACCEPT
 
-	godo iptables -I FORWARD -i wlan0 -o inline -j ACCEPT
-	undo iptables -D FORWARD -i wlan0 -o inline -j ACCEPT
-}
-
-comp_up()
-{
-	out=wlan0
-	pipe=pipe0
-
-	bridge_up
-	dnsmasq_up
+	godo iptables -I FORWARD -i $out -o $bridge -j ACCEPT
+	undo iptables -D FORWARD -i $out -o $bridge -j ACCEPT
 
 	# Create a veth pair for the data going out
 	godo ip link add pipe0 type veth peer name pipe1
 	undo ip link del pipe0 type veth peer name pipe1
 
-	godo ip link add pipe2 type veth peer name pipe3
-	undo ip link del pipe2 type veth peer name pipe3
-
 	# Put outside end on the bridge to outside.
 	godo brctl addif inline pipe0
 	undo brctl delif inline pipe0
 
+	# Bring up the outside.
 	godo ifconfig pipe0 up
 	undo ifconfig pipe0 down
-
-	# Create the namespace.
-	godo ip netns add inline
-	undo ip netns del inline
 
 	# Move inside end of pairs to inline network namespace.
 	godo ip link set pipe1 netns inline
 	undo ip netns exec inline ip link set pipe1 netns 1
+}
 
-	godo ip link set pipe2 netns inline
-	undo ip netns exec inline ip link set pipe2 netns 1
+create_inline()
+{
+	# Create the namespace.
+	godo ip netns add inline
+	undo ip netns del inline
 
 	# Set up network in inline namespace
 	godo ip netns exec inline ifconfig lo 127.0.0.1 up
 	undo ip netns exec inline ifconfig lo 0.0.0.0 down
+}
 
-	# Configure shuttle and kring.
-	shuttle_up pipe1 pipe2
+inside_bridge()
+{
+	godo ip link add pipe2 type veth peer name pipe3
+	undo ip link del pipe2 type veth peer name pipe3
+
+	godo ip link set pipe2 netns inline
+	undo ip netns exec inline ip link set pipe2 netns 1
 
 	godo ip netns add prot
 	undo ip netns del prot
@@ -225,40 +227,32 @@ comp_up()
 	echo "nameserver $NET.1" > /etc/netns/prot/resolv.conf
 }
 
-live_up()
+comp_up()
 {
-	out=wlan0
-	pipe=pipe0
+	create_inline
 
-	bridge_up
+	inside_bridge
+
+	bridge_up inline wlan0
+
 	dnsmasq_up
 
-	# Create a veth pair for the data going out
-	godo ip link add pipe0 type veth peer name pipe1
-	undo ip link del pipe0 type veth peer name pipe1
+	# Configure shuttle and kring.
+	shuttle_up pipe1 pipe2
+}
 
-	# Put outside end on the bridge to outside.
-	godo brctl addif inline pipe0
-	undo brctl delif inline pipe0
-
-	godo ifconfig pipe0 up
-	undo ifconfig pipe0 down
-
-	# Create the namespace.
-	godo ip netns add inline
-	undo ip netns del inline
-
-	# Move inside end of the pair to inline network namespace.
-	godo ip link set pipe1 netns inline
-	undo ip netns exec inline ip link set pipe1 netns 1
+live_up()
+{
+	# Create central namespace
+	create_inline
 
 	# Move connection to internal network to network namespace.
 	godo ip link set em1 netns inline
 	undo ip netns exec inline ip link set em1 netns 1
 
-	# Set up network in inline namespace
-	godo ip netns exec inline ifconfig lo 127.0.0.1 up
-	undo ip netns exec inline ifconfig lo 0.0.0.0 down
+	# Set up outside.
+	bridge_up inline wlan0
+	dnsmasq_up
 
 	# Configure shuttle and kring.
 	shuttle_up pipe1 em1
@@ -266,53 +260,14 @@ live_up()
 
 vpn_up()
 {
-	# start VPN service.
+	# Create central namespace.
+	create_inline
+
+	# Set up inside.
 	openvpn_up
 
-	# Add the bridge for outgoing.
-	godo brctl addbr inline
-	undo brctl delbr inline
-
-	# Configure it with an IP address.
-	godo ifconfig inline $NET.1 netmask 255.255.255.0 up
-	undo ifconfig inline 0.0.0.0 down
-
-	# Enable forwarding out.
-	godo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-	undo iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-
-	godo iptables -I FORWARD -i inline -o eth0 -j ACCEPT
-	undo iptables -D FORWARD -i inline -o eth0 -j ACCEPT
-
-	godo iptables -I FORWARD -i eth0 -o inline -j ACCEPT
-	undo iptables -D FORWARD -i eth0 -o inline -j ACCEPT
-
-	# Create the veth peer for the connection out.
-	godo ip link add pipe0 type veth peer name pipe1
-	undo ip link del pipe0 type veth peer name pipe1
-
-	# Add the outside end to the output bridge.
-	godo brctl addif inline pipe0
-	undo brctl delif inline pipe0
-
-	# Bring it up. 
-	godo ifconfig pipe0 up
-	undo ifconfig pipe0 down
-
-	# Create the namespace
-	godo ip netns add inline
-	undo ip netns del inline
-
-	# Move interior interfaces to it.
-	godo ip link set pipe1 netns inline
-	undo ip netns exec inline ip link set pipe1 netns 1
-
-	godo ip link set tap0 netns inline
-	undo ip netns exec inline ip link set tap0 netns 1
-
-	# Configure interior loopback.
-	godo ip netns exec inline ifconfig lo 127.0.0.1 up
-	undo ip netns exec inline ifconfig lo 0.0.0.0 down
+	# Set up outside
+	bridge_up inline eth0
 
 	# Setup the shuttle inside the namespace.
 	shuttle_up pipe1 tap0
@@ -349,7 +304,7 @@ iptables -P FORWARD DROP
 case $1 in
 	up)
 		if [ -f $UNDO ]; then
-			echo "updown: already up, bring down first"
+			echo "updown: some config is up already, bring down first"
 			exit 1;
 		fi
 		case $2 in
@@ -366,7 +321,7 @@ case $1 in
 	;;
 	down)
 		if [ '!' -f $UNDO ]; then
-			echo "updown: already up, bring down first"
+			echo "updown: nothing to bring down"
 			exit 1;
 		fi
 		tac $UNDO > $UNDO.tac
