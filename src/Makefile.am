@@ -5,7 +5,8 @@ KRING_SYMVERS = @KRING_SYMVERS@
 
 INSTALL_DIRS += @sysconfdir@
 
-data_DATA = shuttle.ko
+kmod_DATA = shuttle.ko
+pkgdata_DATA = Module.symvers
 
 EXTRA_DIST += shuttle.gf attribute.c module.h avl.h avl.c
 
