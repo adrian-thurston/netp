@@ -144,6 +144,8 @@ openvpn_up()
 
 	undo start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
 
+	sleep 1
+
 	# Move the device to the inline space.
 	godo ip link set tap0 netns inline
 	undo ip netns exec inline ip link set tap0 netns 1
@@ -273,6 +275,21 @@ vpn_up()
 	shuttle_up pipe1 tap0
 }
 
+services_up()
+{
+	godo @BROKER_PREFIX@/libexec/broker/init.d start
+	undo @BROKER_PREFIX@/libexec/broker/init.d stop
+
+	godo @NETP_PREFIX@/libexec/netp/init.d start
+	undo @NETP_PREFIX@/libexec/netp/init.d stop
+
+	godo @TLSPROXY_PREFIX@/libexec/tlsproxy/init.d start
+	undo @TLSPROXY_PREFIX@/libexec/tlsproxy/init.d stop
+
+#	godo @FETCH_PREFIX@/libexec/fetch/init.d start
+#	undo @FETCH_PREFIX@/libexec/fetch/init.d stop
+}
+
 UNDO=@pkgstatedir@/undo
 
 godo()
@@ -318,6 +335,8 @@ case $1 in
 				comp_up
 			;;
 		esac
+
+		services_up
 	;;
 	down)
 		if [ '!' -f $UNDO ]; then
