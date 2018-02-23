@@ -1,5 +1,5 @@
 
-pkglibexec_SCRIPTS = updown config-iface
+pkglibexec_SCRIPTS = updown
 
 SUFFIXES = .in .sh
 

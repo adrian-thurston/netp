@@ -117,10 +117,6 @@ openvpn_up()
 
 		dh   @DH_KEYS@
 
-		script-security 2
-		up      @pkglibexecdir@/config-iface
-		down    @pkglibexecdir@/config-iface
-
 		daemon
 		writepid @piddir@/openvpn.pid 
 		log      @logdir@/openvpn.log
@@ -282,7 +278,7 @@ set -e
 
 SHUTTLE_NET=10.50.10
 SHUTTLE_IP="$SHUTTLE_NET.2"
-OUTSIDE_FORWARD="wlan0 eth0"
+OUTSIDE_FORWARD=""
 
 if [ -f @sysconfdir@/updown.conf ]; then
 	source @sysconfdir@/updown.conf;
