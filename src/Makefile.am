@@ -3,7 +3,7 @@ pkglibexec_SCRIPTS = updown config-iface
 
 SUFFIXES = .in .sh
 
-INSTALL_DIRS = @piddir@ @logdir@ @sysconfdir@ @pkgstatedir@
+INSTALL_DIRS = @piddir@ @logdir@ @sysconfdir@ @pkgstatedir@ @pkgdatadir@
 
 .in:
 	$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w" $(SED_SUBST)
