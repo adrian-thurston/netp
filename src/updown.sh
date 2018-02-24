@@ -74,8 +74,7 @@ dnsmasq_up()
 	# Run DHCP server.
 	godo dnsmasq --conf-file=@pkgstatedir@/dnsmasq.conf
 
-	undo kill '`cat @piddir@/dnsmasq.pid`'
-
+	undo start-stop-daemon --stop --pidfile @piddir@/dnsmasq.pid
 }
 
 openvpn_up()
@@ -124,10 +123,7 @@ openvpn_up()
 	EOF
 
 	godo openvpn --config @pkgstatedir@/openvpn.conf
-
 	undo start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
-
-	sleep 1
 
 	# Move the device to the inline space.
 	godo ip link set tap0 netns inline
@@ -259,19 +255,39 @@ vpn_up()
 	shuttle_up pipe1 tap0
 }
 
+bg_up()
+{
+	package=$1; prefix=$2
+	bindir=$prefix/bin
+	pidfile=$prefix/var/run/$package.pid
+
+	(
+		# Enable core dumps up to 500 MB. Other setup below.
+		ulimit -c 512000
+
+		godo $bindir/$package -b
+	)
+
+	# Wait two seconds for the pidfile to appear.
+	iters=0
+	while [ '!' -f $pidfile ]; do
+		sleep 0.1
+		if [ $iters == 20 ]; then
+			echo $package init.d start: pidfile was not created >&2
+			exit 1
+		fi
+		iters=$((iters + 1))
+	done
+
+	undo start-stop-daemon --stop --pidfile $pidfile --retry 5
+}
+
 services_up()
 {
-	godo @BROKER_PREFIX@/libexec/broker/init.d start
-	undo @BROKER_PREFIX@/libexec/broker/init.d stop
-
-	godo @NETP_PREFIX@/libexec/netp/init.d start
-	undo @NETP_PREFIX@/libexec/netp/init.d stop
-
-	godo @TLSPROXY_PREFIX@/libexec/tlsproxy/init.d start
-	undo @TLSPROXY_PREFIX@/libexec/tlsproxy/init.d stop
-
-	godo @FETCH_PREFIX@/libexec/fetch/init.d start
-	undo @FETCH_PREFIX@/libexec/fetch/init.d stop
+	bg_up broker @BROKER_PREFIX@
+	bg_up netp @NETP_PREFIX@
+	bg_up tlsproxy @TLSPROXY_PREFIX@
+	bg_up fetch @FETCH_PREFIX@
 }
 
 set -e
