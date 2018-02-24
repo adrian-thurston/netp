@@ -6,6 +6,8 @@ shuttle_up()
 	OUTSIDE=$1
 	INSIDE=$2
 
+	undo restart_mark shuttle $OUTSIDE $INSIDE
+
 	godo insmod @KRING_MOD@
 	undo rmmod kring
 
@@ -233,6 +235,8 @@ comp_up()
 
 	# Configure shuttle and kring.
 	shuttle_up pipe1 pipe2
+
+	services_up
 }
 
 live_up()
@@ -250,6 +254,8 @@ live_up()
 
 	# Configure shuttle and kring.
 	shuttle_up pipe1 em1
+
+	services_up
 }
 
 vpn_up()
@@ -265,19 +271,22 @@ vpn_up()
 
 	# Setup the shuttle inside the namespace.
 	shuttle_up pipe1 tap0
+
+	services_up
 }
 
 bg_up()
 {
-	package=$1; prefix=$2
+	package=$1; prefix=$2; shift 2; options=$@
 	bindir=$prefix/bin
+
 	pidfile=$prefix/var/run/$package.pid
 
 	(
 		# Enable core dumps up to 500 MB. Other setup below.
 		ulimit -c 512000
 
-		godo $bindir/$package -b
+		godo $bindir/$package -b $options
 	)
 
 	# Wait two seconds for the pidfile to appear.
@@ -296,10 +305,34 @@ bg_up()
 
 services_up()
 {
+	undo restart_mark services
 	bg_up broker @BROKER_PREFIX@
 	bg_up netp @NETP_PREFIX@
-	bg_up tlsproxy @TLSPROXY_PREFIX@
+	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline
 	bg_up fetch @FETCH_PREFIX@
+}
+
+RESTART_BOUNCE=
+
+restart_mark()
+{
+	bounce_target=$1
+	if [ -n "$RESTART_BOUNCE" ] && [ "$RESTART_BOUNCE" = "$bounce_target" ]; then
+		set +x
+
+		set -- $(grep "^restart_mark $RESTART_BOUNCE" $UNDO)
+		sed -i "/^restart_mark $RESTART_BOUNCE/,\${d}" $UNDO
+
+		echo $@
+
+		if [ "$2" = shuttle ]; then
+			shuttle_up $3 $4
+		fi
+
+		services_up
+
+		exit 0		
+	fi
 }
 
 set -e
@@ -352,33 +385,34 @@ sysctl -q net.ipv4.ip_forward=1
 iptables -P FORWARD DROP
 
 case $1 in
-	down)
+	down|restart)
 		if [ '!' -f $UNDO ]; then
 			echo "updown: nothing to bring down"
 			exit 1;
 		fi
 		tac $UNDO > $UNDO.tac
 		set -x
+
+		if [ $1 = restart ]; then
+			case $2 in
+				services|shuttle) RESTART_BOUNCE=$2;;
+				*)
+					echo "updown: invalid restart: $2"
+					exit 1
+				;;
+			esac
+		fi
+
 		source $UNDO.tac
+
 		rm $UNDO $UNDO.tac
 	;;
-	*)
+	vpn|live|comp)
 		if [ -f $UNDO ]; then
 			echo "updown: some config is up already, bring down first"
 			exit 1;
 		fi
-		case $1 in
-			vpn)
-				vpn_up
-			;;
-			live)
-				live_up
-			;;
-			comp)
-				comp_up
-			;;
-		esac
 
-		services_up
+		$1_up
 	;;
 esac
