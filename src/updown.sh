@@ -123,6 +123,18 @@ openvpn_up()
 	EOF
 
 	godo openvpn --config @pkgstatedir@/openvpn.conf
+
+	# Wait five seconds for the tap device to appear
+	iters=0
+	while ! ip link show dev tap0 &>/dev/null; do
+		sleep 0.1
+		if [ $iters == 50 ]; then
+			echo $package init.d start: pidfile was not created >&2
+			exit 1
+		fi
+		iters=$((iters + 1))
+	done
+
 	undo start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
 
 	# Move the device to the inline space.
