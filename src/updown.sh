@@ -139,9 +139,6 @@ openvpn_up()
 
 	undo start-stop-daemon --stop --pidfile @piddir@/openvpn.pid
 
-	# Move the device to the inline space.
-	godo ip link set tap0 netns inline
-	undo ip netns exec inline ip link set tap0 netns 1
 }
 
 bridge_up()
@@ -214,69 +211,93 @@ config_protnet()
 
 protnet_pipe()
 {
+	godo ip netns add prot
+	undo ip netns del prot
+
 	godo ip link add pipe2 type veth peer name pipe3
 	undo ip link del pipe2 type veth peer name pipe3
 
 	godo ip link set pipe2 netns inline
 	undo ip netns exec inline ip link set pipe2 netns 1
 
-	godo ip netns add prot
-	undo ip netns del prot
-
 	godo ip link set pipe3 netns prot
 	undo ip netns exec prot ip link set pipe3 netns 1
 }
 
-live_up()
+bring_up()
 {
-	NUM_IFACES=$(echo $LIVE_INTERFACES | wc -w)
-	if [ $NUM_IFACES = 0 ] && [ -z "$LIVE_PROTNET" ]; then
+	NUM_LIVE=$(echo $LIVE_INTERFACES $LIVE_PROTNET $LIVE_VPN | wc -w)
+	if [ $NUM_LIVE = 0 ]; then
 		#
-		# no interface and no protnet: failure
+		# no interfaces, protnet, or vpn
 		#
-		echo "updown live: no interfaces or protnets configured"
+		echo "updown live: no interfaces, protnet or vpn configured"
 		exit 1;
 	fi
 
 	# Create central namespace
 	create_inline
 
-	if [ $NUM_IFACES = 1 ] && [ -z "$LIVE_PROTNET" ]; then
+	if [ $NUM_LIVE = 1 ]; then 
 		#
-		# one interface and no protnet: move iface to netns
+		# Just one thing.
 		#
-		IFACE=$LIVE_INTERFACES
+		if [ -n "$LIVE_VPN" ]; then
+			SHUTTLE_INSIDE=tap0
 
-		# Move connection to internal network to network namespace.
-		godo ip link set $IFACE netns inline
-		undo ip netns exec inline ip link set $IFACE netns 1
+			# Set up inside.
+			openvpn_up
 
-	elif [ $NUM_IFACES = 0 ] && [ -n "$LIVE_PROTNET" ]; then
-		#
-		# protnet and no interface: pipe
-		#
-		IFACE=pipe2
+			# Move the device to the inline space.
+			godo ip link set tap0 netns inline
+			undo ip netns exec inline ip link set tap0 netns 1
 
-		protnet_pipe
+		elif [ -n "$LIVE_INTERFACES" ]; then
+			SHUTTLE_INSIDE=$LIVE_INTERFACES
 
-		config_protnet pipe3
+			# Move single interface to inside network namespace.
+			godo ip link set $SHUTTLE_INSIDE netns inline
+			undo ip netns exec inline ip link set $SHUTTLE_INSIDE netns 1
+
+		elif [ -n "$LIVE_PROTNET" ]; then
+			#
+			# protnet and no interface: pipe
+			#
+			SHUTTLE_INSIDE=pipe2
+
+			protnet_pipe
+
+			config_protnet pipe3
+		fi
 	else
-		#
-		# interface(s) and a protnet: bridge + pipe and brif
-		#
-		IFACE=pipe2
+		# More than one thing. need a bridge.
+
+		SHUTTLE_INSIDE=pipe2
 
 		protnet_pipe
 
+		# Make the bridge.
 		godo ip netns exec prot brctl addbr pbr
 		undo ip netns exec prot brctl delbr pbr
 
+		if [ -n "$LIVE_VPN" ]; then
+			# Start vpn and move it to the protnet.
+			openvpn_up
+
+			godo ip link set tap0 netns prot
+			undo ip netns exec prot ip link set tap0 netns 1
+
+			LIVE_VPN="tap0"
+		fi
+
+		# Move live interfaces to prot namespace
 		for iface in $LIVE_INTERFACES; do
 			godo ip link set $iface netns prot
 			undo ip netns exec prot ip link set $iface netns 1
 		done
 
-		for iface in pipe3 $LIVE_INTERFACES; do
+		# Put everything that needs to go on the bridge.
+		for iface in pipe3 $LIVE_VPN $LIVE_INTERFACES; do
 			godo ip netns exec prot brctl addif pbr $iface
 			undo ip netns exec prot brctl delif pbr $iface
 
@@ -284,7 +305,14 @@ live_up()
 			undo ip netns exec prot ifconfig $iface down
 		done
 
-		config_protnet pbr
+		# If we want a protnet, configure the bridge, otherwise it gets left
+		# unconfigured in the protnet.. 
+		if [ -n "$LIVE_PROTNET" ]; then
+			config_protnet pbr
+		else
+			godo ip netns exec prot ifconfig pbr up
+			undo ip netns exec prot ifconfig pbr down
+		fi
 	fi
 
 	# Set up outside.
@@ -292,25 +320,7 @@ live_up()
 	dnsmasq_up
 
 	# Configure shuttle and kring.
-	shuttle_up pipe1 $IFACE
-
-	services_up
-}
-
-vpn_up()
-{
-	# Create central namespace.
-	create_inline
-
-	# Set up inside.
-	openvpn_up
-
-	# Set up outside
-	bridge_up inline
-	dnsmasq_up
-
-	# Setup the shuttle inside the namespace.
-	shuttle_up pipe1 tap0
+	shuttle_up pipe1 $SHUTTLE_INSIDE
 
 	services_up
 }
@@ -375,22 +385,6 @@ restart_mark()
 	fi
 }
 
-set -e
-
-SHUTTLE_NET=10.50.10
-SHUTTLE_IP="$SHUTTLE_NET.2"
-OUTSIDE_FORWARD=""
-LIVE_INTERFACES=""
-LIVE_PROTNET=""
-
-NET="$SHUTTLE_NET"
-
-# $NET.1 - DNS server be it on the outside or provided by the inside vpn.
-# $NET.2 - inside shuttle IP address, necessary for proxy to work
-# $NET.3 - interface in protected network (optional)
-
-UNDO=@pkgstatedir@/undo
-
 godo()
 {
 	( set -x; "$@" )
@@ -401,15 +395,32 @@ undo()
 	echo "$@" >> $UNDO
 }
 
-
-if [ -f @sysconfdir@/updown.conf ]; then
-	source @sysconfdir@/updown.conf;
-fi
+set -e
 
 if [ '!' `whoami` = root ]; then
 	echo "updown: must run as root"
 	exit 1
 fi
+
+SHUTTLE_NET=10.50.10
+SHUTTLE_IP="$SHUTTLE_NET.2"
+OUTSIDE_FORWARD=""
+LIVE_INTERFACES=""
+LIVE_PROTNET=""
+LIVE_VPN=""
+
+if [ -f @sysconfdir@/updown.conf ]; then
+	source @sysconfdir@/updown.conf;
+fi
+
+NET="$SHUTTLE_NET"
+
+# $NET.1 - DNS server be it on the outside or provided by the inside vpn.
+# $NET.2 - inside shuttle IP address, necessary for proxy to work
+# $NET.3 - interface in protected network (optional)
+
+UNDO=@pkgstatedir@/undo
+
 
 # Expected system configuration. Not torn down the -down script.
 for fn in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > $fn; done
@@ -420,7 +431,7 @@ sysctl -q net.ipv4.ip_forward=1
 iptables -P FORWARD DROP
 
 case $1 in
-	down|restart)
+	stop|restart)
 		if [ '!' -f $UNDO ]; then
 			echo "updown: nothing to bring down"
 			exit 1;
@@ -450,13 +461,13 @@ case $1 in
 	#            needs forward interfaces
 	#  live    - outside bridge, inside netns and/or bare
 	#            needs forward interfaces, inside config
-	vpn|live)
+	start)
 		if [ -f $UNDO ]; then
 			echo "updown: some config is up already, bring down first"
 			exit 1;
 		fi
 
-		$1_up
+		bring_up
 	;;
 	status|st)
 		if [ -f $UNDO ]; then
