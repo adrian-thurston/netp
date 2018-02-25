@@ -224,7 +224,8 @@ protnet_pipe()
 	undo ip netns exec prot ip link set pipe3 netns 1
 }
 
-bring_up()
+
+live_up()
 {
 	NUM_LIVE=$(echo $LIVE_INTERFACES $LIVE_PROTNET $LIVE_VPN | wc -w)
 	if [ $NUM_LIVE = 0 ]; then
@@ -325,6 +326,24 @@ bring_up()
 	services_up
 }
 
+bring_up()
+{
+	if [ -n "$DIRECT_INTERFACES" ]; then
+		# Direct mode uses two existing interfaces for both ends.
+		create_inline
+
+		for iface in $DIRECT_INTERFACES; do
+			godo ip link set $iface netns inline
+			undo ip netns exec inline ip link set $iface netns 1
+		done
+
+		shuttle_up $DIRECT_INTERFACES
+		services_up
+	else
+		live_up
+	fi
+}
+
 bg_up()
 {
 	package=$1; prefix=$2; shift 2; options=$@
@@ -408,6 +427,7 @@ OUTSIDE_FORWARD=""
 LIVE_INTERFACES=""
 LIVE_PROTNET=""
 LIVE_VPN=""
+DIRECT_INTERFACES=""
 
 if [ -f @sysconfdir@/updown.conf ]; then
 	source @sysconfdir@/updown.conf;
