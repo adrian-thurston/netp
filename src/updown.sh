@@ -195,7 +195,24 @@ create_inline()
 	undo ip netns exec inline ifconfig lo 0.0.0.0 down
 }
 
-inside_bridge()
+config_protnet()
+{
+	PIFACE=$1
+	godo ip netns exec prot ifconfig lo 127.0.0.1 up
+	undo ip netns exec prot ifconfig lo 0.0.0.0 down
+
+	godo ip netns exec prot ifconfig $PIFACE $NET.3 \
+			broadcast $NET.255 netmask 255.255.255.0 up
+	undo ip netns exec prot ifconfig lo 0.0.0.0 down
+
+	godo ip netns exec prot route add default gw $NET.1 $PIFACE
+	undo ip netns exec prot ifconfig $PIFACE 0.0.0.0 down
+
+	mkdir -p /etc/netns/prot
+	echo "nameserver $NET.1" > /etc/netns/prot/resolv.conf
+}
+
+protnet_pipe()
 {
 	godo ip link add pipe2 type veth peer name pipe3
 	undo ip link del pipe2 type veth peer name pipe3
@@ -208,52 +225,74 @@ inside_bridge()
 
 	godo ip link set pipe3 netns prot
 	undo ip netns exec prot ip link set pipe3 netns 1
-
-	godo ip netns exec prot ifconfig lo 127.0.0.1 up
-	undo ip netns exec prot ifconfig lo 0.0.0.0 down
-
-	godo ip netns exec prot ifconfig pipe3 $NET.3 \
-			broadcast $NET.255 netmask 255.255.255.0 up
-	undo ip netns exec prot ifconfig lo 0.0.0.0 down
-
-	godo ip netns exec prot route add default gw $NET.1 pipe3
-	undo ip netns exec prot ifconfig pipe3 0.0.0.0 down
-
-	mkdir -p /etc/netns/prot
-	echo "nameserver $NET.1" > /etc/netns/prot/resolv.conf
-}
-
-comp_up()
-{
-	create_inline
-
-	inside_bridge
-
-	bridge_up inline
-
-	dnsmasq_up
-
-	# Configure shuttle and kring.
-	shuttle_up pipe1 pipe2
-
-	services_up
 }
 
 live_up()
 {
+	NUM_IFACES=$(echo $LIVE_INTERFACES | wc -w)
+	if [ $NUM_IFACES = 0 ] && [ -z "$LIVE_PROTNET" ]; then
+		#
+		# no interface and no protnet: failure
+		#
+		echo "updown live: no interfaces or protnets configured"
+		exit 1;
+	fi
+
 	# Create central namespace
 	create_inline
 
-	# Move connection to internal network to network namespace.
-	godo ip link set em1 netns inline
-	undo ip netns exec inline ip link set em1 netns 1
+	if [ $NUM_IFACES = 1 ] && [ -z "$LIVE_PROTNET" ]; then
+		#
+		# one interface and no protnet: move iface to netns
+		#
+		IFACE=$LIVE_INTERFACES
+
+		# Move connection to internal network to network namespace.
+		godo ip link set $IFACE netns inline
+		undo ip netns exec inline ip link set $IFACE netns 1
+
+	elif [ $NUM_IFACES = 0 ] && [ -n "$LIVE_PROTNET" ]; then
+		#
+		# protnet and no interface: pipe
+		#
+		IFACE=pipe2
+
+		protnet_pipe
+
+		config_protnet pipe3
+	else
+		#
+		# interface(s) and a protnet: bridge + pipe and brif
+		#
+		IFACE=pipe2
+
+		protnet_pipe
+
+		godo ip netns exec prot brctl addbr pbr
+		undo ip netns exec prot brctl delbr pbr
+
+		for iface in $LIVE_INTERFACES; do
+			godo ip link set $iface netns prot
+			undo ip netns exec prot ip link set $iface netns 1
+		done
+
+		for iface in pipe3 $LIVE_INTERFACES; do
+			godo ip netns exec prot brctl addif pbr $iface
+			undo ip netns exec prot brctl delif pbr $iface
+
+			godo ip netns exec prot ifconfig $iface up
+			undo ip netns exec prot ifconfig $iface down
+		done
+
+		config_protnet pbr
+	fi
 
 	# Set up outside.
 	bridge_up inline
 	dnsmasq_up
 
 	# Configure shuttle and kring.
-	shuttle_up pipe1 em1
+	shuttle_up pipe1 $IFACE
 
 	services_up
 }
@@ -340,6 +379,8 @@ set -e
 SHUTTLE_NET=10.50.10
 SHUTTLE_IP="$SHUTTLE_NET.2"
 OUTSIDE_FORWARD=""
+LIVE_INTERFACES=""
+LIVE_PROTNET=""
 
 NET="$SHUTTLE_NET"
 
@@ -408,7 +449,7 @@ case $1 in
 	#            needs forward interfaces
 	#  live    - outside bridge, inside netns and/or bare
 	#            needs forward interfaces, inside config
-	vpn|live|comp)
+	vpn|live)
 		if [ -f $UNDO ]; then
 			echo "updown: some config is up already, bring down first"
 			exit 1;
