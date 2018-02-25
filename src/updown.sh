@@ -300,7 +300,7 @@ bg_up()
 		iters=$((iters + 1))
 	done
 
-	undo start-stop-daemon --stop --pidfile $pidfile --retry 5
+	undo start-stop-daemon --stop --pidfile $pidfile --retry 5 '||' rm -f $pidfile
 }
 
 services_up()
