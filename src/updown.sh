@@ -341,15 +341,6 @@ SHUTTLE_NET=10.50.10
 SHUTTLE_IP="$SHUTTLE_NET.2"
 OUTSIDE_FORWARD=""
 
-if [ -f @sysconfdir@/updown.conf ]; then
-	source @sysconfdir@/updown.conf;
-fi
-
-if [ '!' `whoami` = root ]; then
-	echo "updown: must run as root"
-	exit 1
-fi
-
 NET="$SHUTTLE_NET"
 
 # $NET.1 - DNS server be it on the outside or provided by the inside vpn.
@@ -368,13 +359,15 @@ undo()
 	echo "$@" >> $UNDO
 }
 
-# Modes
-#  bare    - both ends pure wire
-#            needs IP address on network, interface names
-#  vpn     - outside bridge, inside vpn
-#            needs forward interfaces
-#  live    - outside bridge, inside netns and/or bare
-#            needs forward interfaces, inside config
+
+if [ -f @sysconfdir@/updown.conf ]; then
+	source @sysconfdir@/updown.conf;
+fi
+
+if [ '!' `whoami` = root ]; then
+	echo "updown: must run as root"
+	exit 1
+fi
 
 # Expected system configuration. Not torn down the -down script.
 for fn in /proc/sys/net/ipv4/conf/*/rp_filter; do echo 0 > $fn; done
@@ -407,6 +400,14 @@ case $1 in
 
 		rm $UNDO $UNDO.tac
 	;;
+
+	# Modes
+	#  bare    - both ends pure wire
+	#            needs IP address on network, interface names
+	#  vpn     - outside bridge, inside vpn
+	#            needs forward interfaces
+	#  live    - outside bridge, inside netns and/or bare
+	#            needs forward interfaces, inside config
 	vpn|live|comp)
 		if [ -f $UNDO ]; then
 			echo "updown: some config is up already, bring down first"
@@ -415,4 +416,10 @@ case $1 in
 
 		$1_up
 	;;
+	status|st)
+		if [ -f $UNDO ]; then
+			echo "updown: some config is up"
+		else
+			echo "updown: fully down"
+		fi
 esac
