@@ -68,7 +68,7 @@ dnsmasq_up()
 		pid-file=@piddir@/dnsmasq.pid
 		listen-address=$NET.1
 		bind-interfaces
-		dhcp-range=$NET.4,$NET.254
+		dhcp-range=$NET.4,$NET.136
 		dhcp-leasefile=@piddir@/leases.txt
 		log-facility=@logdir@/dnsmasq.log
 	EOF
@@ -94,7 +94,7 @@ openvpn_up()
 		tls-server
 
 		ifconfig      $NET.1 255.255.255.0
-		ifconfig-pool $NET.4 $NET.254 255.255.255.0
+		ifconfig-pool $NET.137 $NET.254 255.255.255.0
 
 		push "route-gateway $NET.1"
 		push "redirect-gateway"
@@ -307,6 +307,7 @@ vpn_up()
 
 	# Set up outside
 	bridge_up inline
+	dnsmasq_up
 
 	# Setup the shuttle inside the namespace.
 	shuttle_up pipe1 tap0
