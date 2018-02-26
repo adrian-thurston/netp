@@ -58,7 +58,7 @@ shuttle_up()
 	undo ip netns exec inline iptables -t mangle -D PREROUTING -p tcp -m tcp \
 			--dport 443 -j TPROXY  --on-port 4430 --tproxy-mark 101/101
 
-	godo ip netns exec inline ifconfig shuttle1 $NET.2 netmask 255.255.255.0 up 
+	godo ip netns exec inline ifconfig shuttle1 $SHUTTLE_IP netmask 255.255.255.0 up 
 	undo ip netns exec inline ifconfig shuttle1 0.0.0.0 down
 }
 
