@@ -170,7 +170,6 @@ namespace Message
 struct PacketHeader
 {
 	int msgId;
-	int writerId;
 	int length;
 	int firstLen;
 };

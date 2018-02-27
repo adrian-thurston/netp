@@ -151,5 +151,7 @@ std::ostream &operator <<( std::ostream &out, const log_hex &h )
 			out << std::endl;
 	}
 
+	out << std::dec;
+
 	return out;
 }

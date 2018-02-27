@@ -60,7 +60,6 @@ void *PacketBase::open( PacketWriter *writer, int ID, int SZ )
 			(PacketHeader*)writer->buf.data(writer->buf.hblk) );
 
 	header->msgId = ID;
-	header->writerId = 934223439; // writer->id;
 
 	/* Place the struct. */
 	void *msg = writer->allocBytes( SZ, offset );
