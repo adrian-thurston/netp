@@ -375,10 +375,10 @@ bg_up()
 services_up()
 {
 	undo restart_mark services
-	bg_up broker @BROKER_PREFIX@
-	bg_up netp @NETP_PREFIX@
-	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline
-	bg_up fetch @FETCH_PREFIX@
+	bg_up broker @BROKER_PREFIX@ $BROKER_OPTIONS
+	bg_up netp @NETP_PREFIX@ $NETP_OPTIONS
+	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline $TLSPROXY_OPTIONS
+	bg_up fetch @FETCH_PREFIX@ $FETCH_OPTIONS
 }
 
 RESTART_BOUNCE=
@@ -428,6 +428,10 @@ LIVE_INTERFACES=""
 LIVE_PROTNET=""
 LIVE_VPN=""
 DIRECT_INTERFACES=""
+BROKER_OPTIONS=""
+NETP_OPTIONS=""
+TLSPROXY_OPTIONS=""
+FETCH_OPTIONS=""
 
 if [ -f @sysconfdir@/updown.conf ]; then
 	source @sysconfdir@/updown.conf;
