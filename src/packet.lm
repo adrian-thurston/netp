@@ -561,6 +561,7 @@ void generateJava( P: program )
 		~import java.nio.ByteBuffer;
 		~import java.nio.ByteOrder;
 		~import java.io.IOException;
+		~import java.util.Iterator;
 		~
 		~abstract class BrokerGen
 		~	extends BrokerBase
@@ -568,8 +569,31 @@ void generateJava( P: program )
 
 	for Packet: packet in PacketMap {
 		send Output
-			"	static final int [Packet->Id] = [Packet->AppID * 1000 + Packet->NumID];
+			"class [Packet->Id]
+			"{
 
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output
+					"	boolean [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	String [FD.id];
+			}
+		}
+
+		send Output
+			"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
+			"}
+	}
+
+	for Packet: packet in PacketMap {
 		Size: int = packetSize( Packet )
 		send Output
 			"	void send[Packet->Id]( "
@@ -598,7 +622,7 @@ void generateJava( P: program )
 			"
 			"		/* Next block length, id, total length, first length */
 			"		bbb.putInt( 0,  0 );
-			"		bbb.putInt( 4,  [Packet->Id] );
+			"		bbb.putInt( 4,  [Packet->Id].ID );
 			"		bbb.putInt( 8,  [16 + Size] );
 			"		bbb.putInt( 12, [16 + Size] );
 			"
@@ -632,6 +656,56 @@ void generateJava( P: program )
 			"		}
 			"	}
 	}
+	
+
+	for Packet: packet in PacketMap {
+		Size: int = packetSize( Packet )
+		send Output
+			"[Packet->Id] read[Packet->Id]( Packet packet, int offset )
+			"{
+			"	int len;
+			"	long stroff;
+			"	PacketPos strPos;
+			"	PacketPos recordPos = pktFind( packet, offset );
+			"	[Packet->Id] r = new [Packet->Id]();
+			"	
+
+		Offset: int = 0
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output
+					"	r.[FD.id] = recordPos.block.getByte( recordPos.offset + [Offset] );
+				Offset = Offset + 1
+			}
+			case [`long] {
+				send Output
+					"	r.[FD.id] = recordPos.block.getLong( recordPos.offset + [Offset] );
+				Offset = Offset + 8
+			}
+			case [`string] {
+				send Output
+					"	stroff = recordPos.block.getLong( recordPos.offset + [Offset] );
+					"	strPos = pktFind( packet, (int)stroff );
+					"	len = packetStrLen( strPos );
+					"	try {
+					"		r.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
+					"	}
+					"	catch ( UnsupportedEncodingException e )
+					"	{
+					"		e.printStackTrace();
+					"	}
+
+				Offset = Offset + 8
+			}
+			case [L: list_type] {
+			}
+		}
+
+		send Output
+			"	return r;
+			"}
+	}
 
 	send Output
 		~	void dispatch( Packet packet )
@@ -645,31 +719,29 @@ void generateJava( P: program )
 		~
 		~		/* Pull the size of the first block length from the header read so far. */
 		~		// recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
-		~		int msgId = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 0 );
-		~		int length = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 8 );
-		~
+		~		int msgId    = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 0 );
+		~		int totalLen = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 8 );
+		~		int firstLen = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 12 );
 		~		// Log.i( LOG_TAG, "received message: " + msgId );
 		~
-		~		if ( msgId == MonitorDisp ) {
-		~
-		~			// String msg = "MESSAGE\n" + "id: " + msgId + "\n" + "length: " + length + "\n";
-		~
-		~			int start = SIZEOF_PACKET_BLOCK_HEADER + SIZEOF_PACKET_HEADER + 8;
-		~			int len = 0;
-		~
-		~			for ( int i = start; i < b.length && b[i] != 0; i++ )
-		~				len++;
-		~
-		~			String str = "<>";
-		~			try {
-		~				str = new String( b, start, len, "ASCII" );
-		~			}
-		~			catch ( UnsupportedEncodingException e )
-		~			{
-		~				e.printStackTrace();
-		~			}
-		~
-		~			callback.received( str );
+		~		switch ( msgId ) {
+
+	for Packet: packet in PacketMap {
+		send Output
+			"		case [Packet->Id].ID: {
+			"			[Packet->Id] p = read[Packet->Id]( packet, 16 );
+			
+		if ( Packet->Id == "MonitorDisp" ) {
+			send Output
+				"			callback.received( p.content );
+		}
+
+		send Output
+			"			break;
+			"		}
+	}
+
+	send Output
 		~		}
 		~	}
 		~}
