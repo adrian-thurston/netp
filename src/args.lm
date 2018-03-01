@@ -1,5 +1,6 @@
 global OptAutomake: bool = false
 global OptKernf: bool = false
+global OptJava: bool = false
 global OptHelp: bool = false
 global OptInputFn: str
 global OptInc: list<str> = new list<str>()
@@ -16,12 +17,13 @@ namespace args
 		token single_arg /[I]/
 		token dash /'-'/
 
-		literal `help `automake `kernf
+		literal `help `automake `kernf `java
 	end
 
 	def long
 		[`automake]
 	|	[`kernf]
+	|	[`java]
 	|	[`help]
 
 	token word /(^0)+/
@@ -62,6 +64,9 @@ void parseArgs()
 		}
 		case ["--kernf" args::zero] {
 			OptKernf = true
+		}
+		case ["--java" args::zero] {
+			OptJava = true
 		}
 		case ["-I" W: word zero] {
 			OptInc->push_tail( $W )

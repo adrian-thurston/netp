@@ -18,7 +18,6 @@ namespace packet_name
 		}
 		return Lower
 	}
-
 end
 
 void generatePacketHeader( P: program )
@@ -523,4 +522,159 @@ void generatePacketCode( P: program )
 	send Output [] eos
 
 	writeOutput( Output->tree, 'packet_gen.cc' )
+}
+
+int packetSize( Packet: packet )
+{
+	Size: int = 0
+	for FD: pkt_field_def in Packet->PacketDef {
+		switch FD.pkt_field_type
+		case [`bool] {
+			Size = Size + 1
+		}
+		case [`long] {
+			Size = Size + 8
+		}
+		case [`string] {
+			Size = Size + 8
+		}
+		case [L: list_type] {
+		}
+	}
+	return Size
+}
+
+void generateJava( P: program )
+{
+	Output = new parser<out_c::out_c>()
+
+	send Output
+		~/*
+		~ * BrokerGen.java
+		~ */
+		~
+		~package net.colm.monitor;
+		~
+		~import java.io.InputStream;
+		~import java.io.OutputStream;
+		~import java.io.UnsupportedEncodingException;
+		~import java.nio.ByteBuffer;
+		~import java.nio.ByteOrder;
+		~import java.io.IOException;
+		~
+		~abstract class BrokerGen
+		~	extends BrokerBase
+		~{
+
+	for Packet: packet in PacketMap {
+		send Output
+			"	static final int [Packet->Id] = [Packet->AppID * 1000 + Packet->NumID];
+
+		Size: int = packetSize( Packet )
+		send Output
+			"	void send[Packet->Id]( "
+
+		Comma: str = ""
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output "[Comma]boolean [FD.id]"
+			}
+			case [`long] {
+				send Output "[Comma]long [FD.id]"
+			}
+			case [`string] {
+				send Output "[Comma]String [FD.id]"
+			}
+			case [L: list_type] { }
+			Comma = ", "
+		}
+			
+		send Output " )
+			"	{
+			"		byte\[\] b = new byte\[[16 + Size]\];
+			"		ByteBuffer bbb = ByteBuffer.wrap(b);
+			"		bbb.order( ByteOrder.LITTLE_ENDIAN );
+			"
+			"		/* Next block length, id, total length, first length */
+			"		bbb.putInt( 0,  0 );
+			"		bbb.putInt( 4,  [Packet->Id] );
+			"		bbb.putInt( 8,  [16 + Size] );
+			"		bbb.putInt( 12, [16 + Size] );
+			"
+
+		Offset: int = 16
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output "		bbb.putByte( [Offset], [FD.id] );
+				Offset = Offset + 1
+			}
+			case [`long] {
+				send Output "		bbb.putLong( [Offset], [FD.id] );
+				Offset = Offset + 8
+			}
+			case [`string] {
+				Offset = Offset + 8
+			}
+			case [L: list_type] {
+			}
+		}
+
+		send Output
+			"		OutputStream output = null;
+			"		try {
+			"			output = socket.getOutputStream();
+			"			output.write( b );
+			"		}
+			"		catch ( IOException e ) {
+			"			e.printStackTrace();
+			"		}
+			"	}
+	}
+
+	send Output
+		~	void dispatch( Packet packet )
+		~	{
+		~		// Log.i( LOG_TAG, "dispatching packet parsing packet" );
+		~
+		~		byte[] b = packet.blockList.get(0);
+		~
+		~		ByteBuffer bbb = ByteBuffer.wrap(b);
+		~		bbb.order( ByteOrder.LITTLE_ENDIAN );
+		~
+		~		/* Pull the size of the first block length from the header read so far. */
+		~		// recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
+		~		int msgId = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 0 );
+		~		int length = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 8 );
+		~
+		~		// Log.i( LOG_TAG, "received message: " + msgId );
+		~
+		~		if ( msgId == MonitorDisp ) {
+		~
+		~			// String msg = "MESSAGE\n" + "id: " + msgId + "\n" + "length: " + length + "\n";
+		~
+		~			int start = SIZEOF_PACKET_BLOCK_HEADER + SIZEOF_PACKET_HEADER + 8;
+		~			int len = 0;
+		~
+		~			for ( int i = start; i < b.length && b[i] != 0; i++ )
+		~				len++;
+		~
+		~			String str = "<>";
+		~			try {
+		~				str = new String( b, start, len, "ASCII" );
+		~			}
+		~			catch ( UnsupportedEncodingException e )
+		~			{
+		~				e.printStackTrace();
+		~			}
+		~
+		~			callback.received( str );
+		~		}
+		~	}
+		~}
+
+	send Output [] eos
+
+	writeOutput( Output->tree, 'BrokerGen.java' )
 }

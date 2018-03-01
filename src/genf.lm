@@ -92,6 +92,8 @@ void main()
 		generateAutomake( P )
 	else if ( OptKernf )
 		generateKernf( P )
+	else if ( OptJava )
+		generateJava( P )
 	else
 		generateCode( P )
 }
