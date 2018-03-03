@@ -6,7 +6,7 @@ shuttle_up()
 	OUTSIDE=$1
 	INSIDE=$2
 
-	undo restart_mark shuttle $OUTSIDE $INSIDE
+	undo restart_mark kernel $OUTSIDE $INSIDE
 
 	godo insmod @KRING_MOD@
 	undo rmmod kring
@@ -394,7 +394,7 @@ restart_mark()
 
 		echo $@
 
-		if [ "$2" = shuttle ]; then
+		if [ "$2" = kernel ]; then
 			shuttle_up $3 $4
 		fi
 
@@ -465,7 +465,7 @@ case $1 in
 
 		if [ $1 = restart ]; then
 			case $2 in
-				services|shuttle) RESTART_BOUNCE=$2;;
+				services|kernel) RESTART_BOUNCE=$2;;
 				*)
 					echo "updown: invalid restart: $2"
 					exit 1
