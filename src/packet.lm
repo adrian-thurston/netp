@@ -563,35 +563,9 @@ void generateJava( P: program )
 		~import java.io.IOException;
 		~import java.util.Iterator;
 		~
-		~abstract class BrokerGen
+		~abstract public class BrokerGen
 		~	extends BrokerBase
 		~{
-
-	for Packet: packet in PacketMap {
-		send Output
-			"class [Packet->Id]
-			"{
-
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
-			case [`bool] {
-				send Output
-					"	boolean [FD.id];
-			}
-			case [`long] {
-				send Output
-					"	long [FD.id];
-			}
-			case [`string] {
-				send Output
-					"	String [FD.id];
-			}
-		}
-
-		send Output
-			"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
-			"}
-	}
 
 	for Packet: packet in PacketMap {
 		Size: int = packetSize( Packet )
@@ -656,31 +630,74 @@ void generateJava( P: program )
 			"		}
 			"	}
 	}
-	
 
-	for Packet: packet in PacketMap {
-		Size: int = packetSize( Packet )
+	for Struct: _struct in StructMap {
 		send Output
-			"[Packet->Id] read[Packet->Id]( Packet packet, int offset )
+			"public static class [Struct->Id]
+			"{
+			"	public [Struct->Id]( Packet packet, int offset )
+			"	{
+			"		this.packet = packet;
+			"		this.offset = offset;
+			"		if ( offset != 0 )
+			"			load();
+			"	}
+
+		for FD: struct_field_def in Struct->StructDef {
+			switch FD.struct_field_type
+			case [`bool] {
+				send Output
+					"	public boolean [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	public long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	public String [FD.id];
+			}
+		}
+
+		send Output
+			"	int next;
+			"	Packet packet;
+			"	int offset;
+
+		send Output
+			"public void advance()
+			"{
+			"	offset = next;
+			"	if ( offset != 0 )
+			"		load();
+			"}
+			"
+			"public boolean valid()
+			"{
+			"	return offset != 0;
+			"}
+			"
+
+		send Output
+			"void load()
 			"{
 			"	int len;
 			"	long stroff;
 			"	PacketPos strPos;
-			"	PacketPos recordPos = pktFind( packet, offset );
-			"	[Packet->Id] r = new [Packet->Id]();
+			"	PacketPos recordPos = pktFind( this.packet, this.offset );
 			"	
 
 		Offset: int = 0
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: struct_field_def in Struct->StructDef {
+			switch FD.struct_field_type
 			case [`bool] {
 				send Output
-					"	r.[FD.id] = recordPos.block.getByte( recordPos.offset + [Offset] );
+					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [Offset] );
 				Offset = Offset + 1
 			}
 			case [`long] {
 				send Output
-					"	r.[FD.id] = recordPos.block.getLong( recordPos.offset + [Offset] );
+					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [Offset] );
 				Offset = Offset + 8
 			}
 			case [`string] {
@@ -689,7 +706,85 @@ void generateJava( P: program )
 					"	strPos = pktFind( packet, (int)stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
-					"		r.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
+					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
+					"	}
+					"	catch ( UnsupportedEncodingException e )
+					"	{
+					"		e.printStackTrace();
+					"	}
+
+				Offset = Offset + 8
+			}
+
+		}
+
+		send Output
+			"	this.next = (int)recordPos.block.getLong( recordPos.offset + [Offset] );
+			"}
+			"
+
+		send Output
+			"}
+	}
+
+	for Packet: packet in PacketMap {
+		send Output
+			"public static class [Packet->Id]
+			"{
+
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output
+					"	public boolean [FD.id];
+			}
+			case [`long] {
+				send Output
+					"	public long [FD.id];
+			}
+			case [`string] {
+				send Output
+					"	public String [FD.id];
+			}
+			case [L: list_type] {
+				send Output
+					"	public int [FD.id];
+			}
+		}
+
+		send Output
+			"	public Packet packet;
+
+		send Output
+			"void read( Packet packet, int offset )
+			"{
+			"	int len;
+			"	long stroff;
+			"	PacketPos strPos;
+			"	PacketPos recordPos = pktFind( packet, offset );
+			"	this.packet = packet;
+			"	
+
+		Offset: int = 0
+		for FD: pkt_field_def in Packet->PacketDef {
+			switch FD.pkt_field_type
+			case [`bool] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [Offset] );
+				Offset = Offset + 1
+			}
+			case [`long] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [Offset] );
+				Offset = Offset + 8
+			}
+			case [`string] {
+				send Output
+					"	stroff = recordPos.block.getLong( recordPos.offset + [Offset] );
+					"	strPos = pktFind( packet, (int)stroff );
+					"	len = packetStrLen( strPos );
+					"	try {
+					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
 					"	}
 					"	catch ( UnsupportedEncodingException e )
 					"	{
@@ -699,41 +794,50 @@ void generateJava( P: program )
 				Offset = Offset + 8
 			}
 			case [L: list_type] {
+				send Output
+					"	this.[FD.id] = (int)recordPos.block.getLong( recordPos.offset + [Offset] );
+				Offset = Offset + 8
 			}
 		}
 
 		send Output
-			"	return r;
 			"}
+
+		send Output
+			"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
+			"}
+	}
+
+	
+	for Struct: _struct in StructMap {
+
+	}
+
+	for Packet: packet in PacketMap {
 	}
 
 	send Output
 		~	void dispatch( Packet packet )
 		~	{
 		~		// Log.i( LOG_TAG, "dispatching packet parsing packet" );
+		~		// System.out.println( packet.totalLen );
 		~
-		~		byte[] b = packet.blockList.get(0);
-		~
-		~		ByteBuffer bbb = ByteBuffer.wrap(b);
-		~		bbb.order( ByteOrder.LITTLE_ENDIAN );
-		~
-		~		/* Pull the size of the first block length from the header read so far. */
-		~		// recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
-		~		int msgId    = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 0 );
-		~		int totalLen = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 8 );
-		~		int firstLen = bbb.getInt( SIZEOF_PACKET_BLOCK_HEADER + 12 );
-		~		// Log.i( LOG_TAG, "received message: " + msgId );
-		~
-		~		switch ( msgId ) {
+		~		switch ( packet.msgId ) {
 
 	for Packet: packet in PacketMap {
 		send Output
 			"		case [Packet->Id].ID: {
-			"			[Packet->Id] p = read[Packet->Id]( packet, 16 );
+			"			[Packet->Id] p = new [Packet->Id]();
+			"			p.read( packet, 16 );
 			
 		if ( Packet->Id == "MonitorDisp" ) {
 			send Output
 				"			callback.received( p.content );
+		}
+
+		if ( Packet->Id == "QuoteList" ) {
+			send Output
+				"			callback.received( p );
 		}
 
 		send Output
