@@ -26,7 +26,7 @@ char *Thread::pktFind( Rope *rope, long l )
  * block in the rope is made a header automatically added to the head of the
  * block.
  */
-char *PacketWriter::allocBytes( int nb, long &offset )
+char *PacketWriter::allocBytes( int nb, uint32_t &offset )
 {
 	if ( buf.tblk != 0 && nb <= buf.available( buf.tblk ) ) {
 		offset = buf.length();
@@ -53,8 +53,9 @@ void *PacketBase::open( PacketWriter *writer, int ID, int SZ )
 	}
 
 	/* Place the header. */
-	long offset = 0;
-	PacketHeader *header = (PacketHeader*)writer->allocBytes( sizeof(PacketHeader), offset );
+	uint32_t offset = 0;
+	PacketHeader *header = (PacketHeader*)writer->allocBytes(
+			sizeof(PacketHeader), offset );
 	
 	log_debug( DBG_PACKET, "header: " << header << " rb.head: " <<
 			(PacketHeader*)writer->buf.data(writer->buf.hblk) );

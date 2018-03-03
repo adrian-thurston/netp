@@ -418,7 +418,7 @@ struct PacketWriter
 
 	bool usingItWriter() { return itw != 0; }
 
-	char *allocBytes( int nb, long &offset );
+	char *allocBytes( int nb, uint32_t &offset );
 
 	int length()
 		{ return buf.length(); }

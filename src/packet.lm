@@ -65,12 +65,12 @@ void generatePacketHeader( P: program )
 			}
 			case [`string] {
 				send Output
-					"	char *[FD.id];
+					"	uint32_t [FD.id];
 			}
 		}
 
 		send Output
-			"	long next;
+			"	uint32_t next;
 			"};
 			"
 	}
@@ -93,13 +93,12 @@ void generatePacketHeader( P: program )
 			}
 			case [`string] {
 				send Output
-					"	char *[FD.id];
+					"	uint32_t [FD.id];
 			}
 			case [list_type] {
 				TypeId: id = FD.pkt_field_type.list_type.id
 				send Output
-					"	long head_[FD.id];
-
+					"	uint32_t head_[FD.id];
 			}
 		}
 
@@ -349,9 +348,9 @@ void generatePacketCode( P: program )
 					"void Packer::[Struct->Id]::set_[FD.id]( const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
-					"	long offset = 0;
+					"	uint32_t offset = 0;
 					"	char *dest = writer->allocBytes( length, offset );
-					"	overlay->[FD.id] = (char*)offset;
+					"	overlay->[FD.id] = offset;
 					"	memcpy( dest, src, length );
 					"}
 					"
@@ -367,9 +366,9 @@ void generatePacketCode( P: program )
 					"void Packer::[Packet->Id]::set_[FD.id]( const char *src )
 					"{
 					"	int length = strlen( src ) + 1;
-					"	long offset = 0;
+					"	uint32_t offset = 0;
 					"	char *dest = writer.allocBytes( length, offset );
-					"	overlay->[FD.id] = (char*)offset;
+					"	overlay->[FD.id] = offset;
 					"	memcpy( dest, src, length );
 					"}
 					"
@@ -379,7 +378,7 @@ void generatePacketCode( P: program )
 				send Output
 					"void Packer::[Packet->Id]::alloc_[FD.id]( [TypeId] &el )
 					"{
-					"	long offset = 0;
+					"	uint32_t offset = 0;
 					"	Overlay::[TypeId] *elov = (Overlay::[TypeId]*)writer.allocBytes( 
 					"			sizeof(Overlay::[TypeId]), offset );
 					"	memset( elov, 0, sizeof(Overlay::[TypeId]) );
@@ -536,7 +535,7 @@ int packetSize( Packet: packet )
 			Size = Size + 8
 		}
 		case [`string] {
-			Size = Size + 8
+			Size = Size + 4
 		}
 		case [L: list_type] {
 		}
@@ -613,7 +612,7 @@ void generateJava( P: program )
 				Offset = Offset + 8
 			}
 			case [`string] {
-				Offset = Offset + 8
+				Offset = Offset + 4
 			}
 			case [L: list_type] {
 			}
@@ -682,7 +681,7 @@ void generateJava( P: program )
 			"void load()
 			"{
 			"	int len;
-			"	long stroff;
+			"	int stroff;
 			"	PacketPos strPos;
 			"	PacketPos recordPos = pktFind( this.packet, this.offset );
 			"	
@@ -702,8 +701,8 @@ void generateJava( P: program )
 			}
 			case [`string] {
 				send Output
-					"	stroff = recordPos.block.getLong( recordPos.offset + [Offset] );
-					"	strPos = pktFind( packet, (int)stroff );
+					"	stroff = recordPos.block.getInt( recordPos.offset + [Offset] );
+					"	strPos = pktFind( packet, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
 					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
@@ -713,13 +712,13 @@ void generateJava( P: program )
 					"		e.printStackTrace();
 					"	}
 
-				Offset = Offset + 8
+				Offset = Offset + 4
 			}
 
 		}
 
 		send Output
-			"	this.next = (int)recordPos.block.getLong( recordPos.offset + [Offset] );
+			"	this.next = recordPos.block.getInt( recordPos.offset + [Offset] );
 			"}
 			"
 
@@ -759,7 +758,7 @@ void generateJava( P: program )
 			"void read( Packet packet, int offset )
 			"{
 			"	int len;
-			"	long stroff;
+			"	int stroff;
 			"	PacketPos strPos;
 			"	PacketPos recordPos = pktFind( packet, offset );
 			"	this.packet = packet;
@@ -780,8 +779,8 @@ void generateJava( P: program )
 			}
 			case [`string] {
 				send Output
-					"	stroff = recordPos.block.getLong( recordPos.offset + [Offset] );
-					"	strPos = pktFind( packet, (int)stroff );
+					"	stroff = recordPos.block.getInt( recordPos.offset + [Offset] );
+					"	strPos = pktFind( packet, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
 					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
@@ -791,12 +790,12 @@ void generateJava( P: program )
 					"		e.printStackTrace();
 					"	}
 
-				Offset = Offset + 8
+				Offset = Offset + 4
 			}
 			case [L: list_type] {
 				send Output
-					"	this.[FD.id] = (int)recordPos.block.getLong( recordPos.offset + [Offset] );
-				Offset = Offset + 8
+					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [Offset] );
+				Offset = Offset + 4
 			}
 		}
 
