@@ -72,6 +72,11 @@ void generatePacketHeader( P: program )
 					"	void set_[FD.id]( long _[FD.id] )
 					"		{ _pack( bool, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
+			case [`int] {
+				send Output
+					"	void set_[FD.id]( int _[FD.id] )
+					"		{ _pack( int, overlay, [FD.Offset] ) = _[FD.id]; }
+			}
 			case [`long] {
 				send Output
 					"	void set_[FD.id]( long _[FD.id] )
@@ -103,8 +108,13 @@ void generatePacketHeader( P: program )
 			switch FD.pkt_field_type
 			case [`bool] {
 				send Output
-					"	void set_[FD.id]( long _[FD.id] )
+					"	void set_[FD.id]( bool _[FD.id] )
 					"		{ _pack( bool, overlay, [FD.Offset] ) = _[FD.id]; }
+			}
+			case [`int] {
+				send Output
+					"	void set_[FD.id]( int _[FD.id] )
+					"		{ _pack( int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`long] {
 				send Output
@@ -160,6 +170,10 @@ void generatePacketHeader( P: program )
 				send Output
 					"	bool [FD.id];
 			}
+			case [`int] {
+				send Output
+					"	int [FD.id];
+			}
 			case [`long] {
 				send Output
 					"	long [FD.id];
@@ -194,6 +208,10 @@ void generatePacketHeader( P: program )
 				send Output
 					"	bool [FD.id];
 			}
+			case [`int] {
+				send Output
+					"	int [FD.id];
+			}
 			case [`long] {
 				send Output
 					"	long [FD.id];
@@ -205,8 +223,7 @@ void generatePacketHeader( P: program )
 			case [list_type] {
 				TypeId: id = FD.pkt_field_type.list_type.id
 				send Output
-					"	long head_[FD.id];
-
+					"	uint32_t head_[FD.id];
 			}
 		}
 
@@ -500,6 +517,9 @@ void generateJava( P: program )
 			case [`bool] {
 				send Output "[Comma]boolean [FD.id]"
 			}
+			case [`int] {
+				send Output "[Comma]int [FD.id]"
+			}
 			case [`long] {
 				send Output "[Comma]long [FD.id]"
 			}
@@ -565,7 +585,11 @@ void generateJava( P: program )
 			switch FD.struct_field_type
 			case [`bool] {
 				send Output
-					"	public boolean [FD.id];
+					"	public byte [FD.id];
+			}
+			case [`int] {
+				send Output
+					"	public int [FD.id];
 			}
 			case [`long] {
 				send Output
@@ -609,7 +633,7 @@ void generateJava( P: program )
 			switch FD.struct_field_type
 			case [`bool] {
 				send Output
-					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
+					"	this.[FD.id] = recordPos.element\[[FD.Offset]\];
 			}
 			case [`long] {
 				send Output

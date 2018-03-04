@@ -132,6 +132,10 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 			FD.Offset = Offset
 			Offset = Offset + 1
 		}
+		case [`int] {
+			FD.Offset = Offset
+			Offset = Offset + 4
+		}
 		case [`long] {
 			FD.Offset = Offset
 			Offset = Offset + 8
@@ -182,6 +186,10 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 		case [`bool] {
 			FD.Offset = Offset
 			Offset = Offset + 1
+		}
+		case [`int] {
+			FD.Offset = Offset
+			Offset = Offset + 4
 		}
 		case [`long] {
 			FD.Offset = Offset
