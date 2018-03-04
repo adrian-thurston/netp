@@ -59,6 +59,7 @@ def struct_field_type
 |	[`long]
 
 def struct_field_def
+	Offset: int
 	[struct_field_type id `;]
 
 def struct_def
@@ -74,6 +75,7 @@ def pkt_field_type
 |	[list_type]
 
 def pkt_field_def
+	Offset: int
 	[pkt_field_type id `;]
 
 def packet_def

@@ -523,26 +523,6 @@ void generatePacketCode( P: program )
 	writeOutput( Output->tree, 'packet_gen.cc' )
 }
 
-int packetSize( Packet: packet )
-{
-	Size: int = 0
-	for FD: pkt_field_def in Packet->PacketDef {
-		switch FD.pkt_field_type
-		case [`bool] {
-			Size = Size + 1
-		}
-		case [`long] {
-			Size = Size + 8
-		}
-		case [`string] {
-			Size = Size + 4
-		}
-		case [L: list_type] {
-		}
-	}
-	return Size
-}
-
 void generateJava( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -567,7 +547,6 @@ void generateJava( P: program )
 		~{
 
 	for Packet: packet in PacketMap {
-		Size: int = packetSize( Packet )
 		send Output
 			"	void send[Packet->Id]( "
 
@@ -589,30 +568,26 @@ void generateJava( P: program )
 			
 		send Output " )
 			"	{
-			"		byte\[\] b = new byte\[[16 + Size]\];
+			"		byte\[\] b = new byte\[[16 + Packet->Size]\];
 			"		ByteBuffer bbb = ByteBuffer.wrap(b);
 			"		bbb.order( ByteOrder.LITTLE_ENDIAN );
 			"
 			"		/* Next block length, id, total length, first length */
 			"		bbb.putInt( 0,  0 );
 			"		bbb.putInt( 4,  [Packet->Id].ID );
-			"		bbb.putInt( 8,  [16 + Size] );
-			"		bbb.putInt( 12, [16 + Size] );
+			"		bbb.putInt( 8,  [16 + Packet->Size] );
+			"		bbb.putInt( 12, [16 + Packet->Size] );
 			"
 
-		Offset: int = 16
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`bool] {
-				send Output "		bbb.putByte( [Offset], [FD.id] );
-				Offset = Offset + 1
+				send Output "		bbb.putByte( [16 + FD.Offset], [FD.id] );
 			}
 			case [`long] {
-				send Output "		bbb.putLong( [Offset], [FD.id] );
-				Offset = Offset + 8
+				send Output "		bbb.putLong( [16 + FD.Offset], [FD.id] );
 			}
 			case [`string] {
-				Offset = Offset + 4
 			}
 			case [L: list_type] {
 			}
@@ -686,22 +661,19 @@ void generateJava( P: program )
 			"	PacketPos recordPos = pktFind( this.packet, this.offset );
 			"	
 
-		Offset: int = 0
 		for FD: struct_field_def in Struct->StructDef {
 			switch FD.struct_field_type
 			case [`bool] {
 				send Output
-					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [Offset] );
-				Offset = Offset + 1
+					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
 			}
 			case [`long] {
 				send Output
-					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [Offset] );
-				Offset = Offset + 8
+					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
 			case [`string] {
 				send Output
-					"	stroff = recordPos.block.getInt( recordPos.offset + [Offset] );
+					"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 					"	strPos = pktFind( packet, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
@@ -711,14 +683,11 @@ void generateJava( P: program )
 					"	{
 					"		e.printStackTrace();
 					"	}
-
-				Offset = Offset + 4
 			}
-
 		}
 
 		send Output
-			"	this.next = recordPos.block.getInt( recordPos.offset + [Offset] );
+			"	this.next = recordPos.block.getInt( recordPos.offset + [Struct->NextOffset] );
 			"}
 			"
 
@@ -764,22 +733,19 @@ void generateJava( P: program )
 			"	this.packet = packet;
 			"	
 
-		Offset: int = 0
 		for FD: pkt_field_def in Packet->PacketDef {
 			switch FD.pkt_field_type
 			case [`bool] {
 				send Output
-					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [Offset] );
-				Offset = Offset + 1
+					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
 			}
 			case [`long] {
 				send Output
-					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [Offset] );
-				Offset = Offset + 8
+					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
 			case [`string] {
 				send Output
-					"	stroff = recordPos.block.getInt( recordPos.offset + [Offset] );
+					"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 					"	strPos = pktFind( packet, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
@@ -789,13 +755,10 @@ void generateJava( P: program )
 					"	{
 					"		e.printStackTrace();
 					"	}
-
-				Offset = Offset + 4
 			}
 			case [L: list_type] {
 				send Output
-					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [Offset] );
-				Offset = Offset + 4
+					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 		}
 

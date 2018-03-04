@@ -20,6 +20,8 @@ context _struct
 	StructDef: struct_def
 	NumID: int
 	AppID: int
+	NextOffset: int
+	Size: int
 end
 
 context packet
@@ -27,6 +29,7 @@ context packet
 	PacketDef: packet_def
 	NumID: int
 	AppID: int
+	Size: int
 end
 
 context sends
@@ -121,7 +124,33 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 	Struct: _struct = new _struct()
 	Struct->Id = $StructDef.id
 	Struct->AppID = ApplicationId
+
+	Offset: int = 0
+	for FD: struct_field_def in StructDef {
+		switch FD.struct_field_type
+		case [`bool] {
+			FD.Offset = Offset
+			Offset = Offset + 1
+		}
+		case [`long] {
+			FD.Offset = Offset
+			Offset = Offset + 8
+		}
+		case [`string] {
+			FD.Offset = Offset
+			Offset = Offset + 4
+		}
+	}
+
+	Struct->NextOffset = Offset
+
+	# Next pointer
+	Offset = Offset + 4
+
+	Struct->Size = Offset
+
 	Struct->StructDef = StructDef
+
 	return Struct
 }
 
@@ -146,6 +175,31 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 	Packet->Id = $PacketDef.id
 	Packet->AppID = ApplicationId
 	Packet->PacketDef = PacketDef
+
+	Offset: int = 0
+	for FD: pkt_field_def in PacketDef {
+		switch FD.pkt_field_type
+		case [`bool] {
+			FD.Offset = Offset
+			Offset = Offset + 1
+		}
+		case [`long] {
+			FD.Offset = Offset
+			Offset = Offset + 8
+		}
+		case [`string] {
+			FD.Offset = Offset
+			Offset = Offset + 4
+		}
+		case [list_type] {
+			FD.Offset = Offset
+			Offset = Offset + 4
+		}
+	}
+
+	Packet->Size = Offset
+	Packet->PacketDef = PacketDef
+
 	return Packet
 }
 
