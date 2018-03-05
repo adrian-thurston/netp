@@ -323,6 +323,8 @@ void PacketConnection::parsePacket( SelectFd *fd )
 			log_debug( DBG_PACKET, "remaining need for first block: " << recv.need - recv.have );
 		}
 	
+		log_debug( DBG_PACKET, "total packet length: " << recv.head->length );
+
 		case SelectFd::Recv::WantBlock: {
 			while ( true ) {
 				while ( recv.have < recv.need ) {
@@ -356,6 +358,8 @@ void PacketConnection::parsePacket( SelectFd *fd )
 	
 				recv.need = *((int*)recv.data);
 				recv.have = 0;
+
+				log_debug( DBG_PACKET, "next block size: " << recv.need );
 				if ( recv.need == 0 )
 					break;
 	

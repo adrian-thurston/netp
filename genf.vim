@@ -9,7 +9,8 @@ syntax keyword Type
 	\ bool string long list
 
 syntax keyword Type
-	\ message packet thread module attribute kobj
+	\ message packet thread module attribute kobj struct
+	\ char int uint long ulong
 
 syntax keyword Keyword
 	\ starts sends to receives show store debug use appid caps

@@ -1,6 +1,6 @@
 
 lex
-	literal `thread `message `packet `option `module
+	literal `thread `message `packet `option `module `char
 	literal `bool `string `int `uint `long `ulong `attribute
 	literal `starts `sends `to `receives `show `store `kobj
 	literal `debug `use `import `appid `list `caps `struct
@@ -60,9 +60,11 @@ def struct_field_type
 |	[`long]
 |	[`ulong]
 |	[`string]
+|	[`char `( number `)]
 
 def struct_field_def
 	Offset: int
+	CharSize: int
 	[struct_field_type id `;]
 
 def struct_def
@@ -71,7 +73,7 @@ def struct_def
 def list_type
 	[`list `< id `>]
 
-def pkt_field_type
+def record_field_type
 	[`bool]
 |	[`int]
 |	[`uint]
@@ -79,13 +81,15 @@ def pkt_field_type
 |	[`ulong]
 |	[`string]
 |	[list_type]
+|	[`char `( number `)]
 
-def pkt_field_def
+def record_field_def
 	Offset: int
-	[pkt_field_type id `;]
+	CharSize: int
+	[record_field_type id `;]
 
 def packet_def
-	[`packet id `{ pkt_field_def* `} `;]
+	[`packet id `{ record_field_def* `} `;]
 
 def starts_decl
 	[Owner: id `starts Thread: id `;]

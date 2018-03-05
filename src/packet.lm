@@ -94,7 +94,12 @@ void generatePacketHeader( P: program )
 			}
 			case [`string] {
 				send Output
-					"	void set_[FD.id]( const char *d );
+					"	void set_[FD.id]( const char *s );
+			}
+			case [`char `( N: number `)] {
+				send Output
+					"	void set_[FD.id]( const char *s )
+					"		{ memcpy( overlay + [FD.Offset], s, [FD.CharSize] ); }
 			}
 		}
 
@@ -114,8 +119,8 @@ void generatePacketHeader( P: program )
 			"	[Packet->Id]( ItWriter *itw ) : writer( itw ) { open( &writer ); }
 			"	PacketWriter writer;
 
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output
 					"	void set_[FD.id]( bool _[FD.id] )
@@ -146,11 +151,16 @@ void generatePacketHeader( P: program )
 					"	void set_[FD.id]( const char *d );
 			}
 			case [list_type] {
-				TypeId: id = FD.pkt_field_type.list_type.id
+				TypeId: id = FD.record_field_type.list_type.id
 				send Output
 					"	char *tail_[FD.id];
 					"	void alloc_[FD.id]( [TypeId] &el );
 
+			}
+			case [`char `( N: number `)] {
+				send Output
+					"	void set_[FD.id]( const char *s )
+					"		{ memcpy( overlay + [FD.Offset], s, [FD.CharSize] ); }
 			}
 		}
 
@@ -210,6 +220,10 @@ void generatePacketHeader( P: program )
 				send Output
 					"	char *[FD.id];
 			}
+			case [`char `( N: number `)] {
+				send Output
+					"	char [FD.id]\[[FD.CharSize]\];
+			}
 		}
 
 		send Output
@@ -230,8 +244,8 @@ void generatePacketHeader( P: program )
 			"{
 			"	[Packet->Id]( Rope *rope, long offset );
 
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output
 					"	bool [FD.id];
@@ -257,9 +271,13 @@ void generatePacketHeader( P: program )
 					"	char *[FD.id];
 			}
 			case [list_type] {
-				TypeId: id = FD.pkt_field_type.list_type.id
+				TypeId: id = FD.record_field_type.list_type.id
 				send Output
 					"	uint32_t head_[FD.id];
+			}
+			case [`char `( N: number `)] {
+				send Output
+					"	char [FD.id]\[[FD.CharSize]\];
 			}
 		}
 
@@ -355,8 +373,8 @@ void generatePacketCode( P: program )
 	}
 
 	for Packet: packet in PacketMap {
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`string] {
 				send Output
 					"void Packer::[Packet->Id]::set_[FD.id]( const char *src )
@@ -462,6 +480,10 @@ void generatePacketCode( P: program )
 					"	this->[FD.id] = Thread::pktFind( rope,
 					"		_pack( uint32_t, overlay, [FD.Offset] ) );
 			}
+			case [`char `( N: number `)] {
+				send Output
+					"	memcpy( this->[FD.id], overlay + [FD.Offset], [FD.CharSize] );
+			}
 		}
 
 		send Output
@@ -477,13 +499,25 @@ void generatePacketCode( P: program )
 			"	char *overlay = Thread::pktFind( rope, offset );;
 
 			
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output
 					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
 			}
+			case [`int] {
+				send Output
+					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
+			}
+			case [`uint] {
+				send Output
+					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
+			}
 			case [`long] {
+				send Output
+					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
+			}
+			case [`ulong] {
 				send Output
 					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
 			}
@@ -549,6 +583,7 @@ void generateJava( P: program )
 		~import java.nio.ByteOrder;
 		~import java.io.IOException;
 		~import java.util.Iterator;
+		~import java.util.Arrays;
 		~
 		~abstract public class BrokerGen
 		~	extends BrokerBase
@@ -559,8 +594,8 @@ void generateJava( P: program )
 			"	void send[Packet->Id]( "
 
 		Comma: str = ""
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output "[Comma]boolean [FD.id]"
 			}
@@ -580,6 +615,7 @@ void generateJava( P: program )
 				send Output "[Comma]String [FD.id]"
 			}
 			case [L: list_type] { }
+			case [`char `( N: number `)] { }
 			Comma = ", "
 		}
 			
@@ -596,8 +632,8 @@ void generateJava( P: program )
 			"		bbb.putInt( 12, [16 + Packet->Size] );
 			"
 
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output "		bbb.putByte( [16 + FD.Offset], [FD.id] );
 			}
@@ -615,8 +651,8 @@ void generateJava( P: program )
 			}
 			case [`string] {
 			}
-			case [L: list_type] {
-			}
+			case [L: list_type] { }
+			case [`char `( N: number `)] { }
 		}
 
 		send Output
@@ -669,6 +705,10 @@ void generateJava( P: program )
 				send Output
 					"	public String [FD.id];
 			}
+			case [`char `( N: number `)] {
+				send Output
+					"	public byte\[\] [FD.id];
+			}
 		}
 
 		send Output
@@ -705,7 +745,19 @@ void generateJava( P: program )
 				send Output
 					"	this.[FD.id] = recordPos.element\[[FD.Offset]\];
 			}
+			case [`int] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			}
+			case [`uint] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			}
 			case [`long] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
+			}
+			case [`ulong] {
 				send Output
 					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
@@ -715,12 +767,19 @@ void generateJava( P: program )
 					"	strPos = pktFind( packet, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
-					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
+					"		this.[FD.id] = new String( strPos.element,
+					"				strPos.offset, len, \"ASCII\" );
 					"	}
 					"	catch ( UnsupportedEncodingException e )
 					"	{
 					"		e.printStackTrace();
 					"	}
+			}
+			case [`char `( N: number `)] {
+				send Output
+					"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
+					"		recordPos.offset + [FD.Offset],
+					"		recordPos.offset + [FD.Offset] + [N] );
 			}
 		}
 
@@ -738,13 +797,25 @@ void generateJava( P: program )
 			"public static class [Packet->Id]
 			"{
 
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output
 					"	public boolean [FD.id];
 			}
+			case [`int] {
+				send Output
+					"	public int [FD.id];
+			}
+			case [`uint] {
+				send Output
+					"	public int [FD.id];
+			}
 			case [`long] {
+				send Output
+					"	public long [FD.id];
+			}
+			case [`ulong] {
 				send Output
 					"	public long [FD.id];
 			}
@@ -755,6 +826,10 @@ void generateJava( P: program )
 			case [L: list_type] {
 				send Output
 					"	public int [FD.id];
+			}
+			case [`char `( N: number `)] {
+				send Output
+					"	public byte\[\] [FD.id];
 			}
 		}
 
@@ -771,13 +846,25 @@ void generateJava( P: program )
 			"	this.packet = packet;
 			"	
 
-		for FD: pkt_field_def in Packet->PacketDef {
-			switch FD.pkt_field_type
+		for FD: record_field_def in Packet->PacketDef {
+			switch FD.record_field_type
 			case [`bool] {
 				send Output
 					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
 			}
+			case [`int] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			}
+			case [`uint] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			}
 			case [`long] {
+				send Output
+					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
+			}
+			case [`ulong] {
 				send Output
 					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
@@ -793,6 +880,12 @@ void generateJava( P: program )
 					"	{
 					"		e.printStackTrace();
 					"	}
+			}
+			case [`char `( N: number `)] {
+				send Output
+					"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
+					"		recordPos.offset + [FD.Offset],
+					"		recordPos.offset + [FD.Offset] + [N] );
 			}
 			case [L: list_type] {
 				send Output
