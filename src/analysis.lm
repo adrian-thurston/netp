@@ -136,7 +136,15 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
+		case [`uint] {
+			FD.Offset = Offset
+			Offset = Offset + 4
+		}
 		case [`long] {
+			FD.Offset = Offset
+			Offset = Offset + 8
+		}
+		case [`ulong] {
 			FD.Offset = Offset
 			Offset = Offset + 8
 		}
@@ -191,7 +199,15 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
+		case [`uint] {
+			FD.Offset = Offset
+			Offset = Offset + 4
+		}
 		case [`long] {
+			FD.Offset = Offset
+			Offset = Offset + 8
+		}
+		case [`ulong] {
 			FD.Offset = Offset
 			Offset = Offset + 8
 		}

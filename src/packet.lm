@@ -77,10 +77,20 @@ void generatePacketHeader( P: program )
 					"	void set_[FD.id]( int _[FD.id] )
 					"		{ _pack( int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
+			case [`uint] {
+				send Output
+					"	void set_[FD.id]( unsigned int _[FD.id] )
+					"		{ _pack( unsigned int, overlay, [FD.Offset] ) = _[FD.id]; }
+			}
 			case [`long] {
 				send Output
 					"	void set_[FD.id]( long _[FD.id] )
 					"		{ _pack( long, overlay, [FD.Offset] ) = _[FD.id]; }
+			}
+			case [`ulong] {
+				send Output
+					"	void set_[FD.id]( unsigned long _[FD.id] )
+					"		{ _pack( unsigned long, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`string] {
 				send Output
@@ -116,10 +126,20 @@ void generatePacketHeader( P: program )
 					"	void set_[FD.id]( int _[FD.id] )
 					"		{ _pack( int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
+			case [`uint] {
+				send Output
+					"	void set_[FD.id]( unsigned int _[FD.id] )
+					"		{ _pack( unsigned int, overlay, [FD.Offset] ) = _[FD.id]; }
+			}
 			case [`long] {
 				send Output
 					"	void set_[FD.id]( long _[FD.id] )
 					"		{ _pack( long, overlay, [FD.Offset] ) = _[FD.id]; }
+			}
+			case [`ulong] {
+				send Output
+					"	void set_[FD.id]( unsigned long _[FD.id] )
+					"		{ _pack( unsigned long, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`string] {
 				send Output
@@ -174,9 +194,17 @@ void generatePacketHeader( P: program )
 				send Output
 					"	int [FD.id];
 			}
+			case [`uint] {
+				send Output
+					"	unsigned int [FD.id];
+			}
 			case [`long] {
 				send Output
 					"	long [FD.id];
+			}
+			case [`ulong] {
+				send Output
+					"	unsigned long [FD.id];
 			}
 			case [`string] {
 				send Output
@@ -212,9 +240,17 @@ void generatePacketHeader( P: program )
 				send Output
 					"	int [FD.id];
 			}
+			case [`uint] {
+				send Output
+					"	unsigned int [FD.id];
+			}
 			case [`long] {
 				send Output
 					"	long [FD.id];
+			}
+			case [`ulong] {
+				send Output
+					"	unsigned long [FD.id];
 			}
 			case [`string] {
 				send Output
@@ -405,20 +441,31 @@ void generatePacketCode( P: program )
 				send Output
 					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
 			}
+			case [`int] {
+				send Output
+					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
+			}
+			case [`uint] {
+				send Output
+					"	this->[FD.id] = _pack( unsigned int, overlay, [FD.Offset] );
+			}
 			case [`long] {
 				send Output
 					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
+			}
+			case [`ulong] {
+				send Output
+					"	this->[FD.id] = _pack( unsigned long, overlay, [FD.Offset] );
 			}
 			case [`string] {
 				send Output
 					"	this->[FD.id] = Thread::pktFind( rope,
 					"		_pack( uint32_t, overlay, [FD.Offset] ) );
 			}
-			send Output
-				"	this->next = _pack( uint32_t, overlay, [Struct->NextOffset] );
 		}
 
 		send Output
+			"	this->next = _pack( uint32_t, overlay, [Struct->NextOffset] );
 			"}
 	}
 
@@ -520,7 +567,13 @@ void generateJava( P: program )
 			case [`int] {
 				send Output "[Comma]int [FD.id]"
 			}
+			case [`uint] {
+				send Output "[Comma]int [FD.id]"
+			}
 			case [`long] {
+				send Output "[Comma]long [FD.id]"
+			}
+			case [`ulong] {
 				send Output "[Comma]long [FD.id]"
 			}
 			case [`string] {
@@ -548,7 +601,16 @@ void generateJava( P: program )
 			case [`bool] {
 				send Output "		bbb.putByte( [16 + FD.Offset], [FD.id] );
 			}
+			case [`int] {
+				send Output "		bbb.putInt( [16 + FD.Offset], [FD.id] );
+			}
+			case [`uint] {
+				send Output "		bbb.putInt( [16 + FD.Offset], [FD.id] );
+			}
 			case [`long] {
+				send Output "		bbb.putLong( [16 + FD.Offset], [FD.id] );
+			}
+			case [`ulong] {
 				send Output "		bbb.putLong( [16 + FD.Offset], [FD.id] );
 			}
 			case [`string] {
@@ -591,7 +653,15 @@ void generateJava( P: program )
 				send Output
 					"	public int [FD.id];
 			}
+			case [`uint] {
+				send Output
+					"	public int [FD.id];
+			}
 			case [`long] {
+				send Output
+					"	public long [FD.id];
+			}
+			case [`ulong] {
 				send Output
 					"	public long [FD.id];
 			}

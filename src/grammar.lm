@@ -1,7 +1,7 @@
 
 lex
 	literal `thread `message `packet `option `module
-	literal `bool `string `int `long `attribute
+	literal `bool `string `int `uint `long `ulong `attribute
 	literal `starts `sends `to `receives `show `store `kobj
 	literal `debug `use `import `appid `list `caps `struct
 	literal `: `; `{ `} `, `( `) `* `< `>
@@ -56,7 +56,9 @@ def message_def
 def struct_field_type
 	[`bool]
 |	[`int]
+|	[`uint]
 |	[`long]
+|	[`ulong]
 |	[`string]
 
 def struct_field_def
@@ -72,7 +74,9 @@ def list_type
 def pkt_field_type
 	[`bool]
 |	[`int]
+|	[`uint]
 |	[`long]
+|	[`ulong]
 |	[`string]
 |	[list_type]
 
