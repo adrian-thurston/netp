@@ -53,6 +53,7 @@ struct ItWriter;
 struct ItQueue;
 struct Thread;
 struct PacketWriter;
+struct Recv;
 
 struct ItHeader
 {
@@ -167,44 +168,8 @@ namespace Message
 	};
 }
 
-struct PacketHeader
-{
-	int msgId;
-	int length;
-	int firstLen;
-};
-
-typedef int PacketBlockHeader;
-
 struct SelectFd
 {
-	struct Recv
-	{
-		Recv()
-		:
-			state(WantHead),
-			have(0)
-		{}
-
-		enum State
-		{
-			WantHead = 1,
-			WantBlock
-		};
-
-		State state;
-		PacketHeader *head;
-		Rope buf;
-		char *data;
-
-		char headBuf[sizeof(PacketBlockHeader)+sizeof(PacketHeader)];
-
-		/* If read fails in the middle of something we need, amount we have is
-		 * recorded here. */
-		int have;
-		int need;
-	};
-
 	enum Type {
 		User = 1,
 		Listen,
@@ -344,27 +309,6 @@ struct Connection
 	int write( char *data, int len );
 };
 
-struct PacketConnection
-	: public Connection
-{
-	PacketConnection( Thread *thread )
-		: Connection( thread ) { tlsConnect = false; }
-
-	virtual void failure( FailType failType ) {}
-	virtual void connectComplete() {}
-	virtual void notifyAccept()
-		{ selectFd->wantReadSet( true ); }
-	virtual void readReady();
-	virtual void writeReady();
-
-	virtual void packetClosed() {}
-
-	SelectFd::Recv recv;
-	Rope queue;
-
-	void parsePacket( SelectFd *fd );
-};
-
 /* Connection factory. */
 struct Listener
 {
@@ -380,51 +324,6 @@ struct Listener
 
 	void startListenOnFd( int fd, bool tls, SSL_CTX *sslCtx, bool checkHost );
 	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
-};
-
-struct PacketListener
-:
-	public Listener
-{
-	PacketListener( Thread *thread )
-		: Listener( thread ) {}
-
-	virtual Connection *connectionFactory( int fd )
-		{ return new PacketConnection( thread ); }
-};
-
-struct PacketWriter
-{
-	PacketWriter( PacketConnection *pc )
-	:
-		pc(pc),
-		itw(0)
-	{}
-
-	PacketWriter( ItWriter *itWriter )
-	:
-		pc(0),
-		itw(itWriter)
-	{}
-
-	/* One of two places we can send packets. */
-	PacketConnection *pc;
-	ItWriter *itw;
-
-	PacketHeader *toSend;
-	void *content;
-	Rope buf;
-	Message::PacketPassthru *pp;
-
-	bool usingItWriter() { return itw != 0; }
-
-	char *allocBytes( int nb, uint32_t &offset );
-
-	int length()
-		{ return buf.length(); }
-
-	void reset()
-		{ buf.empty(); pp = 0;}
 };
 
 struct Thread
@@ -547,7 +446,7 @@ public:
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 
-	virtual void dispatchPacket( SelectFd *fd, SelectFd::Recv &recv ) {}
+	virtual void dispatchPacket( SelectFd *fd, Recv &recv ) {}
 
 	/*
 	 * SSL

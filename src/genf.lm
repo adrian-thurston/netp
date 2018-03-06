@@ -5,8 +5,9 @@ include 'thread.lm'
 include 'main.lm'
 include 'analysis.lm'
 include 'itq.lm'
-include 'packet.lm'
+include 'record.lm'
 include 'kernf.lm'
+include 'java.lm'
 
 global Output: parser<out_c::out_c>
 

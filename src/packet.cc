@@ -66,7 +66,7 @@ void *PacketBase::open( PacketWriter *writer, int ID, int SZ )
 	void *msg = writer->allocBytes( SZ, offset );
 	memset( msg, 0, SZ );
 
-	header->length = 0;
+	header->totalLen = 0;
 	writer->toSend = header;
 	writer->content = msg;
 
@@ -84,7 +84,7 @@ void PacketBase::send( PacketWriter *writer )
 	RopeBlock *rb = writer->buf.hblk;
 
 	/* Length of first block goes into the header. */
-	writer->toSend->length = writer->length();
+	writer->toSend->totalLen = writer->length();
 	writer->toSend->firstLen = writer->buf.length(rb);
 
 	log_debug( DBG_PACKET, "first len: " << writer->toSend->firstLen );
@@ -277,7 +277,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 	log_debug( DBG_PACKET, "parsing packet" );
 
 	switch ( recv.state ) {
-		case SelectFd::Recv::WantHead: {
+		case Recv::WantHead: {
 			const int sz = sizeof(PacketBlockHeader) + sizeof(PacketHeader);
 			int len = read( (char*)&recv.headBuf + recv.have, sz - recv.have );
 			if ( len < 0 ) {
@@ -317,15 +317,15 @@ void PacketConnection::parsePacket( SelectFd *fd )
 
 			/* Indicate we have the headers and enter into block read loop. */
 			recv.have = sz;
-			recv.state = SelectFd::Recv::WantBlock;
+			recv.state = Recv::WantBlock;
 
 			/* Deliberate fall through. */
 			log_debug( DBG_PACKET, "remaining need for first block: " << recv.need - recv.have );
 		}
 	
-		log_debug( DBG_PACKET, "total packet length: " << recv.head->length );
+		log_debug( DBG_PACKET, "total packet length: " << recv.head->totalLen );
 
-		case SelectFd::Recv::WantBlock: {
+		case Recv::WantBlock: {
 			while ( true ) {
 				while ( recv.have < recv.need ) {
 					int len = read( recv.data + recv.have, recv.need - recv.have );
@@ -366,7 +366,7 @@ void PacketConnection::parsePacket( SelectFd *fd )
 				recv.data = recv.buf.appendBlock( recv.need );
 			}
 	
-			recv.state = SelectFd::Recv::WantHead;
+			recv.state = Recv::WantHead;
 			recv.need = 0;
 			recv.have = 0;
 	

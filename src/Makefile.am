@@ -22,7 +22,7 @@ libgenf_la_CPPFLAGS = -Iinclude
 
 genfincdir = $(includedir)/genf
 
-genfinc_HEADERS = list.h thread.h packet.h
+genfinc_HEADERS = list.h thread.h packet.h BrokerBase.java
 
 pkgdata_DATA = with-aapl
 
@@ -37,7 +37,8 @@ LM_DEPS = \
 	analysis.lm \
 	thread.lm \
 	itq.lm \
-	packet.lm \
+	record.lm \
+	java.lm \
 	kernf.lm \
 	genf.lm
 
