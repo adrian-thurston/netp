@@ -91,6 +91,9 @@ def record_field_def
 def packet_def
 	[`packet id `{ record_field_def* `} `;]
 
+def packet_id
+	[`packet id number `;]
+
 def starts_decl
 	[Owner: id `starts Thread: id `;]
 
@@ -154,6 +157,7 @@ def definition
 |	[struct_def]
 |	[message_def]
 |	[packet_def]
+|	[packet_id]
 |	[starts_decl]
 |	[sends_to_decl]
 |	[sends_decl]

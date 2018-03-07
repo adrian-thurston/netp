@@ -328,20 +328,14 @@ void useDecls( P: program )
 
 		UseStructMap: map<str, _struct> = new map<str, _struct>()
 		for StructDef: struct_def in UseP {
-			Struct: _struct = consStruct( StructDef, ApplicationId )[]
+			Struct: _struct = consStruct( StructDef, ApplicationId )
 			UseStructMap->insert( $StructDef.id, Struct )
 		}
 
 		UsePacketMap: map<str, packet> = new map<str, packet>()
 		for PacketDef: packet_def in UseP {
-			Packet: packet = consPacket( PacketDef, ApplicationId )[]
+			Packet: packet = consPacket( PacketDef, ApplicationId )
 			UsePacketMap->insert( $PacketDef.id, Packet )
-		}
-
-		ID: int = 1
-		for Packet: packet in UsePacketMap {
-			Packet->NumID = ID
-			ID = ID + 1
 		}
 
 		for Struct: _struct in UseStructMap
@@ -349,6 +343,11 @@ void useDecls( P: program )
 
 		for Packet: packet in UsePacketMap
 			PacketMap->insert( Packet->Id, Packet )
+
+		for PacketId: packet_id in UseP {
+			Packet: packet = findPacket( PacketId.id )
+			Packet->NumID = atoi( $PacketId.number )
+		}
 	}
 }
 
@@ -361,29 +360,28 @@ void semanticAnalysis( P: program )
 	ApplicationId = findApplicationId( P )
 	
 	for ThreadDef: thread_def in P {
-		Thread: thread = consThread( ThreadDef )[]
+		Thread: thread = consThread( ThreadDef )
 		ThreadMap->insert( $ThreadDef.id, Thread )
 	}
 
 	for MessageDef: message_def in P {
-		Message: message = consMessage( MessageDef )[]
+		Message: message = consMessage( MessageDef )
 		MessageMap->insert( $MessageDef.id, Message )
 	}
 
 	for StructDef: struct_def in P {
-		Struct: _struct = consStruct( StructDef, ApplicationId )[]
+		Struct: _struct = consStruct( StructDef, ApplicationId )
 		StructMap->insert( $StructDef.id, Struct )
 	}
 
 	for PacketDef: packet_def in P {
-		Packet: packet = consPacket( PacketDef, ApplicationId )[]
+		Packet: packet = consPacket( PacketDef, ApplicationId )
 		PacketMap->insert( $PacketDef.id, Packet )
 	}
 
-	ID: int = 1
-	for Packet: packet in PacketMap {
-		Packet->NumID = ID
-		ID = ID + 1
+	for PacketId: packet_id in P {
+		Packet: packet = findPacket( PacketId.id )
+		Packet->NumID = atoi( $PacketId.number )
 	}
 
 	useDecls( P )
