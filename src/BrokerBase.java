@@ -30,11 +30,6 @@ class Packet
 
 	ArrayList<byte[]> blockList = new ArrayList<byte[]>();
 
-	void clear()
-	{
-		blockList.clear();
-	}
-
 	byte[] allocate( int sz )
 	{
 		byte[] b = new byte[sz];
@@ -246,7 +241,7 @@ abstract class BrokerBase
 
 				System.out.println( packet.totalLen );
 				dispatch( packet );
-				packet.clear();
+				packet = new Packet();
 				break;
 			}
 		}
