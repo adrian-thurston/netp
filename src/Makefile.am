@@ -22,7 +22,7 @@ libgenf_la_CPPFLAGS = -Iinclude
 
 genfincdir = $(includedir)/genf
 
-genfinc_HEADERS = list.h thread.h packet.h BrokerBase.java
+genfinc_HEADERS = list.h thread.h packet.h RecordBase.java
 
 pkgdata_DATA = with-aapl
 

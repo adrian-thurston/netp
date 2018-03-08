@@ -4,22 +4,20 @@ void generateJava( P: program )
 
 	send Output
 		~/*
-		~ * BrokerGen.java
+		~ * RecordGen.java
 		~ */
 		~
 		~package net.colm.monitor;
 		~
-		~import java.io.InputStream;
 		~import java.io.OutputStream;
 		~import java.io.UnsupportedEncodingException;
 		~import java.nio.ByteBuffer;
 		~import java.nio.ByteOrder;
 		~import java.io.IOException;
-		~import java.util.Iterator;
 		~import java.util.Arrays;
 		~
-		~abstract public class BrokerGen
-		~	extends BrokerBase
+		~abstract public class RecordGen
+		~	extends RecordBase
 		~{
 
 	for Packet: packet in PacketMap {
@@ -104,9 +102,9 @@ void generateJava( P: program )
 		send Output
 			"public static class [Struct->Id]
 			"{
-			"	public [Struct->Id]( Packet packet, int offset )
+			"	public [Struct->Id]( Record record, int offset )
 			"	{
-			"		this.packet = packet;
+			"		this.record = record;
 			"		this.offset = offset;
 			"		if ( offset != 0 )
 			"			load();
@@ -146,7 +144,7 @@ void generateJava( P: program )
 
 		send Output
 			"	int next;
-			"	Packet packet;
+			"	Record record;
 			"	int offset;
 
 		send Output
@@ -168,8 +166,8 @@ void generateJava( P: program )
 			"{
 			"	int len;
 			"	int stroff;
-			"	PacketPos strPos;
-			"	PacketPos recordPos = pktFind( this.packet, this.offset );
+			"	RecordPos strPos;
+			"	RecordPos recordPos = pktFind( this.record, this.offset );
 			"	
 
 		for FD: struct_field_def in Struct->StructDef {
@@ -197,7 +195,7 @@ void generateJava( P: program )
 			case [`string] {
 				send Output
 					"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
-					"	strPos = pktFind( packet, stroff );
+					"	strPos = pktFind( record, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
 					"		this.[FD.id] = new String( strPos.element,
@@ -267,16 +265,16 @@ void generateJava( P: program )
 		}
 
 		send Output
-			"	public Packet packet;
+			"	public Record record;
 
 		send Output
-			"void read( Packet packet, int offset )
+			"void read( Record record, int offset )
 			"{
 			"	int len;
 			"	int stroff;
-			"	PacketPos strPos;
-			"	PacketPos recordPos = pktFind( packet, offset );
-			"	this.packet = packet;
+			"	RecordPos strPos;
+			"	RecordPos recordPos = pktFind( record, offset );
+			"	this.record = record;
 			"	
 
 		for FD: record_field_def in Packet->PacketDef {
@@ -304,7 +302,7 @@ void generateJava( P: program )
 			case [`string] {
 				send Output
 					"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
-					"	strPos = pktFind( packet, stroff );
+					"	strPos = pktFind( record, stroff );
 					"	len = packetStrLen( strPos );
 					"	try {
 					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
@@ -331,30 +329,23 @@ void generateJava( P: program )
 
 		send Output
 			"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
+			"	static final int Size = [Packet->Size];
 			"}
 	}
 
-	
-	for Struct: _struct in StructMap {
-
-	}
-
-	for Packet: packet in PacketMap {
-	}
-
 	send Output
-		~	void dispatch( Packet packet )
+		~	void dispatch( Record record )
 		~	{
-		~		// Log.i( LOG_TAG, "dispatching packet parsing packet" );
-		~		// System.out.println( packet.totalLen );
+		~		// Log.i( LOG_TAG, "dispatching record parsing" );
+		~		// System.out.println( record.totalLen );
 		~
-		~		switch ( packet.msgId ) {
+		~		switch ( record.msgId ) {
 
 	for Packet: packet in PacketMap {
 		send Output
 			"		case [Packet->Id].ID: {
 			"			[Packet->Id] p = new [Packet->Id]();
-			"			p.read( packet, 16 );
+			"			p.read( record, 16 );
 			
 		if ( Packet->Id == "MonitorDisp" ) {
 			send Output
@@ -378,6 +369,6 @@ void generateJava( P: program )
 
 	send Output [] eos
 
-	writeOutput( Output->tree, 'BrokerGen.java' )
+	writeOutput( Output->tree, 'RecordGen.java' )
 }
 

@@ -1,29 +1,18 @@
 package net.colm.monitor;
 
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.concurrent.BlockingQueue;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
-import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.util.Iterator;
 
 import static java.lang.System.arraycopy;
 
-class Packet
+class Record
 {
 	int msgId;
 	int totalLen;
@@ -38,7 +27,7 @@ class Packet
 	}
 }
 
-abstract class BrokerBase
+abstract class RecordBase
 {
 	SSLSocketFactory factory = null;
 	SSLSocket socket = null;
@@ -54,6 +43,7 @@ abstract class BrokerBase
 	static final int OFF_FIRST_LEN = SIZEOF_PACKET_BLOCK_HEADER + 0;
 	static final int OFF_TOTAL_LEN = SIZEOF_PACKET_BLOCK_HEADER + 4;
 	static final int OFF_MSG_ID    = SIZEOF_PACKET_BLOCK_HEADER + 8;
+	static final int OFF_RECORD    = SIZEOF_PACKET_BLOCK_HEADER + SIZEOF_PACKET_HEADER;
 
 	protected int networkType;
 	public static final int BRING_UP_WIFI    = 1;
@@ -65,35 +55,35 @@ abstract class BrokerBase
 	private int have = 0;
 	private int need = 0;
 
-	Packet packet = new Packet();
+	Record record = new Record();
 
 	private byte[] headBuf = new byte[ SIZEOF_PACKET_BLOCK_HEADER + SIZEOF_PACKET_HEADER ];
 	private byte[] data;
 
 	boolean connected() { return socket != null; }
 
-	abstract void dispatch( Packet packet );
+	abstract void dispatch( Record record );
 	abstract void timeout();
 
-	static class PacketPos
+	static class RecordPos
 	{
 		byte[] element;
 		ByteBuffer block;
 		int offset;
 	}
 
-	static PacketPos pktFind( Packet packet, int pos )
+	static RecordPos pktFind( Record record, int pos )
 	{
 		// log_debug( DBG_PACKET, \"pkt find: \" << l );
 		if ( pos == 0 )
 			return null;
 
-		Iterator<byte[]> itr = packet.blockList.iterator();
+		Iterator<byte[]> itr = record.blockList.iterator();
 		while ( itr.hasNext() ) {
 			byte[] element = itr.next();
 			long avail = element.length;
 			if ( pos < avail ) {
-				PacketPos result = new PacketPos();
+				RecordPos result = new RecordPos();
 				result.element = element;
 				result.block = ByteBuffer.wrap(element);
 				result.block.order( ByteOrder.LITTLE_ENDIAN );
@@ -105,7 +95,7 @@ abstract class BrokerBase
 		return null;
 	}
 
-	static int packetStrLen( PacketPos pos )
+	static int packetStrLen( RecordPos pos )
 	{
 		int len = 0;
 		for ( int i = pos.offset; i < pos.element.length && pos.element[i] != 0; i++ )
@@ -134,7 +124,7 @@ abstract class BrokerBase
 
 	public void parse( )
 	{
-		// Log.i( LOG_TAG, "parsing packet" );
+		// Log.i( LOG_TAG, "parsing record" );
 
 		switch ( state ) {
 			case WANT_HEAD: {
@@ -142,19 +132,19 @@ abstract class BrokerBase
 				int len = read( headBuf, have, sz - have );
 				if ( len < 0 ) {
 					/* EOF. */
-					// Log.i( LOG_TAG, "packet head read: closed" );
+					// Log.i( LOG_TAG, "record head read: closed" );
 					bringDownSocket();
 					return;
 				}
 				else if ( len == 0 ) {
-					// Log.i( LOG_TAG, "packet head read: delayed" );
+					// Log.i( LOG_TAG, "record head read: delayed" );
 
 					timeout();
 
 					return;
 				}
 				else if ( have + len < sz )  {
-					// Log.i( LOG_TAG, "packet head read: is short: got "
+					// Log.i( LOG_TAG, "record head read: is short: got "
 					//	+ Integer.valueOf(len).toString() + " bytes" );
 
 					/* Don't have it all. Need to wait for more. */
@@ -163,13 +153,13 @@ abstract class BrokerBase
 				}
 
 				/* Completed read of header. */
-				// Log.i( LOG_TAG, "packet: have first block headers: " + Integer.valueOf(len) );
+				// Log.i( LOG_TAG, "record: have first block headers: " + Integer.valueOf(len) );
 
 				ByteBuffer bbHeadBuf = ByteBuffer.wrap(headBuf);
 				bbHeadBuf.order( ByteOrder.LITTLE_ENDIAN );
 
-				packet.msgId    = bbHeadBuf.getInt( OFF_MSG_ID );
-				packet.totalLen = bbHeadBuf.getInt( OFF_TOTAL_LEN );
+				record.msgId    = bbHeadBuf.getInt( OFF_MSG_ID );
+				record.totalLen = bbHeadBuf.getInt( OFF_TOTAL_LEN );
 
 				/* Pull the size of the first block length from the header read so far. */
 				// recv.head = (PacketHeader*)(recv.headBuf + sizeof(PacketBlockHeader));
@@ -178,7 +168,7 @@ abstract class BrokerBase
 
 				/* Allocate the first block and move the header data in from the
 				 * temp read space. */
-				data = packet.allocate( firstLen );
+				data = record.allocate( firstLen );
 				arraycopy( headBuf, 0, data, 0, sz );
 
 				/* Reset the head pointer to the header we just coppied in. */
@@ -200,26 +190,26 @@ abstract class BrokerBase
 						int len = read( data, have, need - have );
 						if ( len < 0 ) {
 							/* EOF. */
-							// Log.i( LOG_TAG, "packet data read: closed" );
+							// Log.i( LOG_TAG, "record data read: closed" );
 							bringDownSocket();
 							return;
 						}
 						else if ( len == 0 ) {
 							/* Wait. */
-							// Log.i( LOG_TAG, "packet data read: delayed" );
+							// Log.i( LOG_TAG, "record data read: delayed" );
 							timeout();
 							return;
 						}
 						else if ( have + len < need )  {
 							/* Don't have it all. Need to wait for more. */
-							// Log.i( LOG_TAG, "packet data read: is short: got " +
+							// Log.i( LOG_TAG, "record data read: is short: got " +
 							//		Integer.valueOf(len).toString() + " bytes" );
 							have += len;
 							return;
 						}
 		
 						if ( len > 0 ) {
-							// Log.i( LOG_TAG, "packet data read returned: " +
+							// Log.i( LOG_TAG, "record data read returned: " +
 							//		Integer.valueOf(len).toString() + " bytes" );
 							have += len;
 						}
@@ -232,16 +222,16 @@ abstract class BrokerBase
 					if ( need == 0 )
 						break;
 		
-					data = packet.allocate( need );
+					data = record.allocate( need );
 				}
 		
 				state = WANT_HEAD;
 				need = 0;
 				have = 0;
 
-				System.out.println( packet.totalLen );
-				dispatch( packet );
-				packet = new Packet();
+				System.out.println( record.totalLen );
+				dispatch( record );
+				record = new Record();
 				break;
 			}
 		}
