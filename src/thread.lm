@@ -1,68 +1,60 @@
 void sendsToDecls( Thread: thread )
 {
-	send Output
-		"struct SendsPassthru
-		"{
-		"	ItWriter *writer;
-		"};
-		"
-		"SendsPassthru *registerSendsPassthru( Thread *recv );
-		"
+	"struct SendsPassthru
+	"{
+	"	ItWriter *writer;
+	"};
+	"
+	"SendsPassthru *registerSendsPassthru( Thread *recv );
+	"
 
 	for Sends: sends in Thread->SendsMap {
-		send Output
-			"struct SendsTo[Sends->Receiver->Id]
-			"{
-			"	ItWriter *writer;
+		"struct SendsTo[Sends->Receiver->Id]
+		"{
+		"	ItWriter *writer;
 
 		for Message: message in Sends->MessageList {
-			send Output
-				"	Message::[Message->Id] *open[Message->Id]()
-				"		{ return Message::[Message->Id]::open( writer ); }
-			send Output
-				"	Writer::[Message->Id]::Cons cons[Message->Id]()
-				"		{ return Writer::[Message->Id]::Cons( writer ); }
+			"	Message::[Message->Id] *open[Message->Id]()
+			"		{ return Message::[Message->Id]::open( writer ); }
+			"	Writer::[Message->Id]::Cons cons[Message->Id]()
+			"		{ return Writer::[Message->Id]::Cons( writer ); }
 		}
 
-		send Output
-			"	void send( bool signal = false ) { writer->queue->send( writer, signal ); }
-			"};
-			"
-			"SendsTo[Sends->Receiver->Id] *registerSendsTo[Sends->Receiver->Id](
-			"		[Sends->Receiver->Id]Thread *recv );
+		"	void send( bool signal = false ) { writer->queue->send( writer, signal ); }
+		"};
+		"
+		"SendsTo[Sends->Receiver->Id] *registerSendsTo[Sends->Receiver->Id](
+		"		[Sends->Receiver->Id]Thread *recv );
 	}
 }
 
 void recvDecls( Thread: thread )
 {
 	for Message: message in Thread->RecvsList {
-		send Output
-			"	virtual void recv[Message->Id]( Message::[Message->Id] * ) = 0;
+		"	virtual void recv[Message->Id]( Message::[Message->Id] * ) = 0;
 	}
 }
 
 void sendsToCode( Thread: thread )
 {
-	send Output
-		"[Thread->Id]Thread::SendsPassthru *[Thread->Id]Gen::"
-				"registerSendsPassthru( Thread *recv )
+	"[Thread->Id]Thread::SendsPassthru *[Thread->Id]Gen::"
+			"registerSendsPassthru( Thread *recv )
+	"{
+	"	SendsPassthru *sendsTo = new SendsPassthru( );
+	"	sendsTo->writer = recv->control.registerWriter( this, recv );
+	"	return sendsTo;
+	"}
+
+	for Sends: sends in Thread->SendsMap {
+		"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
+				"registerSendsTo[Sends->Receiver->Id]( "
+				"[Sends->Receiver->Id]Thread *recv )
 		"{
-		"	SendsPassthru *sendsTo = new SendsPassthru( );
+		"	SendsTo[Sends->Receiver->Id] *sendsTo = 
+		"		new SendsTo[Sends->Receiver->Id]( );
 		"	sendsTo->writer = recv->control.registerWriter( this, recv );
 		"	return sendsTo;
 		"}
-
-	for Sends: sends in Thread->SendsMap {
-		send Output
-			"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
-					"registerSendsTo[Sends->Receiver->Id]( "
-					"[Sends->Receiver->Id]Thread *recv )
-			"{
-			"	SendsTo[Sends->Receiver->Id] *sendsTo = 
-			"		new SendsTo[Sends->Receiver->Id]( );
-			"	sendsTo->writer = recv->control.registerWriter( this, recv );
-			"	return sendsTo;
-			"}
 	}
 }
 
@@ -73,9 +65,8 @@ void threadCommonHeader( Thread: thread )
 	recvDecls( Thread )
 	packetRecvDecls( Thread )
 	
-	send Output
-		"	virtual const char *pkgDataDir();
-		"	virtual const char *pkgStateDir();
+	"	virtual const char *pkgDataDir();
+	"	virtual const char *pkgStateDir();
 }
 
 
@@ -83,47 +74,43 @@ void generateThreadHeader( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
 
-	send Output
-		"/*
-		" * [Thread->Lower]_gen.h
-		" */
-		"
-		"#ifndef _[Thread->Upper]_GEN_H
-		"#define _[Thread->Upper]_GEN_H
-		"
+	"/*
+	" * [Thread->Lower]_gen.h
+	" */
+	"
+	"#ifndef _[Thread->Upper]_GEN_H
+	"#define _[Thread->Upper]_GEN_H
+	"
 
-	send Output
-		~#include <genf/thread.h>
-		~#include "itq_gen.h"
-		~#include "packet_gen.h"
-		~#include "genf.h"
-		~
+	~#include <genf/thread.h>
+	~#include "itq_gen.h"
+	~#include "packet_gen.h"
+	~#include "genf.h"
+	~
 
 	threadForwards( Thread )
 
-	send Output
-		"struct [Thread->Id]Gen
-		"	: public Thread
-		"{
-		"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ) {}
-		"
-		"	void init() { }
-		"	int start();
-		"	void join();
-		"	virtual int main() { return 0; }
-		"	void recvHeader( ItQueue *queue, ItHeader *header );
-		"
-		"	void recvSingle();
-		"	int recvLoop();
-		"	bool poll();
-		"	void close( SelectFd *fd );
-		"
+	"struct [Thread->Id]Gen
+	"	: public Thread
+	"{
+	"	[Thread->Id]Gen() : Thread( \"[Thread->Lower]\" ) {}
+	"
+	"	void init() { }
+	"	int start();
+	"	void join();
+	"	virtual int main() { return 0; }
+	"	void recvHeader( ItQueue *queue, ItHeader *header );
+	"
+	"	void recvSingle();
+	"	int recvLoop();
+	"	bool poll();
+	"	void close( SelectFd *fd );
+	"
 
 	threadCommonHeader( Thread )
 
-	send Output
-		"};
-		"#endif
+	"};
+	"#endif
 
 	send Output [] eos
 	writeOutput( Output->tree, "[Thread->Lower]_gen.h" )
@@ -132,145 +119,131 @@ void generateThreadHeader( Thread: thread )
 void createChildDecls( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
-		send Output
-			"	void create( [Child->Id]Thread *child );
+		"	void create( [Child->Id]Thread *child );
 	}
-	send Output "
+	"
 }
 
 void createChildDefs( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
-		send Output
-			"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
-			"{
-			"	childList.append( child );
-			"	pthread_create( &child->pthread_parent, 0, genf_thread_start, child );
-			"}
-			"
+		"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
+		"{
+		"	childList.append( child );
+		"	pthread_create( &child->pthread_parent, 0, genf_thread_start, child );
+		"}
+		"
 	}
 }
 
 void joinDef( Thread: thread )
 {
-	send Output
-		"void [Thread->Id]Gen::join()
-		"{
-		"	for ( Thread *child = childList.head;
-		"			child != 0; child = child->next )
-		"	{
-		"		int res = pthread_join( child->pthread_parent, 0 );
-		"		if ( res != 0 ) {
-		"			log_ERROR( \"join with child failed: strerrno(res)\" );
-		"		}
-		"	}
-		"}
+	"void [Thread->Id]Gen::join()
+	"{
+	"	for ( Thread *child = childList.head;
+	"			child != 0; child = child->next )
+	"	{
+	"		int res = pthread_join( child->pthread_parent, 0 );
+	"		if ( res != 0 ) {
+	"			log_ERROR( \"join with child failed: strerrno(res)\" );
+	"		}
+	"	}
+	"}
 }
 
 void threadIncludes( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
-		send Output
-			"#include \"[Child->Lower].h\"
+		"#include \"[Child->Lower].h\"
 	}
 
 	for Sends: sends in Thread->SendsMap {
-		send Output
-			"#include \"[Sends->Receiver->Lower].h\"
+		"#include \"[Sends->Receiver->Lower].h\"
 	}
 
-	send Output "
+	"
 }
 
 void threadForwards( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
-		send Output
-			"struct [Child->Id]Gen;
-			"struct [Child->Id]Thread;
+		"struct [Child->Id]Gen;
+		"struct [Child->Id]Thread;
 	}
 
 	for Sends: sends in Thread->SendsMap {
 		for Message: message in Sends->MessageList {
-			send Output
-				"struct [Message->Id];
-				"struct [Sends->Receiver->Id]Thread;
+			"struct [Message->Id];
+			"struct [Sends->Receiver->Id]Thread;
 		}
 	}
 
-	send Output "
+	"
 }
 
 void threadRecveives( Thread: thread )
 {
-	send Output
-		"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
-		"{
-		"	switch ( header->msgId ) {
-		"		case Message::PacketPassthru::ID: {
-		"			Message::PacketPassthru *msg = Message::PacketPassthru::read( queue, header );
-		"			recvPassthru( msg );
-		"			break;
-		"		}
+	"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
+	"{
+	"	switch ( header->msgId ) {
+	"		case Message::PacketPassthru::ID: {
+	"			Message::PacketPassthru *msg = Message::PacketPassthru::read( queue, header );
+	"			recvPassthru( msg );
+	"			break;
+	"		}
 
 	for Message: message in Thread->RecvsList {
-		send Output
-			"		case Message::[Message->Id]::ID: {
-			"			Message::[Message->Id] *msg = Message::[Message->Id]::read( queue, header );
-			"			recv[Message->Id]( msg );
-			"			break;
-			"		}
+		"		case Message::[Message->Id]::ID: {
+		"			Message::[Message->Id] *msg = Message::[Message->Id]::read( queue, header );
+		"			recv[Message->Id]( msg );
+		"			break;
+		"		}
 	}
 
-	send Output
-		"	}
-		"}
-		"
+	"	}
+	"}
+	"
 
-	send Output
-		"int [Thread->Id]Gen::recvLoop()
-		"{
-		"	loop = true;
-		"	while ( loop ) {
-		"		ItHeader *header = control.wait();
-		"		recvHeader( &control, header );
-		"		control.release( header );
-		"	}
-		"	return 0;
-		"}
-		"
+	"int [Thread->Id]Gen::recvLoop()
+	"{
+	"	loop = true;
+	"	while ( loop ) {
+	"		ItHeader *header = control.wait();
+	"		recvHeader( &control, header );
+	"		control.release( header );
+	"	}
+	"	return 0;
+	"}
+	"
 
-	send Output
-		"void [Thread->Id]Gen::recvSingle()
-		"{
-		"	ItHeader *header = control.wait();
-		"	recvHeader( &control, header );
-		"	control.release( header );
-		"}
-		"
+	"void [Thread->Id]Gen::recvSingle()
+	"{
+	"	ItHeader *header = control.wait();
+	"	recvHeader( &control, header );
+	"	control.release( header );
+	"}
+	"
 
-	send Output
-		"bool [Thread->Id]Gen::poll()
-		"{
-		"	if ( control.poll() ) {
-		"		ItHeader *header = control.wait();
-		"		recvHeader( &control, header );
-		"		control.release( header );
-		"		return true;
-		"	}
-		"	return false;
-		"}
-		"
+	"bool [Thread->Id]Gen::poll()
+	"{
+	"	if ( control.poll() ) {
+	"		ItHeader *header = control.wait();
+	"		recvHeader( &control, header );
+	"		control.release( header );
+	"		return true;
+	"	}
+	"	return false;
+	"}
+	"
 }
 
 void threadCommonCode( Thread: thread )
 {
-	send Output
-		"const char *[Thread->Id]Gen::pkgDataDir()
-		"	{ return PKGDATADIR; }
-		"
-		"const char *[Thread->Id]Gen::pkgStateDir()
-		"	{ return PKGSTATEDIR; }
+	"const char *[Thread->Id]Gen::pkgDataDir()
+	"	{ return PKGDATADIR; }
+	"
+	"const char *[Thread->Id]Gen::pkgStateDir()
+	"	{ return PKGSTATEDIR; }
 }
 
 
@@ -278,19 +251,17 @@ void generateThreadCode( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
 
-	send Output
-		"/*
-		" * [Thread->Lower]_gen.cc
-		" */
-		"
+	"/*
+	" * [Thread->Lower]_gen.cc
+	" */
+	"
 
-	send Output
-		"#include \"[Thread->Lower].h\"
+	"#include \"[Thread->Lower].h\"
 
 	threadIncludes( Thread )
 	threadForwards( Thread )
 
-	send Output ~
+	"
 
 	createChildDefs( Thread )
 	joinDef( Thread )
@@ -300,12 +271,11 @@ void generateThreadCode( Thread: thread )
 
 	threadCommonCode( Thread )
 
-	send Output
-		"int [Thread->Id]Gen::start()
-		"{
-		"	return main();
-		"};
-		"
+	"int [Thread->Id]Gen::start()
+	"{
+	"	return main();
+	"};
+	"
 
 	threadRecveives( Thread )
 

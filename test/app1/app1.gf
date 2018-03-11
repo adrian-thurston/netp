@@ -18,17 +18,19 @@ message Hello
 
 packet BigPacket
 {
-	string big1;
-	long   l1;
-	string big2;
-	long   l2;
-	string big3;
-	long   l3;
+	string  big1;
+	long    l1;
+	string  big2;
+	long    l2;
+	string  big3;
+	long    l3;
+	char(8) c1;
 };
 
 struct SmallRec
 {
 	long l1;
+	char(8) c1;
 };
 
 packet SmallPacket
@@ -52,3 +54,5 @@ Listen sends SmallPacket;
 Main receives BigPacket;
 Main receives SmallPacket;
 
+packet BigPacket 1;
+packet SmallPacket 2;

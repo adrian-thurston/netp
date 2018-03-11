@@ -128,31 +128,31 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 	Offset: int = 0
 	for FD: struct_field_def in StructDef {
 		switch FD.struct_field_type
-		case [`bool] {
+		case Bool {
 			FD.Offset = Offset
 			Offset = Offset + 1
 		}
-		case [`int] {
+		case Int  {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [`uint] {
+		case UnsignedInt {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [`long] {
+		case Long {
 			FD.Offset = Offset
 			Offset = Offset + 8
 		}
-		case [`ulong] {
+		case UnsignedLong {
 			FD.Offset = Offset
 			Offset = Offset + 8
 		}
-		case [`string] {
+		case String {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [`char `( N: number `)] {
+		case Char [`char `( N: number `)] {
 			FD.CharSize = atoi( $N )
 
 			FD.Offset = Offset
@@ -197,35 +197,35 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 	Offset: int = 0
 	for FD: record_field_def in PacketDef {
 		switch FD.record_field_type
-		case [`bool] {
+		case Bool {
 			FD.Offset = Offset
 			Offset = Offset + 1
 		}
-		case [`int] {
+		case Int {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [`uint] {
+		case UnsignedInt {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [`long] {
+		case Long {
 			FD.Offset = Offset
 			Offset = Offset + 8
 		}
-		case [`ulong] {
+		case UnsignedLong {
 			FD.Offset = Offset
 			Offset = Offset + 8
 		}
-		case [`string] {
+		case String {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [list_type] {
+		case List {
 			FD.Offset = Offset
 			Offset = Offset + 4
 		}
-		case [`char `( N: number `)] {
+		case Char [`char `( N: number `)] {
 			FD.CharSize = atoi( $N )
 
 			FD.Offset = Offset

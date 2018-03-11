@@ -54,13 +54,13 @@ def message_def
 	[`message id `{ msg_field_def* `} `;]
 
 def struct_field_type
-	[`bool]
-|	[`int]
-|	[`uint]
-|	[`long]
-|	[`ulong]
-|	[`string]
-|	[`char `( number `)]
+	[`bool]    :Bool
+|	[`int]     :Int
+|	[`uint]    :UnsignedInt
+|	[`long]    :Long
+|	[`ulong]   :UnsignedLong
+|	[`string]  :String
+|	[`char `( number `)] :Char
 
 def struct_field_def
 	Offset: int
@@ -74,14 +74,14 @@ def list_type
 	[`list `< id `>]
 
 def record_field_type
-	[`bool]
-|	[`int]
-|	[`uint]
-|	[`long]
-|	[`ulong]
-|	[`string]
-|	[list_type]
-|	[`char `( number `)]
+	[`bool]     :Bool
+|	[`int]      :Int
+|	[`uint]     :UnsignedInt
+|	[`long]     :Long
+|	[`ulong]    :UnsignedLong
+|	[`string]   :String
+|	[list_type] :List
+|	[`char `( number `)] :Char
 
 def record_field_def
 	Offset: int

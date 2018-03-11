@@ -2,370 +2,309 @@ void generateJava( P: program )
 {
 	Output = new parser<out_c::out_c>()
 
-	send Output
-		~/*
-		~ * RecordGen.java
-		~ */
-		~
-		~package net.colm.monitor;
-		~
-		~import java.io.OutputStream;
-		~import java.io.UnsupportedEncodingException;
-		~import java.nio.ByteBuffer;
-		~import java.nio.ByteOrder;
-		~import java.io.IOException;
-		~import java.util.Arrays;
-		~
-		~abstract public class RecordGen
-		~	extends RecordBase
-		~{
+	~/*
+	~ * RecordGen.java
+	~ */
+	~
+	~package net.colm.monitor;
+	~
+	~import java.io.OutputStream;
+	~import java.io.UnsupportedEncodingException;
+	~import java.nio.ByteBuffer;
+	~import java.nio.ByteOrder;
+	~import java.io.IOException;
+	~import java.util.Arrays;
+	~
+	~abstract public class RecordGen
+	~	extends RecordBase
+	~{
 
 	for Packet: packet in PacketMap {
-		send Output
-			"	void send[Packet->Id]( "
+		"void send[Packet->Id]( "
 
 		Comma: str = ""
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
-			case [`bool] {
-				send Output "[Comma]boolean [FD.id]"
-			}
-			case [`int] {
-				send Output "[Comma]int [FD.id]"
-			}
-			case [`uint] {
-				send Output "[Comma]int [FD.id]"
-			}
-			case [`long] {
-				send Output "[Comma]long [FD.id]"
-			}
-			case [`ulong] {
-				send Output "[Comma]long [FD.id]"
-			}
-			case [`string] {
-				send Output "[Comma]String [FD.id]"
-			}
-			case [L: list_type] { }
-			case [`char `( N: number `)] { }
+			case Bool
+				"[Comma]boolean [FD.id]"
+			case Int
+				"[Comma]int [FD.id]"
+			case UnsignedInt
+				"[Comma]int [FD.id]"
+			case Long
+				"[Comma]long [FD.id]"
+			case UnsignedLong
+				"[Comma]long [FD.id]"
+			case String
+				"[Comma]String [FD.id]"
+			case List { }
+			case Char { }
 			Comma = ", "
 		}
 			
-		send Output " )
-			"	{
-			"		byte\[\] b = new byte\[[16 + Packet->Size]\];
-			"		ByteBuffer bbb = ByteBuffer.wrap(b);
-			"		bbb.order( ByteOrder.LITTLE_ENDIAN );
-			"
-			"		/* Next block length, id, total length, first length */
-			"		bbb.putInt( 0,  0 );
-			"		bbb.putInt( OFF_FIRST_LEN, [16 + Packet->Size] );
-			"		bbb.putInt( OFF_TOTAL_LEN, [16 + Packet->Size] );
-			"		bbb.putInt( OFF_MSG_ID,    [Packet->Id].ID );
-			"
+		" )
+		"{
+		"	byte\[\] b = new byte\[[16 + Packet->Size]\];
+		"	ByteBuffer bbb = ByteBuffer.wrap(b);
+		"	bbb.order( ByteOrder.LITTLE_ENDIAN );
+		"
+		"	/* Next block length, id, total length, first length */
+		"	bbb.putInt( 0,  0 );
+		"	bbb.putInt( OFF_FIRST_LEN, [16 + Packet->Size] );
+		"	bbb.putInt( OFF_TOTAL_LEN, [16 + Packet->Size] );
+		"	bbb.putInt( OFF_MSG_ID,    [Packet->Id].ID );
+		"
 
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
-			case [`bool] {
-				send Output "		bbb.putByte( [16 + FD.Offset], [FD.id] );
-			}
-			case [`int] {
-				send Output "		bbb.putInt( [16 + FD.Offset], [FD.id] );
-			}
-			case [`uint] {
-				send Output "		bbb.putInt( [16 + FD.Offset], [FD.id] );
-			}
-			case [`long] {
-				send Output "		bbb.putLong( [16 + FD.Offset], [FD.id] );
-			}
-			case [`ulong] {
-				send Output "		bbb.putLong( [16 + FD.Offset], [FD.id] );
-			}
-			case [`string] {
-			}
-			case [L: list_type] { }
-			case [`char `( N: number `)] { }
+			case Bool
+				"bbb.putByte( [16 + FD.Offset], [FD.id] );
+			case Int
+				"bbb.putInt( [16 + FD.Offset], [FD.id] );
+			case UnsignedInt
+				"bbb.putInt( [16 + FD.Offset], [FD.id] );
+			case Long
+				"bbb.putLong( [16 + FD.Offset], [FD.id] );
+			case UnsignedLong
+				"bbb.putLong( [16 + FD.Offset], [FD.id] );
+			case String { }
+			case List { }
+			case Char { }
 		}
 
-		send Output
-			"		OutputStream output = null;
-			"		try {
-			"			output = socket.getOutputStream();
-			"			output.write( b );
-			"		}
-			"		catch ( IOException e ) {
-			"			e.printStackTrace();
-			"		}
-			"	}
+		"	OutputStream output = null;
+		"	try {
+		"		output = socket.getOutputStream();
+		"		output.write( b );
+		"	}
+		"	catch ( IOException e ) {
+		"		e.printStackTrace();
+		"	}
+		"}
 	}
 
 	for Struct: _struct in StructMap {
-		send Output
-			"public static class [Struct->Id]
-			"{
-			"	public [Struct->Id]( Record record, int offset )
-			"	{
-			"		this.record = record;
-			"		this.offset = offset;
-			"		if ( offset != 0 )
-			"			load();
-			"	}
+		"public static class [Struct->Id]
+		"{
+		"	public [Struct->Id]( Record record, int offset )
+		"	{
+		"		this.record = record;
+		"		this.offset = offset;
+		"		if ( offset != 0 )
+		"			load();
+		"	}
 
 		for FD: struct_field_def in Struct->StructDef {
 			switch FD.struct_field_type
-			case [`bool] {
-				send Output
-					"	public byte [FD.id];
+			case Bool {
+				"	public byte [FD.id];
 			}
-			case [`int] {
-				send Output
-					"	public int [FD.id];
+			case Int {
+				"	public int [FD.id];
 			}
-			case [`uint] {
-				send Output
-					"	public int [FD.id];
+			case UnsignedInt {
+				"	public int [FD.id];
 			}
-			case [`long] {
-				send Output
-					"	public long [FD.id];
+			case Long {
+				"	public long [FD.id];
 			}
-			case [`ulong] {
-				send Output
-					"	public long [FD.id];
+			case UnsignedLong {
+				"	public long [FD.id];
 			}
-			case [`string] {
-				send Output
-					"	public String [FD.id];
+			case String {
+				"	public String [FD.id];
 			}
-			case [`char `( N: number `)] {
-				send Output
-					"	public byte\[\] [FD.id];
+			case Char {
+				"	public byte\[\] [FD.id];
 			}
 		}
 
-		send Output
-			"	int next;
-			"	Record record;
-			"	int offset;
+		"	int next;
+		"	Record record;
+		"	int offset;
 
-		send Output
-			"public void advance()
-			"{
-			"	offset = next;
-			"	if ( offset != 0 )
-			"		load();
-			"}
-			"
-			"public boolean valid()
-			"{
-			"	return offset != 0;
-			"}
-			"
+		"public void advance()
+		"{
+		"	offset = next;
+		"	if ( offset != 0 )
+		"		load();
+		"}
+		"
+		"public boolean valid()
+		"{
+		"	return offset != 0;
+		"}
+		"
 
-		send Output
-			"void load()
-			"{
-			"	int len;
-			"	int stroff;
-			"	RecordPos strPos;
-			"	RecordPos recordPos = pktFind( this.record, this.offset );
-			"	
+		"void load()
+		"{
+		"	int len;
+		"	int stroff;
+		"	RecordPos strPos;
+		"	RecordPos recordPos = pktFind( this.record, this.offset );
+		"	
 
 		for FD: struct_field_def in Struct->StructDef {
 			switch FD.struct_field_type
-			case [`bool] {
-				send Output
-					"	this.[FD.id] = recordPos.element\[[FD.Offset]\];
+			case Bool {
+				"	this.[FD.id] = recordPos.element\[[FD.Offset]\];
 			}
-			case [`int] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			case Int {
+				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
-			case [`uint] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			case UnsignedInt {
+				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
-			case [`long] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
+			case Long {
+				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
-			case [`ulong] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
+			case UnsignedLong {
+				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
-			case [`string] {
-				send Output
-					"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
-					"	strPos = pktFind( record, stroff );
-					"	len = packetStrLen( strPos );
-					"	try {
-					"		this.[FD.id] = new String( strPos.element,
-					"				strPos.offset, len, \"ASCII\" );
-					"	}
-					"	catch ( UnsupportedEncodingException e )
-					"	{
-					"		e.printStackTrace();
-					"	}
+			case String {
+				"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+				"	strPos = pktFind( record, stroff );
+				"	len = packetStrLen( strPos );
+				"	try {
+				"		this.[FD.id] = new String( strPos.element,
+				"				strPos.offset, len, \"ASCII\" );
+				"	}
+				"	catch ( UnsupportedEncodingException e )
+				"	{
+				"		e.printStackTrace();
+				"	}
 			}
-			case [`char `( N: number `)] {
-				send Output
-					"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
-					"		recordPos.offset + [FD.Offset],
-					"		recordPos.offset + [FD.Offset] + [N] );
+			case Char {
+				N: number = FD.struct_field_type.number
+				"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
+				"		recordPos.offset + [FD.Offset],
+				"		recordPos.offset + [FD.Offset] + [N] );
 			}
 		}
 
-		send Output
-			"	this.next = recordPos.block.getInt( recordPos.offset + [Struct->NextOffset] );
-			"}
-			"
-
-		send Output
-			"}
+		"	this.next = recordPos.block.getInt( recordPos.offset + [Struct->NextOffset] );
+		"}
+		"
+		"}
 	}
 
 	for Packet: packet in PacketMap {
-		send Output
-			"public static class [Packet->Id]
-			"{
+		"public static class [Packet->Id]
+		"{
 
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
-			case [`bool] {
-				send Output
-					"	public boolean [FD.id];
+			case Bool {
+				"	public boolean [FD.id];
 			}
-			case [`int] {
-				send Output
-					"	public int [FD.id];
+			case Int {
+				"	public int [FD.id];
 			}
-			case [`uint] {
-				send Output
-					"	public int [FD.id];
+			case UnsignedInt {
+				"	public int [FD.id];
 			}
-			case [`long] {
-				send Output
-					"	public long [FD.id];
+			case Long {
+				"	public long [FD.id];
 			}
-			case [`ulong] {
-				send Output
-					"	public long [FD.id];
+			case UnsignedLong {
+				"	public long [FD.id];
 			}
-			case [`string] {
-				send Output
-					"	public String [FD.id];
+			case String {
+				"	public String [FD.id];
 			}
-			case [L: list_type] {
-				send Output
-					"	public int [FD.id];
+			case List {
+				"	public int [FD.id];
 			}
-			case [`char `( N: number `)] {
-				send Output
-					"	public byte\[\] [FD.id];
+			case Char {
+				"	public byte\[\] [FD.id];
 			}
 		}
 
-		send Output
-			"	public Record record;
+		"	public Record record;
 
-		send Output
-			"void read( Record record, int offset )
-			"{
-			"	int len;
-			"	int stroff;
-			"	RecordPos strPos;
-			"	RecordPos recordPos = pktFind( record, offset );
-			"	this.record = record;
-			"	
+		"void read( Record record, int offset )
+		"{
+		"	int len;
+		"	int stroff;
+		"	RecordPos strPos;
+		"	RecordPos recordPos = pktFind( record, offset );
+		"	this.record = record;
+		"	
 
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
-			case [`bool] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
+			case Bool {
+				"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
 			}
-			case [`int] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			case Int {
+				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
-			case [`uint] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			case UnsignedInt {
+				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
-			case [`long] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
+			case Long {
+				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
-			case [`ulong] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
+			case UnsignedLong {
+				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
-			case [`string] {
-				send Output
-					"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
-					"	strPos = pktFind( record, stroff );
-					"	len = packetStrLen( strPos );
-					"	try {
-					"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
-					"	}
-					"	catch ( UnsupportedEncodingException e )
-					"	{
-					"		e.printStackTrace();
-					"	}
+			case String {
+				"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+				"	strPos = pktFind( record, stroff );
+				"	len = packetStrLen( strPos );
+				"	try {
+				"		this.[FD.id] = new String( strPos.element, strPos.offset, len, \"ASCII\" );
+				"	}
+				"	catch ( UnsupportedEncodingException e )
+				"	{
+				"		e.printStackTrace();
+				"	}
 			}
-			case [`char `( N: number `)] {
-				send Output
-					"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
-					"		recordPos.offset + [FD.Offset],
-					"		recordPos.offset + [FD.Offset] + [N] );
+			case Char {
+				N: number = FD.record_field_type.number
+				"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
+				"		recordPos.offset + [FD.Offset],
+				"		recordPos.offset + [FD.Offset] + [N] );
 			}
-			case [L: list_type] {
-				send Output
-					"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
+			case List {
+				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 		}
 
-		send Output
-			"}
-
-		send Output
-			"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
-			"	static final int Size = [Packet->Size];
-			"}
+		"	}
+		"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
+		"	static final int Size = [Packet->Size];
+		"}
 	}
 
-	send Output
-		~	void dispatch( Record record )
-		~	{
-		~		// Log.i( LOG_TAG, "dispatching record parsing" );
-		~		// System.out.println( record.totalLen );
-		~
-		~		switch ( record.msgId ) {
+	~void dispatch( Record record )
+	~{
+	~	// Log.i( LOG_TAG, "dispatching record parsing" );
+	~	// System.out.println( record.totalLen );
+	~
+	~	switch ( record.msgId ) {
 
 	for Packet: packet in PacketMap {
-		send Output
-			"		case [Packet->Id].ID: {
-			"			[Packet->Id] p = new [Packet->Id]();
-			"			p.read( record, 16 );
+		"	case [Packet->Id].ID: {
+		"		[Packet->Id] p = new [Packet->Id]();
+		"		p.read( record, 16 );
 			
 		if ( Packet->Id == "MonitorDisp" ) {
-			send Output
-				"			callback.received( p.content );
+			"	callback.received( p.content );
 		}
 
 		if ( Packet->Id == "QuoteList" ) {
-			send Output
-				"			callback.received( p );
+			"	callback.received( p );
 		}
 
-		send Output
-			"			break;
-			"		}
+		"		break;
+		"	}
 	}
 
-	send Output
-		~		}
-		~	}
-		~}
+	~	}
+	~}
+
+	~}
 
 	send Output [] eos
 

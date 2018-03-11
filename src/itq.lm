@@ -3,152 +3,132 @@ void generateItqHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
 
-	send Output
-		~/*
-		~ * itq_gen.h
-		~ */
-		~
-		~#ifndef __ITQ_GEN_H
-		~#define __ITQ_GEN_H
-		~
-		~struct ItHeader;
-		~struct ItWriter;
-		~struct ItQueue;
-		~
-		~#include "itq.h"
-		~#include <stdlib.h>
-		~
-		~void *itqOpen( ItWriter *writer, int ID, size_t SZ );
-		~void *itqRead( ItQueue *queue, ItHeader *header, size_t SZ );
+	~/*
+	~ * itq_gen.h
+	~ */
+	~
+	~#ifndef __ITQ_GEN_H
+	~#define __ITQ_GEN_H
+	~
+	~struct ItHeader;
+	~struct ItWriter;
+	~struct ItQueue;
+	~
+	~#include "itq.h"
+	~#include <stdlib.h>
+	~
+	~void *itqOpen( ItWriter *writer, int ID, size_t SZ );
+	~void *itqRead( ItQueue *queue, ItHeader *header, size_t SZ );
 
-	send Output
-		"namespace Message {
-		"
+	"namespace Message {
+	"
 
 	# ID 1 is reserved f
 	ID = 2
 
 	for Message: message in MessageMap {
-		send Output
-			"struct [Message->Id]
-			"{
+		"struct [Message->Id]
+		"{
 
 		for FD: msg_field_def in Message->MessageDef {
 			switch FD.msg_field_type
 			case [`bool] {
-				send Output
-					"	bool [FD.id];
+				"	bool [FD.id];
 			}
 			case [`long] {
-				send Output
-					"	long [FD.id];
+				"	long [FD.id];
 			}
 			case [`string] {
-				send Output
-					"	const char *[FD.id];
-					"	void set_[FD.id]( ItWriter *writer, const char *d );
+				"	const char *[FD.id];
+				"	void set_[FD.id]( ItWriter *writer, const char *d );
 			}
 			case [Id: id `*] {
-				send Output
-					"	[Id] *[FD.id];
+				"	[Id] *[FD.id];
 			}
 		}
 
-		send Output
-			"	static [Message->Id] *open( ItWriter *writer )
-			"	{
-			"		return ([Message->Id]*)itqOpen( writer,
-			"				[Message->Id]::ID, sizeof([Message->Id]) );
-			"	}
-			"
-			"	static [Message->Id] *read( ItQueue *queue, ItHeader *header )
-			"	{
-			"		return ([Message->Id]*)itqRead( queue,
-			"				header, sizeof([Message->Id]) );
-			"	}
-			"
-			"	static const unsigned short ID = [ID];
-			"};
-			"
+		"	static [Message->Id] *open( ItWriter *writer )
+		"	{
+		"		return ([Message->Id]*)itqOpen( writer,
+		"				[Message->Id]::ID, sizeof([Message->Id]) );
+		"	}
+		"
+		"	static [Message->Id] *read( ItQueue *queue, ItHeader *header )
+		"	{
+		"		return ([Message->Id]*)itqRead( queue,
+		"				header, sizeof([Message->Id]) );
+		"	}
+		"
+		"	static const unsigned short ID = [ID];
+		"};
+		"
 
 		ID = ID + 1
 	}
 
-	send Output
-		"}
-		"
+	"}
+	"
 
-	send Output
-		"namespace Writer {
-		"
+	"namespace Writer {
+	"
 
 	# ID 1 is reserved f
 	ID: int = 2
 
 	for Message: message in MessageMap {
-		send Output
-			"struct [Message->Id]
-			"{
-			"	struct Cons
-			"	{
-			"		Cons( ItWriter *writer ) : writer(writer) {}
-			"		ItWriter *writer;
-			"	};
-			"
-			"	[Message->Id]( const Cons &cons ) 
-			"		: writer(cons.writer)
-			"	{
-			"		msg = Message::[Message->Id]::open( writer );
-			"	}
-			"
-			"	ItWriter *writer;
-			"	Message::[Message->Id] *msg;
-			"
+		"struct [Message->Id]
+		"{
+		"	struct Cons
+		"	{
+		"		Cons( ItWriter *writer ) : writer(writer) {}
+		"		ItWriter *writer;
+		"	};
+		"
+		"	[Message->Id]( const Cons &cons ) 
+		"		: writer(cons.writer)
+		"	{
+		"		msg = Message::[Message->Id]::open( writer );
+		"	}
+		"
+		"	ItWriter *writer;
+		"	Message::[Message->Id] *msg;
+		"
 
 		for FD: msg_field_def in Message->MessageDef {
 			switch FD.msg_field_type
 			case [`bool] {
-				send Output
-					"	void set_[FD.id]( bool _b ) { msg->[FD.id] = b; }
+				"	void set_[FD.id]( bool _b ) { msg->[FD.id] = b; }
 			}
 			case [`long] {
-				send Output
-					"	void set_[FD.id]( long _l ) { msg->[FD.id] = l; }
+				"	void set_[FD.id]( long _l ) { msg->[FD.id] = l; }
 			}
 			case [`string] {
-				send Output
-					"	void set_[FD.id]( const char *d ) { msg->set_[FD.id]( writer, d ); }
+				"	void set_[FD.id]( const char *d ) { msg->set_[FD.id]( writer, d ); }
 			}
 			case [Id: id `*] {
-				send Output
-					"	void set_[FD.id]( [Id] *p ) { msg->[FD.id] = p; }
+				"	void set_[FD.id]( [Id] *p ) { msg->[FD.id] = p; }
 			}
 		}
 
-		send Output
-			"	void send( bool signal = false );
-			"};
-			"
+		"	void send( bool signal = false );
+		"};
+		"
 
 		ID = ID + 1
 	}
 
-	send Output
-		"}
-		"
-
+	"}
+	"
 
 	# Starting point defined in thread.h
 	Bit: int = 16
 	for D: debug_def in P {
-		send Output
-			"#define DBG_[D.id] [sprintf("0x%08x", Bit)] 
+		"#define DBG_[D.id] [sprintf("0x%08x", Bit)] 
 		Bit = Bit * 2
 	}
 
-	send Output
-		~#endif
-		eos
+	~#endif
+	eos
 
 	writeOutput( Output->tree, 'itq_gen.h' )
 }
@@ -157,39 +137,36 @@ void generateItqCode( P: program )
 {
 	Output = new parser<out_c::out_c>()
 
-	send Output
-		~/*
-		~ * itq_gen.cc
-		~ */
-		~
-		~#include "itq_gen.h"
-		~#include <genf/thread.h>
-		~
+	~/*
+	~ * itq_gen.cc
+	~ */
+	~
+	~#include "itq_gen.h"
+	~#include <genf/thread.h>
+	~
 
 	for Message: message in MessageMap {
-		send Output
-			"void Writer::[Message->Id]::send( bool signal )
-			"	{ writer->queue->send( writer, signal ); }
+		"void Writer::[Message->Id]::send( bool signal )
+		"	{ writer->queue->send( writer, signal ); }
 	}
 
 	for MD: message_def in P {
 		for FD: msg_field_def in MD {
 			switch FD.msg_field_type
 			case [`string] {
-				send Output
-					"void Message::[MD.id]::set_[FD.id]( ItWriter *writer, const char *src )
-					"{
-					"	int length = strlen( src ) + 1;
-					"	char *dest = (char*) writer->queue->allocBytes( writer, length );
-					"	(([MD.id]*)writer->contents)->[FD.id] = dest;
-					"	memcpy( dest, src, length );
-					"}
-					"
+				"void Message::[MD.id]::set_[FD.id]( ItWriter *writer, const char *src )
+				"{
+				"	int length = strlen( src ) + 1;
+				"	char *dest = (char*) writer->queue->allocBytes( writer, length );
+				"	(([MD.id]*)writer->contents)->[FD.id] = dest;
+				"	memcpy( dest, src, length );
+				"}
+				"
 			}
 		}
 	}
 
-	send Output [] eos
+	[] eos
 
 	writeOutput( Output->tree, 'itq_gen.cc' )
 }

@@ -3,99 +3,95 @@ void generateMainHeader( P: program )
 	Output = new parser<out_c::out_c>()
 	Thread: thread = ThreadMap->find( 'Main' )
 
-	send Output
-		~/*
-		~ * main_gen.h
-		~ */
-		~
-		~#ifndef _MAIN_GEN_H
-		~#define _MAIN_GEN_H
-		~
-		~#include <genf/thread.h>
-		~#include "itq_gen.h"
-		~#include "packet_gen.h"
-		~
+	~/*
+	~ * main_gen.h
+	~ */
+	~
+	~#ifndef _MAIN_GEN_H
+	~#define _MAIN_GEN_H
+	~
+	~#include <genf/thread.h>
+	~#include "itq_gen.h"
+	~#include "packet_gen.h"
+	~
 
 	threadForwards( Thread )
 
-	send Output
-		~struct MainGen
-		~	: public MainBase
-		~{
-		~	MainGen() : MainBase("main") {}
-		~
-		~	void init( int argc, char *const*argv )
-		~	{
-		~		this->argc = argc;
-		~		this->argv = argv;
-		~	}
-		~
-		~	int argc;
-		~	char *const*argv;
-		~
-		~	void parseOptions();
-		~	int start();
-		~	void join();
-		~	virtual int main() { return 0; }
-		~
-		~	void recvSingle();
-		~	int recvLoop();
-		~	bool poll();
-		~	void recvHeader( ItQueue *queue, ItHeader *header );
-		~
+	~struct MainGen
+	~	: public MainBase
+	~{
+	~	MainGen() : MainBase("main") {}
+	~
+	~	void init( int argc, char *const*argv )
+	~	{
+	~		this->argc = argc;
+	~		this->argv = argv;
+	~	}
+	~
+	~	int argc;
+	~	char *const*argv;
+	~
+	~	void parseOptions();
+	~	int start();
+	~	void join();
+	~	virtual int main() { return 0; }
+	~
+	~	void recvSingle();
+	~	int recvLoop();
+	~	bool poll();
+	~	void recvHeader( ItQueue *queue, ItHeader *header );
+	~
 
 	optDefine( P )
 
 	threadCommonHeader( Thread )
 
-	send Output
-		~};
-		~
-		~#endif
+	~};
+	~
+	~#endif
 
-	send Output [] eos
+	[] eos
 	writeOutput( Output->tree, 'main_gen.h' )
 }
 
 void optString( P: program )
 {
-	send Output
-		"const char optstring\[\] = \":"
+	"const char optstring\[\] = \":"
 
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`- short]
 
-			send Output [OS.short]
+			[OS.short]
+
 			if !match OD.option_type [`bool]
-				send Output ":"
+				":"
 		}
 	}
 
-	send Output
-		"\";
-		"
+	"\";
+	"
 }
 
 void longOpts( P: ref<program> )
 {
-	send Output
-		"const option longopts\[\] = {
+	"const option longopts\[\] = {
 
 	Ind: int = 0
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`-- long]
-			send Output
-				"	{ \"[OS.long]\", "
 
-			if match OD.option_type [`bool]
-				send Output "no_argument"
-			else
-				send Output "required_argument"
+			"	{ \"[OS.long]\", "
 
-			send Output
-				", 0, 0 },
+			if match OD.option_type [`bool] {
+				"no_argument"
+			}
+			else {
+				"required_argument"
+			}
+
+			", 0, 0 },
 
 			# Save the index.
 			OS.Ind = Ind
@@ -103,10 +99,9 @@ void longOpts( P: ref<program> )
 		}
 	}
 
-	send Output
-		"	{ 0, 0, 0, 0 }
-		"};
-		"
+	"	{ 0, 0, 0, 0 }
+	"};
+	"
 }
 
 void optDefine( P: program )
@@ -115,21 +110,16 @@ void optDefine( P: program )
 	for OD: option_def in P {
 		switch OD.option_type
 		case [`bool] {
-			send Output
-				"static bool [OD.id];
+			"static bool [OD.id];
 		}
 		case [`string] {
-			send Output
-				"static const char *[OD.id];
-
+			"static const char *[OD.id];
 		}
 		case [`long] {
-			send Output
-				"static long [OD.id];
+			"static long [OD.id];
 		}
 		case [`string `list] {
-			send Output
-				"static OptStringList [OD.id];
+			"static OptStringList [OD.id];
 		}
 	}
 
@@ -142,25 +132,20 @@ void optDeclare( P: program )
 	for OD: option_def in P {
 		switch OD.option_type
 		case [`bool] {
-			send Output
-				"bool MainGen::[OD.id] = false;
+			"bool MainGen::[OD.id] = false;
 		}
 		case [`string] {
-			send Output
-				"const char *MainGen::[OD.id] = 0;
-
+			"const char *MainGen::[OD.id] = 0;
 		}
 		case [`long] {
-			send Output
-				"long MainGen::[OD.id] = 0;
+			"long MainGen::[OD.id] = 0;
 		}
 		case [`string `list] {
-			send Output
-				"OptStringList MainGen::[OD.id];
+			"OptStringList MainGen::[OD.id];
 		}
 	}
 
-	send Output "
+	"
 }
 
 void parseOption( P: program, OD: option_def, Src: str )
@@ -168,128 +153,115 @@ void parseOption( P: program, OD: option_def, Src: str )
 	if $OD.id == "__debug" {
 		# Handle debug realms directly, rather than collecting into program
 		# state.
-		Else: str = ""
-		send Output
-			"	if ( strcmp( [Src], \"THREAD\" ) == 0 )
-			"		enabledRealms |= DBG_THREAD;
-			"	else if ( strcmp( [Src], \"PACKET\" ) == 0 )
-			"		enabledRealms |= DBG_PACKET;
-			"	else if ( strcmp( [Src], \"CONNECTION\" ) == 0 )
-			"		enabledRealms |= DBG_CONNECTION;
-			"	else if ( strcmp( [Src], \"TLS\" ) == 0 )
-			"		enabledRealms |= DBG_TLS;
+		"	if ( strcmp( [Src], \"THREAD\" ) == 0 )
+		"		enabledRealms |= DBG_THREAD;
+		"	else if ( strcmp( [Src], \"PACKET\" ) == 0 )
+		"		enabledRealms |= DBG_PACKET;
+		"	else if ( strcmp( [Src], \"CONNECTION\" ) == 0 )
+		"		enabledRealms |= DBG_CONNECTION;
+		"	else if ( strcmp( [Src], \"TLS\" ) == 0 )
+		"		enabledRealms |= DBG_TLS;
+
 		for D: debug_def in P {
-			send Output
-				"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
-				"		enabledRealms |= DBG_[D.id];
-			Else = "else "
+			"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
+			"		enabledRealms |= DBG_[D.id];
 		}
-		send Output
-			"	else {
-			"		log_FATAL( \"unrecognized debug realm: \" << [Src] );
-			"	}
+
+		"	else {
+		"		log_FATAL( \"unrecognized debug realm: \" << [Src] );
+		"	}
 	}
 	else {
 		switch OD.option_type
 		case [`bool] {
-			send Output
-				"[OD.id] = true;
+			"[OD.id] = true;
 		}
 		case [`string] {
-			send Output
-				"[OD.id] = [Src];
-
+			"[OD.id] = [Src];
 		}
 		case [`long] {
-			send Output
-				"char *eptr;
-				"if ( *[Src] == 0 )
-				"	log_FATAL( \"no characters found in [OD.id] (long) value\" );
-				"
-				"[OD.id] = strtol( [Src], &eptr, 10 );
-				"
-				"if ( *eptr != 0 )
-				"	log_FATAL( \"invalid characters in [OD.id] (long) value: \" << [Src] );
-				"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE )
-				"	log_FATAL( \"[OD.id] (long) out of range: \" << [Src] );
-				"if ( [OD.id] == 0 && errno != 0 )
-				"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
+			"char *eptr;
+			"if ( *[Src] == 0 )
+			"	log_FATAL( \"no characters found in [OD.id] (long) value\" );
+			"
+			"[OD.id] = strtol( [Src], &eptr, 10 );
+			"
+			"if ( *eptr != 0 )
+			"	log_FATAL( \"invalid characters in [OD.id] (long) value: \" << [Src] );
+			"if ( ( [OD.id] == LONG_MAX || [OD.id] == LONG_MIN) && errno == ERANGE )
+			"	log_FATAL( \"[OD.id] (long) out of range: \" << [Src] );
+			"if ( [OD.id] == 0 && errno != 0 )
+			"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
 		}	
 		case [`string `list] {
-			send Output
-				"{
-				"	OptStringEl *el = new OptStringEl;
-				"	el->data = [Src];
-				"	el->next = 0;
-				"	if ( [OD.id].tail == 0 )
-				"		[OD.id].head = [OD.id].tail = el;
-				"	else {
-				"		[OD.id].tail->next = el;
-				"		[OD.id].tail = el;
-				"	}
-				"}
-				"
+			"{
+			"	OptStringEl *el = new OptStringEl;
+			"	el->data = [Src];
+			"	el->next = 0;
+			"	if ( [OD.id].tail == 0 )
+			"		[OD.id].head = [OD.id].tail = el;
+			"	else {
+			"		[OD.id].tail->next = el;
+			"		[OD.id].tail = el;
+			"	}
+			"}
+			"
 		}
 	}
 }
 
 void parseOptions( P: ref<program> )
 {
-	send Output
-		"void MainGen::parseOptions()
-		"{
-		"	while ( true ) {
-		"		int option_index = 0;
-		"		int c = getopt_long( argc, argv, optstring, longopts, &option_index );
-		"		if ( c == -1 )
-		"			break;
-		"		switch ( c ) {
+	"void MainGen::parseOptions()
+	"{
+	"	while ( true ) {
+	"		int option_index = 0;
+	"		int c = getopt_long( argc, argv, optstring, longopts, &option_index );
+	"		if ( c == -1 )
+	"			break;
+	"		switch ( c ) {
 
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`- short]
 
-			send Output
-				"			case '[OS.short]': {
-				"				[parseOption( P, OD, 'optarg' )]
-				"				break;
-				"			}
+			"			case '[OS.short]': {
+			"				[parseOption( P, OD, 'optarg' )]
+			"				break;
+			"			}
 		}
 	}
 	
-	send Output
-		"			case 0: {
-		"				switch ( option_index ) {
+	"			case 0: {
+	"				switch ( option_index ) {
 
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`-- long]
-			send Output
-				"				case [OS.Ind]:
-				"					[parseOption( P, OD, '(argv[optind-1])' )]
-				"					break;
+			"				case [OS.Ind]:
+			"					[parseOption( P, OD, '(argv[optind-1])' )]
+			"					break;
 		}
 	}
 
-	send Output
-		"				}
-		"				break;
-		"			}
-		"			case ':': 
-		"			case '?': {
-		"				const char *msg = ( c == '?' ) ? 
-		"						\"unknown option: \" :
-		"						\"missing argument for option: \";
-		"
-		"				if ( optopt == 0 )
-		"					log_FATAL( msg << argv\[optind-1\] );
-		"				else 
-		"					log_FATAL( msg << \"-\" << (char)optopt );
-		"				break;
-		"			}
-		"		}
-		"	}
-		"}
+	"				}
+	"				break;
+	"			}
+	"			case ':': 
+	"			case '?': {
+	"				const char *msg = ( c == '?' ) ? 
+	"						\"unknown option: \" :
+	"						\"missing argument for option: \";
+	"
+	"				if ( optopt == 0 )
+	"					log_FATAL( msg << argv\[optind-1\] );
+	"				else 
+	"					log_FATAL( msg << \"-\" << (char)optopt );
+	"				break;
+	"			}
+	"		}
+	"	}
+	"}
 }
 
 void generateMainCode( P: ref<program> )
@@ -297,69 +269,63 @@ void generateMainCode( P: ref<program> )
 	Output = new parser<out_c::out_c>()
 	Thread: thread = ThreadMap->find( 'Main' )
 
-	send Output
-		~/*
-		~ * main_gen.cc
-		~ */
-		~
-
-	send Output
-		~#include <iostream>
-		~#include <unistd.h>
-		~#include <getopt.h>
-		~#include <errno.h>
-		~#include <stdlib.h>
-		~#include <limits.h>
-		~#include <string.h>
-		~#include <sys/time.h>
-		~#include <sys/types.h>
-		~#include <sys/stat.h>
-		~#include <fcntl.h>
-		~#include <sys/capability.h>
-		~#include <sys/prctl.h>
-		~#include <linux/securebits.h>
-		~#include <pwd.h>
-		~
-		~#include "main.h"
-		~#include "genf.h"
+	~/*
+	~ * main_gen.cc
+	~ */
+	~
+	~#include <iostream>
+	~#include <unistd.h>
+	~#include <getopt.h>
+	~#include <errno.h>
+	~#include <stdlib.h>
+	~#include <limits.h>
+	~#include <string.h>
+	~#include <sys/time.h>
+	~#include <sys/types.h>
+	~#include <sys/stat.h>
+	~#include <fcntl.h>
+	~#include <sys/capability.h>
+	~#include <sys/prctl.h>
+	~#include <linux/securebits.h>
+	~#include <pwd.h>
+	~
+	~#include "main.h"
+	~#include "genf.h"
 
 	threadIncludes( Thread )
-	send Output ~
+
+	~
 	
 	optString( P )
 	longOpts( P )
 	optDeclare( P )
 	parseOptions( P )
 
-	send Output
-		~#define LOGFILE LOGDIR "/" PACKAGE ".log"
-		~#define PIDFILE PIDDIR "/" PACKAGE ".pid"
+	~#define LOGFILE LOGDIR "/" PACKAGE ".log"
+	~#define PIDFILE PIDDIR "/" PACKAGE ".pid"
 
-	send Output
-		~extern const char *_PIDFILE;
-		~extern const char *_LOGFILE;
-		~void on_exit(void);
-		~FILE *pidExists( bool overwritePidFile );
-		~FILE *openPidFile( bool overwritePidFile );
-		~void writePidFile( FILE *pidf );
-		~void maybeBackground( bool background, bool overwritePidFile );
+	~extern const char *_PIDFILE;
+	~extern const char *_LOGFILE;
+	~void on_exit(void);
+	~FILE *pidExists( bool overwritePidFile );
+	~FILE *openPidFile( bool overwritePidFile );
+	~void writePidFile( FILE *pidf );
+	~void maybeBackground( bool background, bool overwritePidFile );
 
 	createChildDefs( Thread )
 
 	threadCommonCode( Thread )
 
-	send Output
-		~int MainGen::start()
-		~{
-		~	_PIDFILE = PIDFILE;
-		~	_LOGFILE = LOGFILE;
-		~	parseOptions();
-		~	maybeBackground( background, overwritePidFile );
-		~	signalSetup();
-		~	return main();
-		~}
-		~
-
+	~int MainGen::start()
+	~{
+	~	_PIDFILE = PIDFILE;
+	~	_LOGFILE = LOGFILE;
+	~	parseOptions();
+	~	maybeBackground( background, overwritePidFile );
+	~	signalSetup();
+	~	return main();
+	~}
+	~
 
 	joinDef( Thread )
 	sendsToCode( Thread )
@@ -367,112 +333,107 @@ void generateMainCode( P: ref<program> )
 
 	threadRecveives( Thread )
 
-	send Output
-		~Thread *getThis();
-		~
+	~Thread *getThis();
+	~
 	
-	send Output
-		~void reportCaps()
+	~void reportCaps()
+	~{
+	~	ssize_t len = 0;
+	~	cap_t c = cap_get_proc();
+	~	char *t = cap_to_text( c, &len );
+	~	printf( "exec caps: %s\n", t );
+	~	cap_free( t );
+	~	cap_free( c );
+	~}
+	~
+	~passwd *findRunAsUser()
+	~{
+	~	passwd *found = NULL, *pw;
+	~	while ( (pw = getpwent()) ) {
+	~		if ( strcmp( pw->pw_name, RUN_AS ) == 0 ) {
+	~			found = pw;
+	~			break;
+	~		}
+	~	}
+	~
+	~	if ( found == 0 )
+	~		log_FATAL( "could not locate run-as user " RUN_AS );
+	~
+	~	return found;
+	~}
+	~
+	~void switchToRunAs()
+	~{
+	~	passwd *runAs = findRunAsUser();
+	~		
+	~	int r = setgid( runAs->pw_gid );
+	~	if ( r != 0 )
+	~		log_FATAL( "setgid(" << runAs->pw_gid << ") failure: " << strerror(errno) );
+	~
+	~	r = setuid( runAs->pw_uid );
+	~	if ( r != 0 )
+	~		log_FATAL( "setuid(" << runAs->pw_uid << ") failure: " << strerror(errno) );
+	~}
+	~
+	
+	if GblNumCaps > 0  {
+		~void dropCaps()
 		~{
-		~	ssize_t len = 0;
+		~	int r = 0;
+		~
+		~	if ( getuid() != 0 || getgid() != 0 )
+		~		log_FATAL( "this service requires capabilities and must be started as root" );
+		~
+		~	/* Tell the system to not change caps (except clearing effective)
+		~	 * when changing user ids. */
+		~	prctl( PR_SET_KEEPCAPS, 1L );
+		~
+		~	/* Drop privs. */
+		~	switchToRunAs();
+		~
+		~	/*
+		~	 * Reduce caps to what we need.
+		~	 */
 		~	cap_t c = cap_get_proc();
-		~	char *t = cap_to_text( c, &len );
-		~	printf( "exec caps: %s\n", t );
-		~	cap_free( t );
+		~
+		~	cap_clear( c );
+		~
+		"	cap_value_t to_set\[\] = { [GblCapList] };
+		"	r = cap_set_flag( c, CAP_PERMITTED, [GblNumCaps], to_set, CAP_SET );
+		"	r = cap_set_flag( c, CAP_EFFECTIVE, [GblNumCaps], to_set, CAP_SET );
+		~
+		~	r = cap_set_proc( c );
+		~	if ( r != 0 )
+		~		log_FATAL( "cap_set_proc failure: " << strerror(errno) );
 		~	cap_free( c );
 		~}
 		~
-		~passwd *findRunAsUser()
-		~{
-		~	passwd *found = NULL, *pw;
-		~	while ( (pw = getpwent()) ) {
-		~		if ( strcmp( pw->pw_name, RUN_AS ) == 0 ) {
-		~			found = pw;
-		~			break;
-		~		}
-		~	}
-		~
-		~	if ( found == 0 )
-		~		log_FATAL( "could not locate run-as user " RUN_AS );
-		~
-		~	return found;
-		~}
-		~
-		~void switchToRunAs()
-		~{
-		~	passwd *runAs = findRunAsUser();
-		~		
-		~	int r = setgid( runAs->pw_gid );
-		~	if ( r != 0 )
-		~		log_FATAL( "setgid(" << runAs->pw_gid << ") failure: " << strerror(errno) );
-		~
-		~	r = setuid( runAs->pw_uid );
-		~	if ( r != 0 )
-		~		log_FATAL( "setuid(" << runAs->pw_uid << ") failure: " << strerror(errno) );
-		~}
-		~
-	
-	if GblNumCaps > 0  {
-		send Output
-			~void dropCaps()
-			~{
-			~	int r = 0;
-			~
-			~	if ( getuid() != 0 || getgid() != 0 )
-			~		log_FATAL( "this service requires capabilities and must be started as root" );
-			~
-			~	/* Tell the system to not change caps (except clearing effective)
-			~	 * when changing user ids. */
-			~	prctl( PR_SET_KEEPCAPS, 1L );
-			~
-			~	/* Drop privs. */
-			~	switchToRunAs();
-			~
-			~	/*
-			~	 * Reduce caps to what we need.
-			~	 */
-			~	cap_t c = cap_get_proc();
-			~
-			~	cap_clear( c );
-			~
-			"	cap_value_t to_set\[\] = { [GblCapList] };
-			"	r = cap_set_flag( c, CAP_PERMITTED, [GblNumCaps], to_set, CAP_SET );
-			"	r = cap_set_flag( c, CAP_EFFECTIVE, [GblNumCaps], to_set, CAP_SET );
-			~
-			~	r = cap_set_proc( c );
-			~	if ( r != 0 )
-			~		log_FATAL( "cap_set_proc failure: " << strerror(errno) );
-			~	cap_free( c );
-			~}
-			~
 	}
 	else {
-		send Output
-			~void dropCaps()
-			~{
-			~	if ( getuid() == 0 || getgid() == 0 )
-			~		switchToRunAs();
-			~}
+		~void dropCaps()
+		~{
+		~	if ( getuid() == 0 || getgid() == 0 )
+		~		switchToRunAs();
+		~}
 	}
 
-	send Output
-		~int main( int argc, char *const*argv )
-		~{
-		~	genf::lf = new lfdostream( 2 );
-		~	dropCaps();
-		~	pthread_key_create( &Thread::thisKey, 0 );
-		~	ares_library_init( 0);
-		~	MainThread main;
-		~	ares_init( &main.ac );
-		~	main.initId();
-		~	main.init( argc, argv );
-		~	int r = main.start();
-		~	ares_destroy( main.ac );
-		~	ares_library_cleanup();
-		~	return r;
-		~}
-		~
+	~int main( int argc, char *const*argv )
+	~{
+	~	genf::lf = new lfdostream( 2 );
+	~	dropCaps();
+	~	pthread_key_create( &Thread::thisKey, 0 );
+	~	ares_library_init( 0);
+	~	MainThread main;
+	~	ares_init( &main.ac );
+	~	main.initId();
+	~	main.init( argc, argv );
+	~	int r = main.start();
+	~	ares_destroy( main.ac );
+	~	ares_library_cleanup();
+	~	return r;
+	~}
+	~
 
-	send Output [] eos
+	[] eos
 	writeOutput( Output->tree, 'main_gen.cc' )
 }
