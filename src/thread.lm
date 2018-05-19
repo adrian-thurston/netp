@@ -73,6 +73,7 @@ void threadCommonHeader( Thread: thread )
 void generateThreadHeader( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
+	stds->push( Output->gets() )
 
 	"/*
 	" * [Thread->Lower]_gen.h
@@ -250,6 +251,7 @@ void threadCommonCode( Thread: thread )
 void generateThreadCode( Thread: thread )
 {
 	Output = new parser<out_c::out_c>()
+	stds->push( Output->gets() )
 
 	"/*
 	" * [Thread->Lower]_gen.cc

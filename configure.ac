@@ -14,7 +14,7 @@ AC_PROG_LIBTOOL
 AC_LANG_CPLUSPLUS
 
 dnl Colm
-AC_CHECK_COLM([0.13.0.5])
+AC_CHECK_COLM([0.13.0.6])
 
 dnl Usage dependencies are stored in pkgbuild/common.m4
 AC_CHECK_GENF_DEPS()

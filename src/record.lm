@@ -29,6 +29,7 @@ void definePack()
 void generatePacketHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
+	stds->push( Output->gets() )
 
 	~/*
 	~ * packet_gen.h
@@ -294,6 +295,7 @@ void packetReceives( Thread: thread )
 void generatePacketCode( P: program )
 {
 	Output = new parser<out_c::out_c>()
+	stds->push( Output->gets() )
 
 	~/*
 	~ * packet_gen.cc
