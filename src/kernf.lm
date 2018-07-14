@@ -41,7 +41,7 @@ void attributeDecl( Kobj: kobj, Attr: attr )
 void attribute_h( P: program )
 {
 	Output = new parser<out_c::out_c>()
-	stds->push( Output->gets() )
+	_ = Output
 
 	send Output
 		"#ifndef __ATTRIBUTE_H
@@ -86,7 +86,7 @@ int len( OL: attr_arg_list? )
 void module_c( P: program )
 {
 	Output = new parser<out_c::out_c>()
-	stds->push( Output->gets() )
+	_ = Output
 
 	send Output
 		"#include <linux/kernel.h>
@@ -357,7 +357,7 @@ void module_c( P: program )
 void kbuild( P: program )
 {
 	Output = new parser<out_c::out_c>()
-	stds->push( Output->gets() )
+	_ = Output
 
 	send Output
 		"obj-m := [ModuleName].o

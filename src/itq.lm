@@ -2,7 +2,7 @@
 void generateItqHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
-	stds->push( Output->gets() )
+	_ = Output
 
 	~/*
 	~ * itq_gen.h
@@ -137,7 +137,7 @@ void generateItqHeader( P: program )
 void generateItqCode( P: program )
 {
 	Output = new parser<out_c::out_c>()
-	stds->push( Output->gets() )
+	_ = Output
 
 	~/*
 	~ * itq_gen.cc

@@ -9,6 +9,7 @@ include 'record.lm'
 include 'kernf.lm'
 include 'java.lm'
 
+global _: parser<out_c::out_c>
 global Output: parser<out_c::out_c>
 
 void writeOutput( Output: out_c::out_c, Fn: str )
