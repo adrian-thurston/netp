@@ -454,7 +454,7 @@ public:
 
 	SSL_CTX *sslCtxClientPublic();
 	SSL_CTX *sslCtxClientInternal();
-	SSL_CTX *sslCtxClient( const char *verify, const char *key = 0, const char *cert = 0 );
+	SSL_CTX *sslCtxClient( const SSL_METHOD *method, const char *verify, const char *key = 0, const char *cert = 0 );
 
 	SSL_CTX *sslCtxServerInternal();
 	SSL_CTX *sslCtxServer( const char *key, const char *cert, const char *verify = 0 );

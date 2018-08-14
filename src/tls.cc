@@ -61,7 +61,7 @@ void Thread::tlsShutdown()
 
 SSL_CTX *Thread::sslCtxClientPublic()
 {
-	return sslCtxClient( CA_CERT_FILE );
+	return sslCtxClient( SSLv23_client_method(), CA_CERT_FILE );
 }
 
 SSL_CTX *Thread::sslCtxClientInternal()
@@ -69,13 +69,13 @@ SSL_CTX *Thread::sslCtxClientInternal()
 	String verify = String(pkgDataDir()) + "/verify.pem";
 	String key    = String(pkgDataDir()) + "/key.pem";
 	String cert   = String(pkgDataDir()) + "/cert.pem";
-	return sslCtxClient( verify, key, cert );
+	return sslCtxClient( TLSv1_client_method(), verify, key, cert );
 }
 
-SSL_CTX *Thread::sslCtxClient( const char *verify, const char *key, const char *cert )
+SSL_CTX *Thread::sslCtxClient( const SSL_METHOD *method, const char *verify, const char *key, const char *cert )
 {
 	/* Create the SSL_CTX. */
-	SSL_CTX *ctx = SSL_CTX_new(TLSv1_client_method());
+	SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
 	if ( ctx == NULL )
 		log_FATAL( EC_SSL_NEW_CONTEXT_FAILURE << " SSL error: new context failure" );
 
