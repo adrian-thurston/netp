@@ -49,9 +49,14 @@ if [ -f package/control ] && grep -q '^[\t ]*[Dd]ists:' package/control; then
 	for patch in $patches; do
 		patch -p1 < $srcdir/package/$patch
 	done
-else
+
+	cd ../..
+fi
+
+if [ -f ./configure.ac ]; then
+
 	if [ '!' -d $share ]; then
-		fatal "m4 directory not found at: $m4"
+		fatal "share directory not found at: $share"
 	fi
 
 	if [ '!' -d m4 ]; then
@@ -72,6 +77,10 @@ else
 	message "copying macros to m4/"
 	cp $share/*.m4 m4/
 
+	message "copying sedsubst file to ./"
+	cp $share/sedsubst ./
+	chmod +x ./sedsubst
+
 	# Loop subdirs specified in makefile. Assuming these to be source directories.
 	# Further check on existence of a .gf file.
 	SRC=`sed -n '/^\s*SUBDIRS\s*=/s/^.*=//p' Makefile.am`
@@ -89,10 +98,6 @@ else
 			done
 		fi
 	done
-
-	message "copying sedsubst file to ./"
-	cp $share/sedsubst ./
-	chmod +x ./sedsubst
 
 	if grep -q '^[ \t]*\<AC_PROG_LIBTOOL\>' configure.ac; then
 		( set -x; libtoolize --copy --no-warn; )
