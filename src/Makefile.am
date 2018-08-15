@@ -1,4 +1,5 @@
 bin_PROGRAMS = genf
+bin_SCRIPTS = autogen.sh
 
 lib_LTLIBRARIES = libgenf.la
 
@@ -24,10 +25,22 @@ genfincdir = $(includedir)/genf
 
 genfinc_HEADERS = list.h thread.h packet.h RecordBase.java
 
-pkgdata_DATA = with-aapl
+pkgdata_DATA = \
+	with-aapl \
+	common.m4 \
+	genf.mk \
+	genf.h.in \
+	sedsubst \
+	init.d.sh \
+	bootstrap.sh
 
 with-aapl:
 	echo $(WITH_AAPL) > with-aapl
+
+SUFFIXES = .pl .sh .in
+
+.in.sh:
+	@$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w,+x" $(SED_SUBST)
 
 LM_DEPS = \
 	grammar.lm \

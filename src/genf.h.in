@@ -1,0 +1,19 @@
+#ifndef _GENF_H
+#define _GENF_H
+
+/* This tag indicates this file comes from genf package.
+ * installed-by-genf */
+
+#define PACKAGE "@PACKAGE@"
+#define PACKAGE_VERSION "@PACKAGE_VERSION@"
+
+#define LOGDIR "@logdir@"
+#define PIDDIR "@piddir@"
+
+#define PKGDATADIR "@pkgdatadir@"
+#define PKGSTATEDIR "@pkgstatedir@"
+#define PKGLIBEXECDIR "@pkglibexecdir@"
+
+#define RUN_AS "@RUN_AS@"
+
+#endif

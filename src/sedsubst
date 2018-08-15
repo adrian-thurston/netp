@@ -1,0 +1,13 @@
+#/bin/sh
+#
+
+infile="$1"
+outfile="$2"
+mode="$3"
+
+shift 3
+
+echo "sedsubst: rewriting $infile"
+test -f "$outfile" && rm -f "$outfile"
+sed $* "$infile" > "$outfile"
+chmod "$mode" "$outfile"

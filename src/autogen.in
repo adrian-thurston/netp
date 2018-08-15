@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+
+prefix=@prefix@
+package=@PACKAGE@
+share=$prefix/share/$package
+
+message()
+{
+	echo "+ $1" >&2
+}
+
+fatal()
+{
+	echo "FATAL: $1" >&2
+	exit 1
+}
+
+if [ -f package/control ] && grep -q '^[\t ]*[Dd]ists:' package/control; then
+	set -x
+	dists=$(sed -n '/^[\t ]*[Dd]ists:/s/.*://p' package/control)
+	patches=$(sed -n '/^[\t ]*[Pp]atches:/s/.*://p' package/control)
+	package=$(sed -n '/^[\t ]*[Pp]ackage:/s/.*://p' package/control)
+	version=$(echo $dists | awk '{print $1;}' | sed 's/^[^0-9]\+-//; s/\.[^0-9]\+$//;')
+
+	# Need a build directory.
+	[ -d "build" ] || mkdir build
+
+	for dist in $dists; do
+		wget -O build/$dist http://dist.in.colm.net/dist/$dist
+	done
+	echo $version;
+
+	root=$package-${version}
+	tarball=$root.tar.gz
+
+	cd build
+
+	rm -Rf $root
+	mkdir $root
+
+	for dist in $dists; do
+		tar -C $root --strip-components=1 -zxf $dist
+	done
+
+	cd $root
+	srcdir=../../
+
+	for patch in $patches; do
+		patch -p1 < $srcdir/package/$patch
+	done
+else
+	if [ '!' -d $share ]; then
+		fatal "m4 directory not found at: $m4"
+	fi
+
+	if [ '!' -d m4 ]; then
+		mkdir m4
+	fi
+
+	#
+	# Check for some expected things in configure.ac
+	#
+	if ! grep -q '^[ \t]*AC_CONFIG_MACRO_DIR(\[m4\])[ \t]*$' configure.ac; then
+		fatal "add the following to configure.ac: AC_CONFIG_MACRO_DIR([m4])"
+	fi
+
+	if ! grep -q '^[ \t]*m4_include(\[m4/common.m4\])[ \t]*$' configure.ac; then
+		fatal "add the following to configure.ac: m4_include([m4/common.m4])"
+	fi
+
+	message "copying macros to m4/"
+	cp $share/*.m4 m4/
+
+	# Loop subdirs specified in makefile. Assuming these to be source directories.
+	# Further check on existence of a .gf file.
+	SRC=`sed -n '/^\s*SUBDIRS\s*=/s/^.*=//p' Makefile.am`
+
+	for s in $SRC; do
+		function exists { [ -f "$1" ]; };
+		if exists $s/*.gf; then
+			message "copying genf support files to $s/"
+			for fn in $share/genf.h.in $share/genf.mk $share/init.d.sh $share/bootstrap.sh; do
+				target="$s/$(basename $fn)"
+				if [ '!' -f $target ] || grep -q installed-by-genf $target; then
+					message "  -> copying $fn to $s/"
+					cp $fn $s/
+				fi
+			done
+		fi
+	done
+
+	message "copying sedsubst file to ./"
+	cp $share/sedsubst ./
+	chmod +x ./sedsubst
+
+	if grep -q '^[ \t]*\<AC_PROG_LIBTOOL\>' configure.ac; then
+		( set -x; libtoolize --copy --no-warn; )
+	fi
+
+	set -x
+
+	autoheader
+	aclocal
+	automake --foreign --include-deps --add-missing --copy
+	autoconf
+fi
