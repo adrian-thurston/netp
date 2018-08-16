@@ -17,7 +17,8 @@ libgenf_la_SOURCES = \
 	packet.cc \
 	select.cc \
 	lookup.cc \
-	inet.cc
+	inet.cc \
+	process.cc
 
 libgenf_la_CPPFLAGS = -Iinclude
 

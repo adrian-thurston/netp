@@ -326,6 +326,16 @@ struct Listener
 	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 };
 
+struct Process
+{
+	pid_t pid;
+	FILE *from;
+	FILE *to;
+
+	int create( const char *cmdline );
+	int wait();
+};
+
 struct Thread
 {
 	Thread( const char *type )
