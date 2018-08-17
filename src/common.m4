@@ -411,11 +411,20 @@ AC_CHECK_LIB([cap], [cap_get_proc])
 AC_CHECK_HEADER( [sys/capability.h], [], [AC_ERROR([sys/capability.h not found])] )
 
 dnl
-dnl make zlib check
+dnl Make a zlib check available.
 dnl
 AC_DEFUN([AC_CHECK_ZLIB], [
 	AC_CHECK_HEADER([zlib.h], [], [AC_ERROR([unable to include zlib.h])])
 	AC_CHECK_LIB([z], [inflate], [], [AC_ERROR([unable to link with -lz])])
 ])
+
+dnl
+dnl Make a sqlite3 check available.
+dnl
+AC_DEFUN([AC_CHECK_SQLITE3], [
+	AC_CHECK_HEADER([sqlite3.h], [], [AC_ERROR([unable to include zlib.h])])
+	AC_CHECK_LIB([sqlite3], [sqlite3_open], [], [AC_ERROR([unable to link with -lz])])
+])
+
 
 AC_SUBST(SED_SUBST)
