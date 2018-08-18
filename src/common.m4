@@ -432,18 +432,18 @@ dnl
 AC_DEFUN([AC_CHECK_PIPELINE], [
 	AC_ARG_WITH(pipeline,
 		[AC_HELP_STRING([--with-pipeline], [location of pipeline install])],
-		[PIPELINE_INIT_D="$withval/libexec/pipeline/init.d"],
-		[PIPELINE_INIT_D="$DEPS/libexec/pipeline/init.d"]
+		[PIPELINE_PREFIX="$withval"],
+		[PIPELINE_PREFIX="$DEPS"]
 	)
 
 	AC_CHECK_FILES(
-		[$PIPELINE_INIT_D],
+		[$PIPELINE_PREFIX/libexec/pipeline/init.d],
 		[],
 		[AC_ERROR([pipeline DB is required to build this package])]
 	)
 
-	SED_SUBST="$SED_SUBST -e 's|[@]PIPELINE_INIT_D[@]|$PIPELINE_INIT_D|g'"
-	AC_SUBST(PIPELINE_INIT_D)
+	SED_SUBST="$SED_SUBST -e 's|[@]PIPELINE_PREFIX[@]|$PIPELINE_PREFIX|g'"
+	AC_SUBST(PIPELINE_PREFIX)
 ])
 
 AC_SUBST(SED_SUBST)
