@@ -1,5 +1,7 @@
 
-pkglibexec_SCRIPTS = updown
+pkglibexec_SCRIPTS = bootstrap updown
+
+EXTRA_DIST = bootstrap.sh
 
 SUFFIXES = .in .sh
 
