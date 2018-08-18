@@ -79,6 +79,11 @@ AC_CHECK_FILES( [$FETCH_PREFIX/bin/fetch],
 SED_SUBST="$SED_SUBST -e 's|[@]FETCH_PREFIX[@]|$FETCH_PREFIX|g'"
 AC_SUBST(FETCH_PREFIX)
 
+dnl
+dnl pipeline DB
+dnl
+AC_CHECK_PIPELINE
+
 
 dnl
 dnl Done

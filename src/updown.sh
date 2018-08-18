@@ -344,6 +344,12 @@ bring_up()
 	fi
 }
 
+pipeline_up()
+{
+	godo sudo -u thurston @PIPELINE_INIT_D@ start
+	undo sudo -u thurston @PIPELINE_INIT_D@ stop
+}
+
 bg_up()
 {
 	package=$1; prefix=$2; shift 2; options=$@
@@ -375,6 +381,7 @@ bg_up()
 services_up()
 {
 	undo restart_mark services
+	pipeline_up
 	bg_up broker @BROKER_PREFIX@ $BROKER_OPTIONS
 	bg_up netp @NETP_PREFIX@ $NETP_OPTIONS
 	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline $TLSPROXY_OPTIONS
