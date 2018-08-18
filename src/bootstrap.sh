@@ -24,6 +24,7 @@ fi
 @NETP_PREFIX@/libexec/netp/bootstrap
 @TLSPROXY_PREFIX@/libexec/tlsproxy/bootstrap
 @FETCH_PREFIX@/libexec/fetch/bootstrap
+@TRADER_PREFIX@/libexec/trader/bootstrap
 
 #
 # Fetch share data.
@@ -40,6 +41,27 @@ mkdir @FETCH_PREFIX@/var/fetch/cvpp
 sqlite3 @FETCH_PREFIX@/var/fetch/cvpp/cvpp.db < @FETCH_PREFIX@/share/fetch/cvpp.sql
 
 #
+# Allow services to talk to broker.
+#
+cat @NETP_PREFIX@/share/netp/cert.pem \
+	@TLSPROXY_PREFIX@/share/tlsproxy/cert.pem \
+	@FETCH_PREFIX@/share/fetch/cert.pem \
+	@TRADER_PREFIX@/share/trader/cert.pem \
+	>> @BROKER_PREFIX@/share/broker/verify.pem
+
+cat @BROKER_PREFIX@/share/broker/cert.pem \
+	>> @NETP_PREFIX@/share/netp/verify.pem
+
+cat @BROKER_PREFIX@/share/broker/cert.pem \
+	>> @TLSPROXY_PREFIX@/share/tlsproxy/verify.pem
+
+cat @BROKER_PREFIX@/share/broker/cert.pem \
+	>> @FETCH_PREFIX@/share/fetch/verify.pem
+
+cat @BROKER_PREFIX@/share/broker/cert.pem \
+	>> @TRADER_PREFIX@/share/trader/verify.pem
+
+#
 # Updown config file.
 #
 FORWARD=$(route | grep ^default | awk '{ print $8; }')
@@ -51,16 +73,4 @@ cat > @sysconfdir@/updown.conf <<-EOF
 	#LIVE_VPN=yes
 EOF
 
-cat @NETP_PREFIX@/share/netp/cert.pem \
-	@TLSPROXY_PREFIX@/share/tlsproxy/cert.pem \
-	@FETCH_PREFIX@/share/fetch/cert.pem \
-	>> @BROKER_PREFIX@/share/broker/verify.pem
 
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @NETP_PREFIX@/share/netp/verify.pem
-
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @TLSPROXY_PREFIX@/share/tlsproxy/verify.pem
-
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @FETCH_PREFIX@/share/fetch/verify.pem

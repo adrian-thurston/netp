@@ -80,6 +80,20 @@ SED_SUBST="$SED_SUBST -e 's|[@]FETCH_PREFIX[@]|$FETCH_PREFIX|g'"
 AC_SUBST(FETCH_PREFIX)
 
 dnl
+dnl Trader
+dnl
+
+AC_ARG_WITH([trader],
+	[AC_HELP_STRING([--with-trader], [location of trader install])],
+	[TRADER_PREFIX="$withval"], [TRADER_PREFIX="$DEPS"])
+
+AC_CHECK_FILES( [$TRADER_PREFIX/bin/trader],
+	[], [AC_ERROR([trader is required to build this package])])
+
+SED_SUBST="$SED_SUBST -e 's|[@]TRADER_PREFIX[@]|$TRADER_PREFIX|g'"
+AC_SUBST(TRADER_PREFIX)
+
+dnl
 dnl pipeline DB
 dnl
 AC_CHECK_PIPELINE
