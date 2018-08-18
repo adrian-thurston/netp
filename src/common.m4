@@ -422,9 +422,28 @@ dnl
 dnl Make a sqlite3 check available.
 dnl
 AC_DEFUN([AC_CHECK_SQLITE3], [
-	AC_CHECK_HEADER([sqlite3.h], [], [AC_ERROR([unable to include zlib.h])])
-	AC_CHECK_LIB([sqlite3], [sqlite3_open], [], [AC_ERROR([unable to link with -lz])])
+	AC_CHECK_HEADER([sqlite3.h], [], [AC_ERROR([unable to include sqlite3.h])])
+	AC_CHECK_LIB([sqlite3], [sqlite3_open], [], [AC_ERROR([unable to link with -lsqlite3])])
 ])
 
+dnl
+dnl Make a pipelinedb check available.
+dnl
+AC_DEFUN([AC_CHECK_PIPELINE], [
+	AC_ARG_WITH(pipeline,
+		[AC_HELP_STRING([--with-pipeline], [location of pipeline install])],
+		[PIPELINE_INIT_D="$withval/libexec/pipeline/init.d"],
+		[PIPELINE_INIT_D="$DEPS/libexec/pipeline/init.d"]
+	)
+
+	AC_CHECK_FILES(
+		[$PIPELINE_INIT_D],
+		[],
+		[AC_ERROR([pipeline DB is required to build this package])]
+	)
+
+	SED_SUBST="$SED_SUBST -e 's|[@]PIPELINE_INIT_D[@]|$PIPELINE_INIT_D|g'"
+	AC_SUBST(PIPELINE_INIT_D)
+])
 
 AC_SUBST(SED_SUBST)
