@@ -346,8 +346,8 @@ bring_up()
 
 pipeline_up()
 {
-	godo sudo -u thurston @PIPELINE_INIT_D@ start
-	undo sudo -u thurston @PIPELINE_INIT_D@ stop
+	godo sudo -u thurston @PIPELINE_PREFIX@/libexec/pipeline/init.d start
+	undo sudo -u thurston @PIPELINE_PREFIX@/libexec/pipeline/init.d stop
 }
 
 bg_up()
