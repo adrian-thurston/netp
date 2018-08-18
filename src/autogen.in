@@ -27,7 +27,7 @@ if [ -f package/control ] && grep -q '^[\t ]*[Dd]ists:' package/control; then
 	[ -d "build" ] || mkdir build
 
 	for dist in $dists; do
-		wget -O build/$dist http://dist.in.colm.net/dist/$dist
+		rsync dist@git.colm.net:archive/$dist build/$dist
 	done
 	echo $version;
 
