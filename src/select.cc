@@ -117,6 +117,16 @@ void Thread::selectFdReady( SelectFd *fd, uint8_t readyMask )
 					connEstablishedReady( fd, readyMask );
 					break;
 			}
+			break;
+		}
+		case SelectFd::Process: {
+			Process *process = (Process*)fd->local;
+			if ( readyMask & READ_READY )
+				process->readReady( fd );
+
+			if ( readyMask & WRITE_READY )
+				process->writeReady( fd );
+			break;
 		}
 	}
 }

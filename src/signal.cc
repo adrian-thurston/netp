@@ -1,3 +1,4 @@
+#include <sys/wait.h>
 #include <signal.h>
 #include "thread.h"
 
@@ -31,7 +32,16 @@ void MainBase::handleSignal( int sig )
 		}
 		case SIGCHLD:
 			/* Be quiet on a sigchld. */
+			log_message( "received sigchld" );
+			while ( true ) {
+				pid_t pid = waitpid( -1, 0, WNOHANG );
+				if ( pid <= 0 )
+					break;
+
+				log_message( "reaped child: " << pid );
+			}
 			break;
+
 		case SIGPIPE:
 			/* no special treatment for pipes. */
 			break;

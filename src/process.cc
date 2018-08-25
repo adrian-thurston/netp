@@ -3,7 +3,7 @@
 
 #include "thread.h"
 
-int Process::create( const char *cmdline )
+int Thread::createProcess( Process *proc )
 {
 	pid_t p;
 	int pipe_stdin[2], pipe_stdout[2];
@@ -33,7 +33,7 @@ int Process::create( const char *cmdline )
 		dup2( pipe_stdin[0], 0 );
 		close( pipe_stdout[0] );
 		dup2( pipe_stdout[1], 1 );
-		execl( "/bin/sh", "sh", "-c", cmdline, NULL );
+		execl( "/bin/sh", "sh", "-c", proc->cmdline, NULL );
 		perror( "execl" );
 		exit( 99 );
 	}
@@ -42,16 +42,18 @@ int Process::create( const char *cmdline )
 	close( pipe_stdin[0] );
 	close( pipe_stdout[1] );
 
-	this->pid = p;
-	this->to = fdopen( pipe_stdin[1], "w" );
-	this->from = fdopen( pipe_stdout[0], "r" );
+	proc->pid = p;
+	proc->to.fd = pipe_stdin[1];
+	proc->from.fd = pipe_stdout[0];
+
+	proc->to.type = SelectFd::Process;
+	proc->from.type = SelectFd::Process;
+
+	proc->to.local = proc;
+	proc->from.local = proc;
+
+	selectFdList.append( &proc->to );
+	selectFdList.append( &proc->from );
 
 	return 0; 
 }
-
-int Process::wait()
-{
-	return waitpid( pid, NULL, 0 );
-}
-
-

@@ -173,7 +173,8 @@ struct SelectFd
 	enum Type {
 		User = 1,
 		Listen,
-		Connection
+		Connection,
+		Process
 	};
 
 	enum State {
@@ -328,13 +329,33 @@ struct Listener
 
 struct Process
 {
-	pid_t pid;
-	FILE *from;
-	FILE *to;
+	Process( Thread *thread, const char *cmdline )
+	:
+		cmdline( cmdline ),
+		from( thread, -1, 0 ),
+		to( thread, -1, 0 )
+	{}
 
-	int create( const char *cmdline );
-	int wait();
+	const char *cmdline;
+	pid_t pid;
+
+	SelectFd from;
+	SelectFd to;
+
+	void wantWriteSet( bool value )
+		{ to.wantWriteSet( value ); }
+	bool wantWriteGet()
+		{ return to.wantWriteGet(); }
+
+	void wantReadSet( bool value )
+		{ from.wantReadSet( value ); }
+	bool wantReadGet()
+		{ return from.wantReadGet(); }
+	
+	virtual void readReady( SelectFd *fd ) {}
+	virtual void writeReady( SelectFd *fd ) {}
 };
+
 
 struct Thread
 {
@@ -503,6 +524,8 @@ public:
 	static char *pktFind( Rope *rope, long l );
 
 	virtual void recvPassthru( Message::PacketPassthru *msg ) {}
+
+	int createProcess( Process *proc );
 };
 
 struct MainBase
