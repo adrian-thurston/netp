@@ -327,13 +327,34 @@ struct Listener
 	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 };
 
+struct PipeBuffer
+{
+	PipeBuffer( SelectFd *selectFd )
+		: selectFd(selectFd), closeOnFlushed(false) {}
+
+	int write( char *data, int len );
+	void send( Rope &blocks, bool canConsume );
+	void send( char *data, int length );
+	void writeReady();
+	void sendEos();
+
+	void close()
+	{ ::close( selectFd->fd ); }
+
+	Rope queue;
+
+	SelectFd *selectFd;
+	bool closeOnFlushed;
+};
+
 struct Process
 {
 	Process( Thread *thread, const char *cmdline )
 	:
 		cmdline( cmdline ),
 		from( thread, -1, 0 ),
-		to( thread, -1, 0 )
+		to( thread, -1, 0 ),
+		pipeBuffer( &to )
 	{}
 
 	const char *cmdline;
@@ -341,6 +362,8 @@ struct Process
 
 	SelectFd from;
 	SelectFd to;
+
+	PipeBuffer pipeBuffer;
 
 	void wantWriteSet( bool value )
 		{ to.wantWriteSet( value ); }
@@ -355,7 +378,6 @@ struct Process
 	virtual void readReady( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
 };
-
 
 struct Thread
 {
