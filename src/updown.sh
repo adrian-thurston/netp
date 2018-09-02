@@ -506,4 +506,8 @@ case $1 in
 		else
 			echo "updown: fully down"
 		fi
+	;;
+	clear)
+		rm -f $UNDO $UNDO.tac
+	;;
 esac
