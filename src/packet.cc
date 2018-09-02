@@ -120,12 +120,12 @@ void PacketBase::send( PacketWriter *writer )
 	}
 }
 
-int PacketConnection::pipeWrite( char *data, int len )
+int PacketConnection::bufWrite( SelectFd *selectFd, char *data, int len )
 {
 	return Connection::write( data, len );
 }
 
-void PacketConnection::pipeClose()
+void PacketConnection::bufClose( SelectFd *selectFd )
 {
 	log_debug( DBG_PACKET, "pipe close" );
 	this->close();
@@ -138,21 +138,13 @@ void PacketConnection::pipeClose()
 void PacketBase::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 {
 	PacketConnection *pc = writer->pc;
-
-	if ( pc->writeBuffer.selectFd == 0 )
-		pc->writeBuffer.selectFd = pc->selectFd;
-
-	pc->writeBuffer.send( blocks, canConsume );
+	pc->writeBuffer.send( pc->selectFd, blocks, canConsume );
 }
 
 void PacketConnection::writeReady()
 {
-	if ( writeBuffer.selectFd == 0 )
-		writeBuffer.selectFd = this->selectFd;
-
-	writeBuffer.writeReady();
+	writeBuffer.writeReady( this->selectFd );
 }
-
 
 void PacketConnection::readReady()
 {

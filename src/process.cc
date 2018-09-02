@@ -4,7 +4,7 @@
 
 #include "thread.h"
 
-int WriteBuffer::write( char *data, int len )
+int WriteBuffer::write( SelectFd *selectFd, char *data, int len )
 {
 	int res = ::write( selectFd->fd, data, len );
 	if ( res < 0 ) {
@@ -20,7 +20,7 @@ int WriteBuffer::write( char *data, int len )
 	return res;
 }
 
-void WriteBuffer::send( char *data, int blockLen )
+void WriteBuffer::send( SelectFd *selectFd, char *data, int blockLen )
 {
 	if ( selectFd->wantWriteGet() ) {
 		log_debug( DBG_PACKET, "in want write mode "
@@ -34,10 +34,10 @@ void WriteBuffer::send( char *data, int blockLen )
 	else {
 		log_debug( DBG_PACKET, "packet send, sending blocks" );
 
-		int res = write( data, blockLen );
+		int res = write( selectFd, data, blockLen );
 		if ( res < 0 ) {
 			log_debug( DBG_PACKET, "packet write: closed" );
-			pipeClose->pipeClose();
+			writeFuncs->bufClose( selectFd );
 		}
 		else {
 
@@ -59,7 +59,7 @@ void WriteBuffer::send( char *data, int blockLen )
 	}
 }
 
-void WriteBuffer::send( Rope &blocks, bool canConsume )
+void WriteBuffer::send( SelectFd *selectFd, Rope &blocks, bool canConsume )
 {
 	if ( selectFd->wantWriteGet() ) {
 		log_debug( DBG_PACKET, "in want write mode "
@@ -92,10 +92,10 @@ void WriteBuffer::send( Rope &blocks, bool canConsume )
 
 			char *data = blocks.data(rb);
 			int blockLen = blocks.length(rb);
-			int res = pipeClose->pipeWrite( data, blockLen );
+			int res = writeFuncs->bufWrite( selectFd, data, blockLen );
 			if ( res < 0 ) {
 				log_debug( DBG_PACKET, "packet write: closed" );
-				pipeClose->pipeClose();
+				writeFuncs->bufClose( selectFd );
 				break;
 			}
 
@@ -147,7 +147,7 @@ void WriteBuffer::send( Rope &blocks, bool canConsume )
 	}
 }
 
-void WriteBuffer::sendEos()
+void WriteBuffer::sendEos( SelectFd *selectFd )
 {
 	if ( selectFd->wantWriteGet() ) {
 		closeOnFlushed = true;
@@ -159,7 +159,7 @@ void WriteBuffer::sendEos()
 	}
 }
 
-void WriteBuffer::writeReady()
+void WriteBuffer::writeReady( SelectFd *selectFd )
 {
 	if ( queue.length() == 0 ) {
 		/* Queue is now empty. We can exit wantWrite mode. */
@@ -186,10 +186,10 @@ void WriteBuffer::writeReady()
 
 			char *data = queue.data(rb);
 			int blockLen = queue.length(rb);
-			int res = pipeClose->pipeWrite( data, blockLen );
+			int res = writeFuncs->bufWrite( selectFd, data, blockLen );
 			if ( res < 0 ) {
 				log_debug( DBG_PACKET, "packet write: closed" );
-				pipeClose->pipeClose();
+				writeFuncs->bufClose( selectFd );
 				break;
 			}
 

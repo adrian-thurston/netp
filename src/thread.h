@@ -327,40 +327,38 @@ struct Listener
 	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 };
 
-struct PipeClose
+struct WriteFuncs
 {
-	virtual void pipeClose() = 0;
-	virtual int pipeWrite( char *data, int len ) = 0;
+	virtual void bufClose( SelectFd *selectFd ) = 0;
+	virtual int bufWrite(  SelectFd *selectFd, char *data, int len ) = 0;
 };
 
 struct WriteBuffer
 {
-	WriteBuffer( SelectFd *selectFd, PipeClose *pipeClose )
-		: selectFd(selectFd), pipeClose(pipeClose), closeOnFlushed(false) {}
+	WriteBuffer( WriteFuncs *writeFuncs )
+		: writeFuncs(writeFuncs), closeOnFlushed(false) {}
 
-	int write( char *data, int len );
-	void send( Rope &blocks, bool canConsume );
-	void send( char *data, int length );
-	void writeReady();
-	void sendEos();
+	int write( SelectFd *selectFd, char *data, int len );
+	void send( SelectFd *selectFd, Rope &blocks, bool canConsume );
+	void send( SelectFd *selectFd, char *data, int length );
+	void writeReady( SelectFd *selectFd );
+	void sendEos( SelectFd *selectFd );
 
+	WriteFuncs *writeFuncs;
 	Rope queue;
-
-	SelectFd *selectFd;
-	PipeClose *pipeClose;
 	bool closeOnFlushed;
 };
 
 struct Process
 :
-	public PipeClose
+	public WriteFuncs
 {
 	Process( Thread *thread, const char *cmdline )
 	:
 		cmdline( cmdline ),
 		from( thread, -1, 0 ),
 		to( thread, -1, 0 ),
-		pipeBuffer( &to, this )
+		writeBuffer( this )
 	{}
 
 	const char *cmdline;
@@ -369,7 +367,7 @@ struct Process
 	SelectFd from;
 	SelectFd to;
 
-	WriteBuffer pipeBuffer;
+	WriteBuffer writeBuffer;
 
 	void wantWriteSet( bool value )
 		{ to.wantWriteSet( value ); }
@@ -384,8 +382,8 @@ struct Process
 	virtual void readReady( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
 
-	virtual void pipeClose() { ::close( to.fd ); to.closed = false; }
-	virtual int pipeWrite( char *data, int len ) { return pipeBuffer.write( data, len ); }
+	virtual int bufWrite( SelectFd *selectFd, char *data, int len ) { return writeBuffer.write( &to, data, len ); }
+	virtual void bufClose( SelectFd *selectFd ) { ::close( to.fd ); to.closed = false; }
 };
 
 struct Thread

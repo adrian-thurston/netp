@@ -56,10 +56,17 @@ struct PacketBase
 };
 
 struct PacketConnection
-	: public Connection, public PipeClose
+:
+	public Connection,
+	public WriteFuncs
 {
 	PacketConnection( Thread *thread )
-		: Connection( thread ), writeBuffer( 0, this ) { tlsConnect = false; }
+	:
+		Connection( thread ),
+		writeBuffer( this )
+	{
+		tlsConnect = false;
+	}
 
 	virtual void failure( FailType failType ) {}
 	virtual void connectComplete() {}
@@ -75,8 +82,8 @@ struct PacketConnection
 
 	void parsePacket( SelectFd *fd );
 
-	virtual void pipeClose();
-	virtual int pipeWrite( char *data, int len );
+	virtual void bufClose( SelectFd *selectFd );
+	virtual int bufWrite( SelectFd *selectFd, char *data, int len );
 };
 
 struct PacketListener
