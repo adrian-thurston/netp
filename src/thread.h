@@ -327,10 +327,16 @@ struct Listener
 	void startListen( unsigned short port, bool tls, SSL_CTX *sslCtx, bool checkHost );
 };
 
-struct PipeBuffer
+struct PipeClose
 {
-	PipeBuffer( SelectFd *selectFd )
-		: selectFd(selectFd), closeOnFlushed(false) {}
+	virtual void pipeClose() = 0;
+	virtual int pipeWrite( char *data, int len ) = 0;
+};
+
+struct WriteBuffer
+{
+	WriteBuffer( SelectFd *selectFd, PipeClose *pipeClose )
+		: selectFd(selectFd), pipeClose(pipeClose), closeOnFlushed(false) {}
 
 	int write( char *data, int len );
 	void send( Rope &blocks, bool canConsume );
@@ -338,23 +344,23 @@ struct PipeBuffer
 	void writeReady();
 	void sendEos();
 
-	void close()
-	{ ::close( selectFd->fd ); }
-
 	Rope queue;
 
 	SelectFd *selectFd;
+	PipeClose *pipeClose;
 	bool closeOnFlushed;
 };
 
 struct Process
+:
+	public PipeClose
 {
 	Process( Thread *thread, const char *cmdline )
 	:
 		cmdline( cmdline ),
 		from( thread, -1, 0 ),
 		to( thread, -1, 0 ),
-		pipeBuffer( &to )
+		pipeBuffer( &to, this )
 	{}
 
 	const char *cmdline;
@@ -363,7 +369,7 @@ struct Process
 	SelectFd from;
 	SelectFd to;
 
-	PipeBuffer pipeBuffer;
+	WriteBuffer pipeBuffer;
 
 	void wantWriteSet( bool value )
 		{ to.wantWriteSet( value ); }
@@ -377,6 +383,9 @@ struct Process
 	
 	virtual void readReady( SelectFd *fd ) {}
 	virtual void writeReady( SelectFd *fd ) {}
+
+	virtual void pipeClose() { ::close( to.fd ); to.closed = false; }
+	virtual int pipeWrite( char *data, int len ) { return pipeBuffer.write( data, len ); }
 };
 
 struct Thread

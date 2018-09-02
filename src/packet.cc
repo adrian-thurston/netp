@@ -120,6 +120,18 @@ void PacketBase::send( PacketWriter *writer )
 	}
 }
 
+int PacketConnection::pipeWrite( char *data, int len )
+{
+	return Connection::write( data, len );
+}
+
+void PacketConnection::pipeClose()
+{
+	log_debug( DBG_PACKET, "pipe close" );
+	this->close();
+	this->packetClosed();
+}
+
 /*
  * if in wantWrite mode then there 
  */
@@ -127,139 +139,18 @@ void PacketBase::send( PacketWriter *writer, Rope &blocks, bool canConsume )
 {
 	PacketConnection *pc = writer->pc;
 
-	if ( pc->selectFd->wantWriteGet() ) {
-		log_debug( DBG_PACKET, "in want write mode "
-				"queueing entire rope: " <<
-				pc->selectFd->tlsEstablished << " " <<
-				pc->selectFd->tlsWantWrite << " " <<
-				pc->selectFd->wantWrite );
+	if ( pc->writeBuffer.selectFd == 0 )
+		pc->writeBuffer.selectFd = pc->selectFd;
 
-		for ( RopeBlock *drb = blocks.hblk; drb != 0; drb = drb->next )
-			log_debug( DBG_PACKET, "-> queueing " << blocks.length( drb ) << " bytes" );
-
-		/* If in want write mode then there are queued blocks. Add to the queue
-		 * and let the writeReady callback deal with the output. */
-		if ( canConsume )
-			pc->queue.append( blocks );
-		else {
-			for ( RopeBlock *rb = blocks.hblk; rb != 0; rb = rb->next )
-				pc->queue.append( blocks.data( rb ), blocks.length( rb ) );
-		}
-	}
-	else {
-		log_debug( DBG_PACKET, "packet send, sending blocks" );
-
-		/* Not blocked on writing, attempt to write the rope. */
-		RopeBlock *rb = blocks.hblk;
-		while ( true ) {
-
-			if ( rb == 0 )
-				break;
-
-			char *data = blocks.data(rb);
-			int blockLen = blocks.length(rb);
-			int res = pc->write( data, blockLen );
-			if ( res < 0 ) {
-				log_debug( DBG_PACKET, "packet write: closed" );
-				pc->close();
-				pc->packetClosed();
-				break;
-			}
-
-			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
-
-			if ( res < blockLen ) {
-				/* Didn't write a whole block. Put the remainder of the block
-				 * and the message on the queue and go into wantWrite mode. */
-				log_debug( DBG_PACKET, "failed to send full block, queueing " <<
-						(blockLen-res) << " of " << blockLen );
-
-				for ( RopeBlock *drb = blocks.hblk; drb != 0; drb = drb->next )
-					log_debug( DBG_PACKET, "-> queueing " << blocks.length( drb ) << " bytes" );
-
-				if ( canConsume ) {
-					/* Move data from blocks to the output queue. */
-					rb->hoff += res;
-					blocks.ropeLen -= res;
-
-
-					pc->queue.append( blocks );
-				}
-				else {
-					/* Copy data from blocks to output queue. */
-					pc->queue.append( data + res, blockLen - res);
-					rb = rb->next;
-					for ( ; rb != 0; rb = rb->next )
-						pc->queue.append( blocks.data(rb), blocks.length(rb) );
-				}
-				pc->selectFd->wantWriteSet( true );
-				break;
-			}
-
-			if ( canConsume ) {
-				/* Consume the head block. */
-				blocks.ropeLen -= res;
-				blocks.hblk = blocks.hblk->next;
-				if ( blocks.hblk == 0 )
-					blocks.tblk = 0;
-				delete[] (char*)rb;
-				rb = blocks.hblk;
-			}
-			else {
-				rb = rb->next;
-			}
-
-			log_debug( DBG_PACKET, "packet send result: " << res );
-		}
-	}
+	pc->writeBuffer.send( blocks, canConsume );
 }
 
 void PacketConnection::writeReady()
 {
-	if ( queue.length() == 0 ) {
-		/* Queue is now empty. We can exit wantWrite mode. */
-		log_debug( DBG_PACKET, "write ready, queue empty, turning off want write" );
-		selectFd->wantWriteSet( false );
-		queue.empty();
-	}
-	else {
-		/* Have data to send out. */
-		log_debug( DBG_PACKET, "write ready, sending blocks" );
+	if ( writeBuffer.selectFd == 0 )
+		writeBuffer.selectFd = this->selectFd;
 
-		while ( true ) {
-			RopeBlock *rb = queue.hblk;
-
-			if ( rb == 0 )
-				break;
-
-			char *data = queue.data(rb);
-			int blockLen = queue.length(rb);
-			int res = write( data, blockLen );
-			if ( res < 0 ) {
-				log_debug( DBG_PACKET, "packet write: closed" );
-				close();
-				packetClosed();
-				break;
-			}
-
-			log_debug( DBG_PACKET, " -> sent " << res << " of " << ( blockLen ) << " bytes" );
-
-			if ( res < blockLen ) {
-				/* Didn't send the entire remainder of the block. Increqment
-				 * the queue head offset and wait for another write ready. */
-				rb->hoff += res;
-				queue.ropeLen -= res;
-				break;
-			}
-
-			/* Consume the head block. */
-			queue.ropeLen -= res;
-			queue.hblk = queue.hblk->next;
-			if ( queue.hblk == 0 )
-				queue.tblk = 0;
-			delete[] (char*)rb;
-		}
-	}
+	writeBuffer.writeReady();
 }
 
 

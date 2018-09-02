@@ -4,7 +4,7 @@
 
 #include "thread.h"
 
-int PipeBuffer::write( char *data, int len )
+int WriteBuffer::write( char *data, int len )
 {
 	int res = ::write( selectFd->fd, data, len );
 	if ( res < 0 ) {
@@ -20,7 +20,7 @@ int PipeBuffer::write( char *data, int len )
 	return res;
 }
 
-void PipeBuffer::send( char *data, int blockLen )
+void WriteBuffer::send( char *data, int blockLen )
 {
 	if ( selectFd->wantWriteGet() ) {
 		log_debug( DBG_PACKET, "in want write mode "
@@ -37,7 +37,7 @@ void PipeBuffer::send( char *data, int blockLen )
 		int res = write( data, blockLen );
 		if ( res < 0 ) {
 			log_debug( DBG_PACKET, "packet write: closed" );
-			close();
+			pipeClose->pipeClose();
 		}
 		else {
 
@@ -59,7 +59,7 @@ void PipeBuffer::send( char *data, int blockLen )
 	}
 }
 
-void PipeBuffer::send( Rope &blocks, bool canConsume )
+void WriteBuffer::send( Rope &blocks, bool canConsume )
 {
 	if ( selectFd->wantWriteGet() ) {
 		log_debug( DBG_PACKET, "in want write mode "
@@ -92,10 +92,10 @@ void PipeBuffer::send( Rope &blocks, bool canConsume )
 
 			char *data = blocks.data(rb);
 			int blockLen = blocks.length(rb);
-			int res = write( data, blockLen );
+			int res = pipeClose->pipeWrite( data, blockLen );
 			if ( res < 0 ) {
 				log_debug( DBG_PACKET, "packet write: closed" );
-				close();
+				pipeClose->pipeClose();
 				break;
 			}
 
@@ -147,7 +147,7 @@ void PipeBuffer::send( Rope &blocks, bool canConsume )
 	}
 }
 
-void PipeBuffer::sendEos()
+void WriteBuffer::sendEos()
 {
 	if ( selectFd->wantWriteGet() ) {
 		closeOnFlushed = true;
@@ -159,7 +159,7 @@ void PipeBuffer::sendEos()
 	}
 }
 
-void PipeBuffer::writeReady()
+void WriteBuffer::writeReady()
 {
 	if ( queue.length() == 0 ) {
 		/* Queue is now empty. We can exit wantWrite mode. */
@@ -186,10 +186,10 @@ void PipeBuffer::writeReady()
 
 			char *data = queue.data(rb);
 			int blockLen = queue.length(rb);
-			int res = write( data, blockLen );
+			int res = pipeClose->pipeWrite( data, blockLen );
 			if ( res < 0 ) {
 				log_debug( DBG_PACKET, "packet write: closed" );
-				close();
+				pipeClose->pipeClose();
 				break;
 			}
 
