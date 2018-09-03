@@ -308,15 +308,22 @@ AC_DEFUN([AC_CHECK_NETP], [
 		[
 			NETP_GENF="$withval/share/netp/netp.gf"
 			GENFFLAGS="${GENFFLAGS} -I$withval/share/netp"
+			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
+			LDFLAGS="-L$withval/lib ${LDFLAGS}"
 		],
 		[
 			NETP_GENF="$DEPS/share/netp/netp.gf"
 			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netp"
+			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
+			LDFLAGS="${LDFLAGS} -L$DEPS/lib"
 		]
 	)
 
 	AC_CHECK_FILES( [$NETP_GENF], [],
 			[AC_ERROR([netp is required to build this module])] )
+
+	AC_CHECK_HEADER( [netp/netp.h], [], [AC_ERROR([netp/netp.h not found])] )
+	AC_CHECK_LIB([netp], [netp_open], [], [AC_ERROR([check netp: cannot link with -lnetp])])
 
 	AC_SUBST(NETP_GENF)
 	AC_SUBST(GENFFLAGS)
