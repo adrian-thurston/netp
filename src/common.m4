@@ -464,4 +464,35 @@ AC_DEFUN([AC_CHECK_PIPELINE], [
 	AC_SUBST(PIPELINE_PREFIX)
 ])
 
+dnl
+dnl Make a postgres check available.
+dnl
+AC_DEFUN([AC_CHECK_POSTGRES], [
+	AC_ARG_WITH(postgres,
+		[AC_HELP_STRING([--with-postgres], [location of postgres install])],
+		[
+			POSTGRES_PREFIX="$withval"
+			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
+			LDFLAGS="${LDFLAGS} -L$withval/lib -Wl,-rpath -Wl,$withval/lib"
+		],
+		[
+			POSTGRES_PREFIX="$DEPS"
+			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
+			LDFLAGS="${LDFLAGS} -L$DEPS/lib -Wl,-rpath -Wl,${DEPS}/lib"
+		]
+	)
+
+	AC_CHECK_FILES(
+		[$POSTGRES_PREFIX/libexec/postgres/init.d],
+		[],
+		[AC_ERROR([postgres DB is required to build this package])]
+	)
+
+	AC_CHECK_HEADER([libpq-fe.h], [], [AC_ERROR([unable to include libpq-fe.h])])
+	AC_CHECK_LIB([pq], [PQconnectdb], [], [AC_ERROR([unable to link with -lpq])])
+
+	SED_SUBST="$SED_SUBST -e 's|[@]POSTGRES_PREFIX[@]|$POSTGRES_PREFIX|g'"
+	AC_SUBST(POSTGRES_PREFIX)
+])
+
 AC_SUBST(SED_SUBST)
