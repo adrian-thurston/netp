@@ -344,10 +344,10 @@ bring_up()
 	fi
 }
 
-pipeline_up()
+postgres_up()
 {
-	godo sudo -u thurston @PIPELINE_PREFIX@/libexec/pipeline/init.d start
-	undo sudo -u thurston @PIPELINE_PREFIX@/libexec/pipeline/init.d stop
+	godo sudo -u thurston @POSTGRES_PREFIX@/libexec/postgres/init.d start
+	undo sudo -u thurston @POSTGRES_PREFIX@/libexec/postgres/init.d stop
 }
 
 bg_up()
@@ -381,7 +381,7 @@ bg_up()
 services_up()
 {
 	undo restart_mark services
-	pipeline_up
+	postgres_up
 	bg_up broker @BROKER_PREFIX@ $BROKER_OPTIONS
 	bg_up netp @NETP_PREFIX@ $NETP_OPTIONS
 	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline $TLSPROXY_OPTIONS

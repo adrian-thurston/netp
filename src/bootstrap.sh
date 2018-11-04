@@ -8,14 +8,14 @@ if [ -f @sysconfdir@/updown.conf ]; then
 fi
 
 # Bootstrap the database.
-@PIPELINE_PREFIX@/libexec/pipeline/bootstrap
+@POSTGRES_PREFIX@/libexec/postgres/bootstrap
 
 #
 # Create default databse.
 #
-@PIPELINE_PREFIX@/libexec/pipeline/init.d start
-@PIPELINE_PREFIX@/bin/createdb thurston start
-@PIPELINE_PREFIX@/libexec/pipeline/init.d stop
+@POSTGRES_PREFIX@/libexec/postgres/init.d start
+@POSTGRES_PREFIX@/bin/createdb thurston start
+@POSTGRES_PREFIX@/libexec/postgres/init.d stop
 
 #
 #  Bootstrap services.

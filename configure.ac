@@ -94,9 +94,9 @@ SED_SUBST="$SED_SUBST -e 's|[@]TRADER_PREFIX[@]|$TRADER_PREFIX|g'"
 AC_SUBST(TRADER_PREFIX)
 
 dnl
-dnl pipeline DB
+dnl postgres DB
 dnl
-AC_CHECK_PIPELINE
+AC_CHECK_POSTGRES
 
 
 dnl
