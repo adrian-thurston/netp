@@ -12,8 +12,9 @@ fi
 
 # At the bottom of <data directory>/postgresql.conf
 cat >> @POSTGRES_PREFIX@/var/postgres/db/postgresql.conf <<'EOF'
-shared_preload_libraries = 'pipelinedb' 
+shared_preload_libraries = 'pipelinedb, timescaledb' 
 max_worker_processes = 128
+timescaledb.telemetry_level = off
 EOF
 
 #
@@ -22,6 +23,7 @@ EOF
 @POSTGRES_PREFIX@/libexec/postgres/init.d start
 @POSTGRES_PREFIX@/bin/createdb thurston start
 @POSTGRES_PREFIX@/bin/psql -c "CREATE EXTENSION pipelinedb;"
+@POSTGRES_PREFIX@/bin/psql -c "CREATE EXTENSION timescaledb;"
 @POSTGRES_PREFIX@/libexec/postgres/init.d stop
 
 #
