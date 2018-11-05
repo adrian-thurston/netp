@@ -10,11 +10,18 @@ fi
 # Bootstrap the database.
 @POSTGRES_PREFIX@/libexec/postgres/bootstrap
 
+# At the bottom of <data directory>/postgresql.conf
+cat >> @POSTGRES_PREFIX@/var/postgres/db/postgresql.conf <<'EOF'
+shared_preload_libraries = 'pipelinedb' 
+max_worker_processes = 128
+EOF
+
 #
 # Create default databse.
 #
 @POSTGRES_PREFIX@/libexec/postgres/init.d start
 @POSTGRES_PREFIX@/bin/createdb thurston start
+@POSTGRES_PREFIX@/bin/psql -c "CREATE EXTENSION pipelinedb;"
 @POSTGRES_PREFIX@/libexec/postgres/init.d stop
 
 #
