@@ -323,6 +323,7 @@ live_up()
 	# Configure shuttle and kring.
 	shuttle_up pipe1 $SHUTTLE_INSIDE
 
+	postgres_up
 	services_up
 }
 
@@ -338,6 +339,8 @@ bring_up()
 		done
 
 		shuttle_up $DIRECT_INTERFACES
+
+		postgres_up
 		services_up
 	else
 		live_up
@@ -381,7 +384,6 @@ bg_up()
 services_up()
 {
 	undo restart_mark services
-	postgres_up
 	bg_up broker @BROKER_PREFIX@ $BROKER_OPTIONS
 	bg_up netp @NETP_PREFIX@ $NETP_OPTIONS
 	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline $TLSPROXY_OPTIONS
@@ -403,6 +405,7 @@ restart_mark()
 
 		if [ "$2" = kernel ]; then
 			shuttle_up $3 $4
+			postgres_up
 		fi
 
 		services_up
