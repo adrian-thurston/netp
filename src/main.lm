@@ -21,7 +21,11 @@ void generateMainHeader( P: program )
 	~struct MainGen
 	~	: public MainBase
 	~{
-	~	MainGen() : MainBase("main") {}
+	~	MainGen()
+	~	:
+	~		MainBase("main"),
+	~		usePid(true)
+	~	{}
 	~
 	~	void init( int argc, char *const*argv )
 	~	{
@@ -31,7 +35,9 @@ void generateMainHeader( P: program )
 	~
 	~	int argc;
 	~	char *const*argv;
+	~	bool usePid;
 	~
+	~	virtual void checkOptions() {}
 	~	void parseOptions();
 	~	int start();
 	~	void join();
@@ -312,7 +318,7 @@ void generateMainCode( P: ref<program> )
 	~FILE *pidExists( bool overwritePidFile );
 	~FILE *openPidFile( bool overwritePidFile );
 	~void writePidFile( FILE *pidf );
-	~void maybeBackground( bool background, bool overwritePidFile );
+	~void maybeBackground( bool background, bool usePid );
 
 	createChildDefs( Thread )
 
@@ -323,7 +329,8 @@ void generateMainCode( P: ref<program> )
 	~	_PIDFILE = PIDFILE;
 	~	_LOGFILE = LOGFILE;
 	~	parseOptions();
-	~	maybeBackground( background, overwritePidFile );
+	~	checkOptions();
+	~	maybeBackground( background, usePid );
 	~	signalSetup();
 	~	return main();
 	~}
