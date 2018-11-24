@@ -401,25 +401,28 @@ void generatePacketCode( P: program )
 		"
 		"void Record::[Struct->Id]::load()
 		"{
-		"	char *overlay = Thread::pktFind( rope, offset );;
+		
+		if struct_field_def in Struct->StructDef {
+			"	char *overlay = Thread::pktFind( rope, offset );
 
-		for FD: struct_field_def in Struct->StructDef {
-			switch FD.struct_field_type
-			case Bool
-				"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
-			case Int
-				"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
-			case UnsignedInt
-				"	this->[FD.id] = _pack( unsigned int, overlay, [FD.Offset] );
-			case Long
-				"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
-			case UnsignedLong
-				"	this->[FD.id] = _pack( unsigned long, overlay, [FD.Offset] );
-			case String
-				"	this->[FD.id] = Thread::pktFind( rope,
-				"		_pack( uint32_t, overlay, [FD.Offset] ) );
-			case Char
-				"	memcpy( this->[FD.id], overlay + [FD.Offset], [FD.CharSize] );
+			for FD: struct_field_def in Struct->StructDef {
+				switch FD.struct_field_type
+				case Bool
+					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
+				case Int
+					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
+				case UnsignedInt
+					"	this->[FD.id] = _pack( unsigned int, overlay, [FD.Offset] );
+				case Long
+					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
+				case UnsignedLong
+					"	this->[FD.id] = _pack( unsigned long, overlay, [FD.Offset] );
+				case String
+					"	this->[FD.id] = Thread::pktFind( rope,
+					"		_pack( uint32_t, overlay, [FD.Offset] ) );
+				case Char
+					"	memcpy( this->[FD.id], overlay + [FD.Offset], [FD.CharSize] );
+			}
 		}
 
 		"	this->next = _pack( uint32_t, overlay, [Struct->NextOffset] );
@@ -430,27 +433,28 @@ void generatePacketCode( P: program )
 		"Record::[Packet->Id]::[Packet->Id]( Rope *rope, long offset )
 		"{
 		"	this->rope = rope;
-		"	char *overlay = Thread::pktFind( rope, offset );;
-
 			
-		for FD: record_field_def in Packet->PacketDef {
-			switch FD.record_field_type
-			case Bool
-				"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
-			case Int
-				"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
-			case UnsignedLong
-				"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
-			case Long
-				"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
-			case UnsignedLong
-				"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
-			case String
-				"	this->[FD.id] = Thread::pktFind( rope,
-				"		_pack( uint32_t, overlay, [FD.Offset] ) );
-			case [L: list_type] {
-				TypeId: id = L.id
-				"	this->head_[FD.id] = _pack( uint32_t, overlay, [FD.Offset] );
+		if record_field_def in Packet->PacketDef {
+			"	char *overlay = Thread::pktFind( rope, offset );;
+			for FD: record_field_def in Packet->PacketDef {
+				switch FD.record_field_type
+				case Bool
+					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
+				case Int
+					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
+				case UnsignedLong
+					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
+				case Long
+					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
+				case UnsignedLong
+					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
+				case String
+					"	this->[FD.id] = Thread::pktFind( rope,
+					"		_pack( uint32_t, overlay, [FD.Offset] ) );
+				case [L: list_type] {
+					TypeId: id = L.id
+					"	this->head_[FD.id] = _pack( uint32_t, overlay, [FD.Offset] );
+				}
 			}
 		}
 
