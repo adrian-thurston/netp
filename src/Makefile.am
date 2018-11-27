@@ -1,5 +1,7 @@
 
-pkglibexec_SCRIPTS = bootstrap updown
+pkglibexec_SCRIPTS = bootstrap
+
+bin_SCRIPTS = updown
 
 EXTRA_DIST = bootstrap.sh
 
