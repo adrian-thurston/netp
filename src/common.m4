@@ -426,6 +426,14 @@ AC_DEFUN([AC_CHECK_ZLIB], [
 ])
 
 dnl
+dnl Make a brotli check available.
+dnl
+AC_DEFUN([AC_CHECK_BROTLIDEC], [
+	AC_CHECK_HEADER([brotli/decode.h], [], [AC_ERROR([unable to include brotli/decode.h])])
+	AC_CHECK_LIB([brotlidec], [BrotliDecoderCreateInstance], [], [AC_ERROR([unable to link with -lbrotlidec])])
+])
+
+dnl
 dnl Make a sqlite3 check available.
 dnl
 AC_DEFUN([AC_CHECK_SQLITE3], [
