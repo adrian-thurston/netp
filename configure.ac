@@ -38,18 +38,18 @@ SED_SUBST="$SED_SUBST -e 's|[@]BROKER_PREFIX[@]|$BROKER_PREFIX|g'"
 AC_SUBST(BROKER_PREFIX)
 
 dnl
-dnl Net Parser
+dnl Sniffer 
 dnl
 
-AC_ARG_WITH([netp],
-	[AC_HELP_STRING([--with-netp], [location of brokerj install])],
-	[NETP_PREFIX="$withval"], [NETP_PREFIX="$DEPS"])
+AC_ARG_WITH([sniff],
+	[AC_HELP_STRING([--with-sniff], [location of brokerj install])],
+	[SNIFF_PREFIX="$withval"], [SNIFF_PREFIX="$DEPS"])
 
-AC_CHECK_FILES( [$NETP_PREFIX/bin/netp],
-	[], [AC_ERROR([netp is required to build this package])])
+AC_CHECK_FILES( [$SNIFF_PREFIX/bin/sniff],
+	[], [AC_ERROR([sniff is required to build this package])])
 
-SED_SUBST="$SED_SUBST -e 's|[@]NETP_PREFIX[@]|$NETP_PREFIX|g'"
-AC_SUBST(NETP_PREFIX)
+SED_SUBST="$SED_SUBST -e 's|[@]SNIFF_PREFIX[@]|$SNIFF_PREFIX|g'"
+AC_SUBST(SNIFF_PREFIX)
 
 dnl
 dnl TLS Proxy

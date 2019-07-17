@@ -385,7 +385,7 @@ services_up()
 {
 	undo restart_mark services
 	bg_up broker @BROKER_PREFIX@ $BROKER_OPTIONS
-	bg_up netp @NETP_PREFIX@ $NETP_OPTIONS
+	bg_up sniff @SNIFF_PREFIX@ $NETP_OPTIONS
 	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline $TLSPROXY_OPTIONS
 	bg_up fetch @FETCH_PREFIX@ $FETCH_OPTIONS
 }
