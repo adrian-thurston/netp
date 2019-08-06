@@ -14,7 +14,7 @@ if [ '!' -f $pkgdatadir/key.pem ]; then
 	openssl req \
 		-newkey rsa:2048 \
 		-nodes -keyout $pkgdatadir/key.pem \
-		-x509 -days 365 -out $pkgdatadir/cert.pem \
+		-x509 -days 730 -out $pkgdatadir/cert.pem \
 		-subj "$SUBJ"
 	
 	cp $pkgdatadir/cert.pem $pkgdatadir/verify.pem
