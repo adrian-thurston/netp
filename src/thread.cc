@@ -23,7 +23,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 
-Thread::RealmSet Thread::enabledRealms = 0;
+Thread::RealmSet Thread::enabledRealms[NUM_APP_ID];
 pthread_key_t Thread::thisKey;
 
 namespace genf

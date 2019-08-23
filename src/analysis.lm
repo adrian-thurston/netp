@@ -51,6 +51,10 @@ context kobj
 	Attrs: list<attr>
 end
 
+context use_stmt
+	UseP: program
+end
+
 #
 # Thread map.
 #
@@ -240,6 +244,11 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 }
 
 #
+# List of using applications
+#
+global UseList: list<use_stmt> = new list<use_stmt>()
+
+#
 # Kernel Support
 #
 
@@ -286,8 +295,8 @@ int findApplicationId( P: program )
 		ApplicationId = Str.atoi()
 	}
 
-	if ( ApplicationId > 64 ) {
-		send stderr "ERROR: appid must be in range 1 to 64
+	if ( ApplicationId < 1 || ApplicationId >= NUM_APP_ID ) {
+		send stderr "ERROR: appid must be in range 1 to [NUM_APP_ID-1]
 		exit( 1 )
 	}
 
@@ -296,13 +305,13 @@ int findApplicationId( P: program )
 
 void useDecls( P: program )
 {
+	Found: stream = nil
 	for Use: use_decl in P {
+
 		S: str = $Use.string
 		S = S.suffix( 1 )
 		S = S.prefix( S.length - 1 )
-
-		Found: stream = nil
-
+	
 		for Path: str in OptInc {
 			Try: str = "[Path]/[S]"
 			Input: stream = open( Try, 'r' )
@@ -323,6 +332,10 @@ void useDecls( P: program )
 			send stderr "ERROR: could not parse input: [error]
 			exit( 1 )
 		}
+
+		# This is a bug in colm. Tries to tree downref for some reason. Prevent
+		# it with an open.
+		Found = open("/this/must/fail", 'r')
 
 		ApplicationId: int = findApplicationId( UseP )
 
@@ -348,6 +361,10 @@ void useDecls( P: program )
 			Packet: packet = findPacket( PacketId.id )
 			Packet->NumID = atoi( $PacketId.number )
 		}
+
+		new UseStmt: use_stmt()
+		UseStmt->UseP = UseP
+		UseList->push_tail( UseStmt )
 	}
 }
 

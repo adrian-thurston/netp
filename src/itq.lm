@@ -124,8 +124,19 @@ void generateItqHeader( P: program )
 	# Starting point defined in thread.h
 	Bit: int = 16
 	for D: debug_def in P {
-		"#define DBG_[D.id] [sprintf("0x%08x", Bit)] 
+		"#define DBG_[D.id] ( [ApplicationId]ull << DBG_SHIFT | [sprintf("0x%08x", Bit)] )
 		Bit = Bit * 2
+	}
+
+	for UseStmt: use_stmt in UseList {
+		UseP: program = UseStmt->UseP
+		UseId: int = findApplicationId( UseP )
+
+		Bit = 16
+		for D: debug_def in UseP {
+			"#define DBG_[D.id] ( [UseId]ull << DBG_SHIFT | [sprintf("0x%08x", Bit)] )
+			Bit = Bit * 2
+		}
 	}
 
 	~#endif

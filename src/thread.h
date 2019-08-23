@@ -43,10 +43,18 @@
 #define EC_CONF_PARSE_ERROR             168
 #define EC_WRITE_ON_NULL_SOCKET_BIO     169
 
-#define DBG_THREAD     0x00000001
-#define DBG_PACKET     0x00000002
-#define DBG_CONNECTION 0x00000004
-#define DBG_TLS        0x00000008
+#define DBG_SHIFT 56
+#define DBG_LOW_MASK 0xfffffff
+#define NUM_APP_ID 64
+
+#define DBG_APP_ID(realm) ( realm >> DBG_SHIFT )
+#define DBG_REALM(realm) ( realm & DBG_LOW_MASK )
+
+#define DBG_THREAD     ( ( 0ull << DBG_SHIFT ) | 0x00000001 )
+#define DBG_PACKET     ( ( 0ull << DBG_SHIFT ) | 0x00000002 )
+#define DBG_CONNECTION ( ( 0ull << DBG_SHIFT ) | 0x00000004 )
+#define DBG_TLS        ( ( 0ull << DBG_SHIFT ) | 0x00000008 )
+
 /* user-allocated start: 16 */
 
 struct ItWriter;
@@ -501,8 +509,8 @@ public:
 	/* Must be called from the thread this struct represents before it is run. */
 	void initId();
 
-	typedef long RealmSet;
-	static RealmSet enabledRealms;
+	typedef unsigned long long RealmSet;
+	static RealmSet enabledRealms[];
 
 	int signalLoop( sigset_t *set, struct timeval *timer = 0 );
 
@@ -727,13 +735,12 @@ std::ostream &operator <<( std::ostream &out, const log_hex &b );
 	*genf::lf << log_lock() << "WARNING: " << log_prefix() << \
 	msg << std::endl << log_unlock()
 
-
 #define log_debug( realm, msg ) \
-	do { if ( Thread::enabledRealms & ( realm ) ) \
+	do { if ( Thread::enabledRealms[DBG_APP_ID(realm)] & ( DBG_REALM(realm) ) ) \
 		*genf::lf << log_lock() << "debug: " << log_prefix() << \
 		msg << std::endl << log_unlock(); } while(0)
 
 #define log_enabled( realm ) \
-	( Thread::enabledRealms & ( realm ) )
+	( Thread::enabledRealms[DBG_APP_ID(realm)] & DBG_REALM( realm ) )
 
 #endif

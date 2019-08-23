@@ -1,3 +1,7 @@
+global DBG_SHIFT: int = 56
+global DBG_LOW_MASK: str = "0x0fffffff"
+global NUM_APP_ID: int = 64
+
 void generateMainHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -161,17 +165,27 @@ void parseOption( P: program, OD: option_def, Src: str )
 		# Handle debug realms directly, rather than collecting into program
 		# state.
 		"	if ( strcmp( [Src], \"THREAD\" ) == 0 )
-		"		enabledRealms |= DBG_THREAD;
+		"		enabledRealms\[0\] |= DBG_REALM(DBG_THREAD);
 		"	else if ( strcmp( [Src], \"PACKET\" ) == 0 )
-		"		enabledRealms |= DBG_PACKET;
+		"		enabledRealms\[0\] |= DBG_REALM(DBG_PACKET);
 		"	else if ( strcmp( [Src], \"CONNECTION\" ) == 0 )
-		"		enabledRealms |= DBG_CONNECTION;
+		"		enabledRealms\[0\] |= DBG_REALM(DBG_CONNECTION);
 		"	else if ( strcmp( [Src], \"TLS\" ) == 0 )
-		"		enabledRealms |= DBG_TLS;
+		"		enabledRealms\[0\] |= DBG_REALM(DBG_TLS);
 
 		for D: debug_def in P {
 			"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
-			"		enabledRealms |= DBG_[D.id];
+			"		enabledRealms\[DBG_APP_ID(DBG_[D.id])\] |= DBG_REALM(DBG_[D.id]);
+		}
+
+		for UseStmt: use_stmt in UseList {
+			UseP: program = UseStmt->UseP
+			UseId: int = findApplicationId( UseP )
+
+			for D: debug_def in UseP {
+				"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
+				"		enabledRealms\[DBG_APP_ID(DBG_[D.id])\] |= DBG_REALM(DBG_[D.id]);
+			}
 		}
 
 		"	else {
@@ -428,6 +442,7 @@ void generateMainCode( P: ref<program> )
 
 	~int main( int argc, char *const*argv )
 	~{
+	~	memset( MainThread::enabledRealms, 0, sizeof(MainThread::RealmSet) * NUM_APP_ID );
 	~	genf::lf = new lfdostream( 2 );
 	~	dropCaps();
 	~	pthread_key_create( &Thread::thisKey, 0 );
