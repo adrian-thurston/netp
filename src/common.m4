@@ -375,6 +375,36 @@ AC_DEFUN([AC_CHECK_SCHEMA], [
 	AC_SUBST(GENFFLAGS)
 ])
 
+dnl
+dnl MODULE check
+dnl
+AC_DEFUN([AC_CHECK_MODULE], [
+	AC_ARG_WITH(module,
+		[AC_HELP_STRING([--with-module], [location of module install])],
+		[
+			MODULE_GENF="$withval/share/module/module.gf"
+			GENFFLAGS="${GENFFLAGS} -I$withval/module/schema"
+			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
+			LDFLAGS="-L$withval/lib ${LDFLAGS}"
+		],
+		[
+			MODULE_GENF="$DEPS/share/module/module.gf"
+			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/module"
+			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
+			LDFLAGS="${LDFLAGS} -L$DEPS/lib"
+		]
+	)
+
+	AC_CHECK_FILES( [$MODULE_GENF], [],
+			[AC_ERROR([module package is required to build this module])] )
+
+	AC_CHECK_HEADER( [module/module.h], [], [AC_ERROR([module/module.h not found])] )
+	AC_CHECK_LIB([module], [module_open], [], [AC_ERROR([check netp: cannot link with -lmodule])])
+
+	AC_SUBST(MODULE_GENF)
+	AC_SUBST(GENFFLAGS)
+])
+
 
 if uname -r | grep -q '^4\.10\.0-'; then
 	KERNVER=`uname -r`;
