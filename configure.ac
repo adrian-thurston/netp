@@ -1,4 +1,4 @@
-AC_INIT([genf], [0.1.0], [thurston@colm.net])
+AC_INIT([netp], [0.1.0], [thurston@colm.net])
 AM_INIT_AUTOMAKE()
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -14,7 +14,7 @@ AC_PROG_LIBTOOL
 AC_LANG_CPLUSPLUS
 
 dnl Colm
-AC_CHECK_COLM([0.13.0.6])
+AC_CHECK_COLM([0.14])
 
 dnl Usage dependencies are stored in pkgbuild/common.m4
 AC_CHECK_GENF_DEPS()
