@@ -1,18 +1,16 @@
-include $(srcdir)/genf.mk
-
 GENF = @GENF@
 KRING_SYMVERS = @KRING_SYMVERS@
 
-INSTALL_DIRS += @sysconfdir@
+INSTALL_DIRS = @sysconfdir@
 
 kmod_DATA = shuttle.ko
 pkgdata_DATA = Module.symvers
 
-EXTRA_DIST += shuttle.gf attribute.c module.h avl.h avl.c
+EXTRA_DIST = shuttle.gf attribute.c module.h avl.h avl.c
 
 SOURCES = attribute.h attribute.c module.c avl.h avl.c
 
-BUILT_SOURCES += attribute.h module.c
+BUILT_SOURCES = attribute.h module.c
 
 MOBJS = attribute.o avl.o
 

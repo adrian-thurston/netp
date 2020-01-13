@@ -1,4 +1,5 @@
 module shuttle;
+appid 2;
 
 kobj link
 {

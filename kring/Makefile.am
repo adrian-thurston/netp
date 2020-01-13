@@ -29,3 +29,9 @@ kring.ko: .kbuild
 
 .kbuild:
 	make CPPFLAGS="$(CPPFLAGS)" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`  
+
+BUILT_SOURCES += include/kring
+    
+include/kring:
+	mkdir -p include
+	ln -s .. include/kring
