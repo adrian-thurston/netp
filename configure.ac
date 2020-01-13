@@ -13,8 +13,15 @@ AC_PROG_LIBTOOL
 
 AC_LANG_CPLUSPLUS
 
+dnl zlib and brotli
+AC_CHECK_ZLIB()
+AC_CHECK_BROTLIDEC()
+
 dnl Colm
 AC_CHECK_COLM([0.14])
+
+dnl ragel
+AC_CHECK_RAGEL([7.0])
 
 dnl Usage dependencies are stored in pkgbuild/common.m4
 AC_CHECK_GENF_DEPS()
@@ -28,8 +35,8 @@ AC_CHECK_FUNC([X509_check_host],
 CPPFLAGS="-I\$(abs_top_srcdir)/src ${CPPFLAGS}"
 
 dnl For building against GENF.
-dnl CPPFLAGS="-I\$(abs_top_srcdir)/genf/include ${CPPFLAGS}"
-dnl LDFLAGS="-L\$(abs_top_builddir)/genf/.libs ${LDFLAGS}"
+CPPFLAGS="-I\$(abs_top_srcdir)/genf/include ${CPPFLAGS}"
+#LDFLAGS="-L\$(abs_top_builddir)/genf/.libs ${LDFLAGS}"
 GENF="\$(abs_top_builddir)/genf/genf"
 
 AC_CHECK_KERNDIR
@@ -78,6 +85,7 @@ AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_FILES([
 	Makefile
 	genf/Makefile
+	src/Makefile
 	kring/Makefile
 	shuttle/Makefile
 	updown/Makefile

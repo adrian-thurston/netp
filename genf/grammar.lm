@@ -11,7 +11,7 @@ lex
 	token number /[0-9]+/
 
 	ignore /[ \t\n\r]+/
-	ignore /'#' [^\n]* '\r'/
+	ignore /'#' [^\n]* '\n'/
 end
 
 lex
