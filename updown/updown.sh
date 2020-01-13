@@ -323,7 +323,7 @@ live_up()
 	# Configure shuttle and kring.
 	shuttle_up pipe1 $SHUTTLE_INSIDE
 
-	# postgres_up
+	postgres_up
 	# services_up
 }
 
@@ -340,7 +340,7 @@ bring_up()
 
 		shuttle_up $DIRECT_INTERFACES
 
-		# postgres_up
+		postgres_up
 		# services_up
 	else
 		live_up
@@ -405,7 +405,7 @@ restart_mark()
 
 		if [ "$2" = kernel ]; then
 			shuttle_up $3 $4
-			# postgres_up
+			postgres_up
 		fi
 
 		# services_up
