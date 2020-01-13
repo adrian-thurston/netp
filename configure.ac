@@ -97,6 +97,7 @@ AC_CONFIG_FILES([
 	broker/Makefile
 	sniff/Makefile
 	tlsproxy/Makefile
+	fetch/Makefile
 	updown/Makefile
 ])
 
