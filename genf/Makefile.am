@@ -40,7 +40,7 @@ with-aapl:
 
 SUFFIXES = .pl .sh .in
 
-.in.sh:
+autogen.sh: autogen.in
 	@$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w,+x" $(SED_SUBST)
 
 LM_DEPS = \

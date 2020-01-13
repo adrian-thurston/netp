@@ -53,6 +53,7 @@ void addDefaultDefs( P: ref<program> )
 	P = cons program [
 		"option bool background: -b --background;
 		"option string __debug: -D;
+		"option string list moduleArgs: --module;
 		"thread Main;
 		DefList
 	]

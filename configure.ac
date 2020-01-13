@@ -36,7 +36,7 @@ CPPFLAGS="-I\$(abs_top_srcdir)/src ${CPPFLAGS}"
 
 dnl For building against GENF.
 CPPFLAGS="-I\$(abs_top_srcdir)/genf/include ${CPPFLAGS}"
-#LDFLAGS="-L\$(abs_top_builddir)/genf/.libs ${LDFLAGS}"
+LDFLAGS="-L\$(abs_top_builddir)/genf ${LDFLAGS}"
 GENF="\$(abs_top_builddir)/genf/genf"
 
 AC_CHECK_KERNDIR
@@ -52,6 +52,12 @@ dnl For bringing shuttle up/down.
 SHUTTLE_MOD="\$(abs_top_builddir)/shuttle/shuttle.ko"
 SHUTTLE_SYMVERS="\$(abs_top_builddir)/shuttle/Module.symvers"
 SED_SUBST="$SED_SUBST -e 's|[@]SHUTTLE_MOD[@]|$SHUTTLE_MOD|g'"
+
+dnl For building against netp.
+NETP_GENF="\$(abs_top_srcdir)/netp/netp.gf"
+GENFFLAGS="${GENFFLAGS} -I\$(abs_top_srcdir)/src"
+CPPFLAGS="-I\$(abs_top_srcdir)/src/include ${CPPFLAGS}"
+LDFLAGS="-L\$(abs_top_srcdir)/src ${LDFLAGS}"
 
 
 dnl
@@ -88,6 +94,7 @@ AC_CONFIG_FILES([
 	src/Makefile
 	kring/Makefile
 	shuttle/Makefile
+	broker/Makefile
 	updown/Makefile
 ])
 
