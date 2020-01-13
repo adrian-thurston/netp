@@ -324,7 +324,7 @@ live_up()
 	shuttle_up pipe1 $SHUTTLE_INSIDE
 
 	postgres_up
-	# services_up
+	services_up
 }
 
 bring_up()
@@ -341,7 +341,7 @@ bring_up()
 		shuttle_up $DIRECT_INTERFACES
 
 		postgres_up
-		# services_up
+		services_up
 	else
 		live_up
 	fi
@@ -384,10 +384,10 @@ bg_up()
 services_up()
 {
 	undo restart_mark services
-	bg_up broker @BROKER_PREFIX@ $BROKER_OPTIONS
-	bg_up sniff @SNIFF_PREFIX@ $NETP_OPTIONS
-	bg_up tlsproxy @TLSPROXY_PREFIX@ --netns inline $TLSPROXY_OPTIONS
-	bg_up fetch @FETCH_PREFIX@ $FETCH_OPTIONS
+	bg_up broker @prefix@ $BROKER_OPTIONS
+	bg_up sniff @prefix@ $NETP_OPTIONS
+	bg_up tlsproxy @prefix@ --netns inline $TLSPROXY_OPTIONS
+	bg_up fetch @prefix@ $FETCH_OPTIONS
 }
 
 RESTART_BOUNCE=
@@ -408,7 +408,7 @@ restart_mark()
 			postgres_up
 		fi
 
-		# services_up
+		services_up
 
 		exit 0		
 	fi

@@ -81,6 +81,16 @@ dnl postgres DB
 dnl
 AC_CHECK_POSTGRES
 
+BROKER_BIN="\$(abs_top_builddir)/broker/broker"
+SNIFF_BIN="\$(abs_top_builddir)/sniff/sniff"
+TLSPROXY_BIN="\$(abs_top_builddir)/tlsproxy/tlsproxy"
+FETCH_BIN="\$(abs_top_builddir)/fetch/fetch"
+
+SED_SUBST="$SED_SUBST -e 's|[@]BROKER_BIN[@]|$BROKER_BIN|g'"
+SED_SUBST="$SED_SUBST -e 's|[@]SNIFF_BIN[@]|$SNIFF_BIN|g'"
+SED_SUBST="$SED_SUBST -e 's|[@]TLSPROXY_BIN[@]|$TLSPROXY_BIN|g'"
+SED_SUBST="$SED_SUBST -e 's|[@]FETCH_BIN[@]|$FETCH_BIN|g'"
+
 AC_SUBST(GENF)
 AC_SUBST(GENFFLAGS)
 AC_SUBST(KRING_SYMVERS)
