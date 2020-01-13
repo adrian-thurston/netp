@@ -55,10 +55,9 @@ SED_SUBST="$SED_SUBST -e 's|[@]SHUTTLE_MOD[@]|$SHUTTLE_MOD|g'"
 
 dnl For building against netp.
 NETP_GENF="\$(abs_top_srcdir)/netp/netp.gf"
-GENFFLAGS="${GENFFLAGS} -I\$(abs_top_srcdir)/src"
-CPPFLAGS="-I\$(abs_top_srcdir)/src/include ${CPPFLAGS}"
-LDFLAGS="-L\$(abs_top_srcdir)/src ${LDFLAGS}"
-
+GENFFLAGS="${GENFFLAGS} -I\$(abs_top_srcdir)/netp"
+CPPFLAGS="-I\$(abs_top_srcdir)/netp/include ${CPPFLAGS}"
+LDFLAGS="-L\$(abs_top_srcdir)/netp ${LDFLAGS}"
 
 dnl
 dnl OpenVPN support
@@ -100,10 +99,11 @@ AC_SUBST(SED_SUBST)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_FILES([
 	Makefile
-	genf/Makefile
 	src/Makefile
+	genf/Makefile
 	kring/Makefile
 	shuttle/Makefile
+	netp/Makefile
 	broker/Makefile
 	sniff/Makefile
 	tlsproxy/Makefile
