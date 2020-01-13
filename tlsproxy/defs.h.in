@@ -1,0 +1,8 @@
+#ifndef _DEFS_H
+#define _DEFS_H
+
+#define PKGDATADIR "@pkgdatadir@"
+#define PKGSTATEDIR "@pkgstatedir@"
+#define PKGLIBEXECDIR "@pkglibexecdir@"
+
+#endif

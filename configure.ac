@@ -81,8 +81,8 @@ dnl postgres DB
 dnl
 AC_CHECK_POSTGRES
 
-
 AC_SUBST(GENF)
+AC_SUBST(GENFFLAGS)
 AC_SUBST(KRING_SYMVERS)
 AC_SUBST(KRING_MOD)
 AC_SUBST(SED_SUBST)
@@ -96,6 +96,7 @@ AC_CONFIG_FILES([
 	shuttle/Makefile
 	broker/Makefile
 	sniff/Makefile
+	tlsproxy/Makefile
 	updown/Makefile
 ])
 
