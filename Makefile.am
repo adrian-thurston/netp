@@ -1,2 +1,2 @@
-SUBDIRS = src
+SUBDIRS = src kring
 ACLOCAL_AMFLAGS = -I m4

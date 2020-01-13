@@ -23,13 +23,19 @@ AC_SUBST(SED_SUBST)
 
 AC_CHECK_FUNC([X509_check_host],
 	[AC_DEFINE([HAVE_X509_CHECK_HOST], [1], [define if X509_check_host exists])],
-dnl	[AC_ERROR([X509_check_host not found])]
+	dnl	[AC_ERROR([X509_check_host not found])]
 )
+
+# For taking in config.h
+CPPFLAGS="-I\$(abs_top_srcdir)/src ${CPPFLAGS}"
+
+AC_CHECK_KERNDIR
 
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
+	kring/Makefile
 ])
 
 AC_OUTPUT

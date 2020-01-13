@@ -28,4 +28,4 @@ kring.ko: .kbuild
 .PHONY: .kbuild
 
 .kbuild:
-	make MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`  
+	make CPPFLAGS="$(CPPFLAGS)" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`  
