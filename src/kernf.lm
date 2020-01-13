@@ -254,6 +254,8 @@ void module_c( P: program )
 				}
 
 				send Output ");
+
+				send Output
 					"	}
 					"	ret = count;
 					"	break;
