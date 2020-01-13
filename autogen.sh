@@ -8,10 +8,10 @@ message()
 
 message "copying macros to m4/"
 [ -d m4 ] || mkdir m4
-cp src/*.m4 m4/
+cp genf/*.m4 m4/
 
 message "copying sedsubst file to ./"
-cp src/sedsubst ./
+cp genf/sedsubst ./
 chmod +x ./sedsubst
 
 set -x

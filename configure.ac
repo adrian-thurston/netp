@@ -30,7 +30,7 @@ CPPFLAGS="-I\$(abs_top_srcdir)/src ${CPPFLAGS}"
 dnl For building against GENF.
 dnl CPPFLAGS="-I\$(abs_top_srcdir)/genf/include ${CPPFLAGS}"
 dnl LDFLAGS="-L\$(abs_top_builddir)/genf/.libs ${LDFLAGS}"
-GENF="\$(abs_top_builddir)/src/genf"
+GENF="\$(abs_top_builddir)/genf/genf"
 
 AC_CHECK_KERNDIR
 
@@ -77,7 +77,7 @@ AC_SUBST(SED_SUBST)
 AC_CONFIG_HEADERS(src/config.h)
 AC_CONFIG_FILES([
 	Makefile
-	src/Makefile
+	genf/Makefile
 	kring/Makefile
 	shuttle/Makefile
 	updown/Makefile

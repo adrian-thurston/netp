@@ -1,0 +1,11 @@
+/stamp-h1
+/genf
+/genf.c
+/kernf
+/kernf.c
+/libgenf.la
+/include
+/.libs
+/*.lo
+/with-aapl
+/autogen.sh
