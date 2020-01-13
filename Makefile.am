@@ -1,2 +1,2 @@
-SUBDIRS = src kring shuttle
+SUBDIRS = src kring shuttle updown
 ACLOCAL_AMFLAGS = -I m4

@@ -34,12 +34,40 @@ GENF="\$(abs_top_builddir)/src/genf"
 
 AC_CHECK_KERNDIR
 
-dnl For building against kring.
+dnl For building against kring and bringing up/down.
 KRING_MOD="\$(abs_top_builddir)/kring/kring.ko"
 KRING_SYMVERS="\$(abs_top_builddir)/kring/Module.symvers"
 CPPFLAGS="-I\$(abs_top_builddir)/kring/include ${CPPFLAGS}"
 LDFLAGS="-L\$(abs_top_builddir)/kring ${LDFLAGS}"
 SED_SUBST="$SED_SUBST -e 's|[@]KRING_MOD[@]|$KRING_MOD|g'"
+
+dnl For bringing shuttle up/down.
+SHUTTLE_MOD="\$(abs_top_builddir)/shuttle/shuttle.ko"
+SHUTTLE_SYMVERS="\$(abs_top_builddir)/shuttle/Module.symvers"
+SED_SUBST="$SED_SUBST -e 's|[@]SHUTTLE_MOD[@]|$SHUTTLE_MOD|g'"
+
+
+dnl
+dnl OpenVPN support
+dnl
+DH_PATH=/usr/share/doc/openvpn/examples/sample-keys
+DH_SEL=""
+AC_CHECK_FILE( [$DH_PATH/dh1024.pem], [DH_SEL=dh1024],
+	[AC_CHECK_FILE( [$DH_PATH/dh2048.pem], [DH_SEL=dh2048],
+		[AC_ERROR([could not find DH keys file])])]
+)
+
+if test -n "$DH_SEL"; then
+	DH_KEYS=$DH_PATH/$DH_SEL.pem
+	SED_SUBST="$SED_SUBST -e 's|[@]DH_KEYS[@]|$DH_KEYS|g'"
+	AC_SUBST(DH_KEYS)
+fi
+
+dnl
+dnl postgres DB
+dnl
+AC_CHECK_POSTGRES
+
 
 AC_SUBST(GENF)
 AC_SUBST(KRING_SYMVERS)
@@ -52,6 +80,7 @@ AC_CONFIG_FILES([
 	src/Makefile
 	kring/Makefile
 	shuttle/Makefile
+	updown/Makefile
 ])
 
 AC_OUTPUT
