@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+
+set -x
+
+PKGS=/home/thurston/pkgs
+
+case $1 in
+	start)
+		$PKGS/shuttle/libexec/shuttle/init.d start
+		sleep 1
+		$PKGS/broker/libexec/broker/init.d start
+		sleep 1
+		$PKGS/netp/libexec/netp/init.d start
+		sleep 1
+		$PKGS/tlsproxy/libexec/tlsproxy/init.d start
+	;;
+	stop)
+		$PKGS/trader/libexec/trader/init.d stop
+		sleep 1
+		$PKGS/fetch/libexec/fetch/init.d stop
+		sleep 1
+		$PKGS/tlsproxy/libexec/tlsproxy/init.d stop
+		sleep 1
+		$PKGS/netp/libexec/netp/init.d stop
+		sleep 1
+		$PKGS/broker/libexec/broker/init.d stop
+		sleep 1
+		$PKGS/shuttle/libexec/shuttle/init.d stop
+	;;
+esac
