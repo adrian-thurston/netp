@@ -95,6 +95,7 @@ AC_CONFIG_FILES([
 	kring/Makefile
 	shuttle/Makefile
 	broker/Makefile
+	sniff/Makefile
 	updown/Makefile
 ])
 
