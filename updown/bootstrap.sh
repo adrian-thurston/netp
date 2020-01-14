@@ -5,6 +5,8 @@ set -x
 
 package=@PACKAGE@
 pkgdatadir=@pkgdatadir@
+pkglibexecdir=@pkglibexecdir@
+pkgstatedir=@pkgstatedir@
 
 if [ '!' -f $pkgdatadir/key.pem ]; then
 	CN=$package
@@ -19,6 +21,10 @@ if [ '!' -f $pkgdatadir/key.pem ]; then
 		-subj "$SUBJ"
 	
 	cp $pkgdatadir/cert.pem $pkgdatadir/verify.pem
+fi
+
+if [ '!' -f $pkgstatedir/CA/cakey.pem ]; then
+	$pkglibexecdir/ca
 fi
 
 if [ '!' -f @sysconfdir@/updown.conf ]; then
