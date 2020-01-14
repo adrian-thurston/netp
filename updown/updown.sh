@@ -501,9 +501,12 @@ case "$1" in
 		@SNIFF_BIN@ $NETP_OPTIONS &
 		@TLSPROXY_BIN@ --netns inline $TLSPROXY_OPTIONS &
 		@FETCH_BIN@ $FETCH_OPTIONS &
-		
+
+		STTY=`stty -g`
+		stty -echoctl
 		while ! wait; do true; done
 		echo updown: finished waiting for children ... exiting
+		stty $STTY
 	;;
 
 	stop|restart)
