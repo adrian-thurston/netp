@@ -398,10 +398,10 @@ bg_up()
 services_up()
 {
 	undo restart_mark services
-	bg_up broker @prefix@ $BROKER_OPTIONS
-	bg_up sniff @prefix@ $NETP_OPTIONS
-	bg_up tlsproxy @prefix@ --netns inline $TLSPROXY_OPTIONS
-	bg_up fetch @prefix@ $FETCH_OPTIONS
+	bg_up broker @prefix@ $MODULE_OPTIONS $BROKER_OPTIONS
+	bg_up sniff @prefix@ $MODULE_OPTIONS $NETP_OPTIONS
+	bg_up tlsproxy @prefix@ $MODULE_OPTIONS --netns inline $TLSPROXY_OPTIONS
+	bg_up fetch @prefix@ $MODULE_OPTIONS $FETCH_OPTIONS
 }
 
 RESTART_BOUNCE=
@@ -476,11 +476,19 @@ echo 2 > /proc/sys/fs/suid_dumpable
 sysctl -q net.ipv4.ip_forward=1
 iptables -P FORWARD DROP
 
-if [ $1 != local ]; then
+if [ "$1" != local ]; then
 	# We don't want this in the local command because it interferes with our
 	# waiting and signal handling.
 	set -e
 fi
+ 
+# Collect the modules
+MODULE_OPTIONS=
+for fn in @modulesdir@/*.so; do
+	if [ -f $fn ]; then
+		MODULE_OPTIONS="$MODULE_OPTIONS --module $fn"
+	fi
+done
 
 case "$1" in
 	local)
@@ -494,13 +502,13 @@ case "$1" in
 
 		# Start broker and wait for it to go. The other services need it to be
 		# listening.
-		@BROKER_BIN@ $BROKER_OPTIONS &
+		@BROKER_BIN@ $MODULE_OPTIONS $BROKER_OPTIONS &
 
 		wait_on_pidfile @prefix@/var/run/broker.pid
 
-		@SNIFF_BIN@ $NETP_OPTIONS &
-		@TLSPROXY_BIN@ --netns inline $TLSPROXY_OPTIONS &
-		@FETCH_BIN@ $FETCH_OPTIONS &
+		@SNIFF_BIN@ $MODULE_OPTIONS $NETP_OPTIONS &
+		@TLSPROXY_BIN@ $MODULE_OPTIONS --netns inline $TLSPROXY_OPTIONS &
+		@FETCH_BIN@ $MODULE_OPTIONS $FETCH_OPTIONS &
 
 		STTY=`stty -g`
 		stty -echoctl

@@ -50,6 +50,13 @@ AC_SUBST(piddir)
 SED_SUBST="$SED_SUBST -e 's|[@]piddir[@]|$piddir|g'"
 
 dnl
+dnl (netcol) modulesdir
+dnl
+modulesdir='${pkgdatadir}/modules'
+AC_SUBST(modulesdir)
+SED_SUBST="$SED_SUBST -e 's|[@]modulesdir[@]|$modulesdir|g'"
+
+dnl
 dnl kmoddir
 dnl
 dnl If we just use libdir for kernel modules we will get errors from automake
@@ -244,13 +251,13 @@ AC_DEFUN([AC_CHECK_KRING], [
 		[AC_HELP_STRING([--with-kring], [location of kring install])],
 		[
 			KRING_MOD="$withval/lib/kring.ko"
-			KRING_SYMVERS="$withval/share/kring/Module.symvers"
+			KRING_SYMVERS="$withval/share/netcol/Module.symvers"
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			LDFLAGS="-L$withval/lib ${LDFLAGS}"
 		],
 		[
 			KRING_MOD="$DEPS/lib/kring.ko"
-			KRING_SYMVERS="$DEPS/share/kring/Module.symvers"
+			KRING_SYMVERS="$DEPS/share/netcol/Module.symvers"
 			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
 			LDFLAGS="${LDFLAGS} -L$DEPS/lib"
 		]
@@ -279,11 +286,11 @@ AC_DEFUN([AC_CHECK_SHUTTLE], [
 		[AC_HELP_STRING([--with-shuttle], [location of shuttle install])],
 		[
 			SHUTTLE_MOD="$withval/lib/shuttle.ko"
-			SHUTTLE_SYMVERS="$withval/share/shuttle/Module.symvers"
+			SHUTTLE_SYMVERS="$withval/share/netcol/Module.symvers"
 		],
 		[
 			SHUTTLE_MOD="$DEPS/lib/shuttle.ko"
-			SHUTTLE_SYMVERS="$DEPS/share/shuttle/Module.symvers"
+			SHUTTLE_SYMVERS="$DEPS/share/netcol/Module.symvers"
 		]
 	)
 
@@ -306,14 +313,14 @@ AC_DEFUN([AC_CHECK_NETP], [
 	AC_ARG_WITH(netp,
 		[AC_HELP_STRING([--with-netp], [location of netp install])],
 		[
-			NETP_GENF="$withval/share/netp/netp.gf"
-			GENFFLAGS="${GENFFLAGS} -I$withval/share/netp"
+			NETP_GENF="$withval/share/netcol/netp.gf"
+			GENFFLAGS="${GENFFLAGS} -I$withval/share/netcol"
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			LDFLAGS="-L$withval/lib ${LDFLAGS}"
 		],
 		[
-			NETP_GENF="$DEPS/share/netp/netp.gf"
-			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netp"
+			NETP_GENF="$DEPS/share/netcol/netp.gf"
+			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netcol"
 			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
 			LDFLAGS="${LDFLAGS} -L$DEPS/lib"
 		]
@@ -336,12 +343,12 @@ AC_DEFUN([AC_CHECK_BROKER], [
 	AC_ARG_WITH(broker,
 		[AC_HELP_STRING([--with-broker], [location of broker install])],
 		[
-			BROKER_GENF="$withval/share/broker/broker.gf"
-			GENFFLAGS="${GENFFLAGS} -I$withval/share/broker"
+			BROKER_GENF="$withval/share/netcol/broker.gf"
+			GENFFLAGS="${GENFFLAGS} -I$withval/share/netcol"
 		],
 		[
-			BROKER_GENF="$DEPS/share/broker/broker.gf"
-			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/broker"
+			BROKER_GENF="$DEPS/share/netcol/broker.gf"
+			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netcol"
 		]
 	)
 
