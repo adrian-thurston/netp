@@ -368,6 +368,14 @@ wait_on_pidfile()
 	done
 }
 
+maybe_stop()
+{
+	pidfile=$1
+	if [ -f $pidfile ]; then
+		start-stop-daemon --stop --pidfile $pidfile --retry 5 || rm -f $pidfile
+	fi
+}
+
 bg_up()
 {
 	package=$1; prefix=$2; shift 2; options=$@
@@ -472,14 +480,24 @@ iptables -P FORWARD DROP
 
 case $1 in
 	local)
+		trap true INT
+
+		maybe_stop @prefix@/var/run/broker.pid
+		maybe_stop @prefix@/var/run/sniff.pid
+		maybe_stop @prefix@/var/run/tlsproxy.pid
+		maybe_stop @prefix@/var/run/fetch.pid
+
+		# Start broker and wait for it to go. The other services need it to be
+		# listening.
 		@BROKER_BIN@ $BROKER_OPTIONS &
+
 		wait_on_pidfile @prefix@/var/run/broker.pid
 
 		@SNIFF_BIN@ $NETP_OPTIONS &
 		@TLSPROXY_BIN@ --netns inline $TLSPROXY_OPTIONS &
 		@FETCH_BIN@ $FETCH_OPTIONS &
 		
-		cat 
+		wait 
 	;;
 
 	stop|restart)
