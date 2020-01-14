@@ -353,6 +353,21 @@ postgres_up()
 	undo sudo -u thurston @POSTGRES_PREFIX@/libexec/postgres/init.d stop
 }
 
+wait_on_pidfile()
+{
+	# Wait two seconds for the pidfile to appear.
+	pidfile=$1
+	iters=0
+	while [ '!' -f $pidfile ]; do
+		sleep 0.1
+		if [ $iters == 20 ]; then
+			echo $package updown: pidfile was not created >&2
+			exit 1
+		fi
+		iters=$((iters + 1))
+	done
+}
+
 bg_up()
 {
 	package=$1; prefix=$2; shift 2; options=$@
@@ -367,16 +382,7 @@ bg_up()
 		godo $bindir/$package -b $options
 	)
 
-	# Wait two seconds for the pidfile to appear.
-	iters=0
-	while [ '!' -f $pidfile ]; do
-		sleep 0.1
-		if [ $iters == 20 ]; then
-			echo $package init.d start: pidfile was not created >&2
-			exit 1
-		fi
-		iters=$((iters + 1))
-	done
+	wait_on_pidfile $pidfile
 
 	undo start-stop-daemon --stop --pidfile $pidfile --retry 5 '||' rm -f $pidfile
 }
@@ -465,6 +471,17 @@ sysctl -q net.ipv4.ip_forward=1
 iptables -P FORWARD DROP
 
 case $1 in
+	local)
+		@BROKER_BIN@ $BROKER_OPTIONS &
+		wait_on_pidfile @prefix@/var/run/broker.pid
+
+		@SNIFF_BIN@ $NETP_OPTIONS &
+		@TLSPROXY_BIN@ --netns inline $TLSPROXY_OPTIONS &
+		@FETCH_BIN@ $FETCH_OPTIONS &
+		
+		cat 
+	;;
+
 	stop|restart)
 		if [ '!' -f $UNDO ]; then
 			echo "updown: nothing to bring down"
