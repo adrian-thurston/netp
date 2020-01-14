@@ -594,21 +594,41 @@ struct fdoutbuf
 	{
 	}
 
+	void send( const char *s, std::streamsize num )
+	{
+		for ( std::streamsize i = 0; i < num; i++ ) {
+			if ( s[i] == '\n' ) {
+				buffer.append( s, i+1 );
+				write( fd, buffer.data, buffer.length() );
+				buffer.empty();
+
+				i += 1;
+				if ( i < num )
+					buffer.append( s + i, num - i );
+				
+				return;
+			}
+		}
+
+		buffer.append( s, num );
+	}
+
 	int_type overflow( int_type c )
 	{
 		if ( c != EOF ) {
 			char z = c;
-			if ( write( fd, &z, 1 ) != 1 )
-				return EOF;
+			send( &z, 1 );
 		}
 		return c;
 	}
 
-	std::streamsize xsputn( const char* s, std::streamsize num )
+	std::streamsize xsputn( const char *s, std::streamsize num )
 	{
-		return write(fd,s,num);
+		send( s, num );
+		return num;
 	}
 
+	Vector<char> buffer;
 	int fd;
 };
 
