@@ -1,4 +1,4 @@
-AC_INIT([netp], [0.1.0], [thurston@colm.net])
+AC_INIT([netcol], [0.1.0], [thurston@colm.net])
 AM_INIT_AUTOMAKE()
 
 AC_CONFIG_MACRO_DIR([m4])
