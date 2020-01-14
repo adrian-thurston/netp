@@ -438,8 +438,6 @@ undo()
 	echo "$@" >> $UNDO
 }
 
-set -e
-
 if [ '!' `whoami` = root ]; then
 	echo "updown: must run as root"
 	exit 1
@@ -478,9 +476,16 @@ echo 2 > /proc/sys/fs/suid_dumpable
 sysctl -q net.ipv4.ip_forward=1
 iptables -P FORWARD DROP
 
-case $1 in
+if [ $1 != local ]; then
+	# We don't want this in the local command because it interferes with our
+	# waiting and signal handling.
+	set -e
+fi
+
+case "$1" in
 	local)
 		trap true INT
+		trap true QUIT
 
 		maybe_stop @prefix@/var/run/broker.pid
 		maybe_stop @prefix@/var/run/sniff.pid
@@ -497,7 +502,8 @@ case $1 in
 		@TLSPROXY_BIN@ --netns inline $TLSPROXY_OPTIONS &
 		@FETCH_BIN@ $FETCH_OPTIONS &
 		
-		wait 
+		while ! wait; do true; done
+		echo updown: finished waiting for children ... exiting
 	;;
 
 	stop|restart)
