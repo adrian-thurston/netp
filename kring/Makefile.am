@@ -15,7 +15,13 @@ EXTRA_DIST = kring.gf attribute.c module.h socket.c kring.h kdata.c kdata.h kctr
 
 BUILT_SOURCES = attribute.h module.c
 
+CLEANFILES = *.ko *.o
+
 MOBJS = attribute.o kdata.o kctrl.o socket.o
+
+SOURCES = attribute.c kdata.c kctrl.c socket.c module.c \
+	attribute.h kctrl.h kdata.h krdep.h kring.h krkern.h \
+	libkring.h module.h
 
 Module.symvers: kring.ko
 
@@ -24,11 +30,7 @@ attribute.h: module.c
 module.c: kring.gf $(GENF)
 	$(GENF) --kernf kring.gf
 
-kring.ko: .kbuild
-
-.PHONY: .kbuild
-
-.kbuild:
+kring.ko: $(SOURCES)
 	make CPPFLAGS="$(CPPFLAGS)" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`  
 
 BUILT_SOURCES += include/kring
