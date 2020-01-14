@@ -554,4 +554,9 @@ case "$1" in
 	clear)
 		rm -f $UNDO $UNDO.tac
 	;;
+
+	*)
+		echo "updown: unknown command \"$1\""
+		exit 1;
+	;;
 esac
