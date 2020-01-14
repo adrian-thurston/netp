@@ -5,7 +5,6 @@ lib_LTLIBRARIES = libgenf.la
 
 include_HEADERS =
 
-
 libgenf_la_SOURCES = \
 	list.h \
 	thread.h \
