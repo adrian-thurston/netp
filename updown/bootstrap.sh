@@ -3,83 +3,48 @@
 
 set -x 
 
-if [ -f @sysconfdir@/updown.conf ]; then
-	exit
+package=@PACKAGE@
+pkgdatadir=@pkgdatadir@
+
+if [ '!' -f $pkgdatadir/key.pem ]; then
+	CN=$package
+	SUBJ="/C=CA/ST=Ontario/O=Colm Networks Inc./OU=Development/CN=$CN/emailAddress=info@colm.net/"
+
+	umask 0077
+
+	openssl req \
+		-newkey rsa:2048 \
+		-nodes -keyout $pkgdatadir/key.pem \
+		-x509 -days 730 -out $pkgdatadir/cert.pem \
+		-subj "$SUBJ"
+	
+	cp $pkgdatadir/cert.pem $pkgdatadir/verify.pem
 fi
 
-# Bootstrap the database.
-@POSTGRES_PREFIX@/libexec/postgres/bootstrap
+if [ '!' -f @sysconfdir@/updown.conf ]; then
+	#
+	# Updown config file.
+	#
+	FORWARD=$(route | grep ^default | awk '{ print $8; }')
 
-# At the bottom of <data directory>/postgresql.conf
-cat >> @POSTGRES_PREFIX@/var/postgres/db/postgresql.conf <<'EOF'
-shared_preload_libraries = 'pipelinedb, timescaledb' 
-max_worker_processes = 128
-timescaledb.telemetry_level = off
-EOF
+	cat > @sysconfdir@/updown.conf <<-EOF
+		# How to reach the outside world.
+		OUTSIDE_FORWARD="$FORWARD"
 
-#
-# Create default databse.
-#
-@POSTGRES_PREFIX@/libexec/postgres/init.d start
-@POSTGRES_PREFIX@/bin/createdb thurston start
-@POSTGRES_PREFIX@/bin/psql -c "CREATE EXTENSION pipelinedb;"
-@POSTGRES_PREFIX@/bin/psql -c "CREATE EXTENSION timescaledb;"
-@POSTGRES_PREFIX@/libexec/postgres/init.d stop
+		#
+		# Can use any combination of protnet(s), interface(s) and vpn.
+		#
 
-#
-#  Bootstrap services.
-#
-@BROKER_PREFIX@/libexec/broker/bootstrap
-@NETP_PREFIX@/libexec/netp/bootstrap
-@TLSPROXY_PREFIX@/libexec/tlsproxy/bootstrap
-@FETCH_PREFIX@/libexec/fetch/bootstrap
-@TRADER_PREFIX@/libexec/trader/bootstrap
+		# Create a protected network namespace and analyze traffic
+		# that leaves from that namespace to the outside.
+		LIVE_PROTNET="prot"
 
-#
-# Fetch share data.
-#
+		# Analyze traffic between an interface and the outside world.
+		# LIVE_INTERFACES="em1"
 
-TMPDIR=$(mktemp -d /tmp/bootstrap.XXXXXX)
-cd $TMPDIR
-git clone $git/data.git $TMPDIR/data
-mkdir @FETCH_PREFIX@/share/fetch/dialer
-cp -a $TMPDIR/data/dialer/tessdata @FETCH_PREFIX@/share/fetch/dialer
-rm -Rf $TMPDIR
+		# Create a VPN and analyze traffic that passes through.
+		# LIVE_VPN=yes
+	EOF
 
-mkdir @FETCH_PREFIX@/var/fetch/cvpp
-sqlite3 @FETCH_PREFIX@/var/fetch/cvpp/cvpp.db < @FETCH_PREFIX@/share/fetch/cvpp.sql
-
-#
-# Allow services to talk to broker.
-#
-cat @NETP_PREFIX@/share/netp/cert.pem \
-	@TLSPROXY_PREFIX@/share/tlsproxy/cert.pem \
-	@FETCH_PREFIX@/share/fetch/cert.pem \
-	@TRADER_PREFIX@/share/trader/cert.pem \
-	>> @BROKER_PREFIX@/share/broker/verify.pem
-
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @NETP_PREFIX@/share/netp/verify.pem
-
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @TLSPROXY_PREFIX@/share/tlsproxy/verify.pem
-
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @FETCH_PREFIX@/share/fetch/verify.pem
-
-cat @BROKER_PREFIX@/share/broker/cert.pem \
-	>> @TRADER_PREFIX@/share/trader/verify.pem
-
-#
-# Updown config file.
-#
-FORWARD=$(route | grep ^default | awk '{ print $8; }')
-
-cat > @sysconfdir@/updown.conf <<-EOF
-	OUTSIDE_FORWARD="$FORWARD"
-	LIVE_PROTNET="prot"
-	#LIVE_INTERFACES="em1"
-	#LIVE_VPN=yes
-EOF
-
+fi
 

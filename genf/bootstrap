@@ -4,13 +4,15 @@
 # This tag indicates this file comes from genf package.
 # installed-by-genf
 
-package=@PACKAGE@
-pkgdatadir=@pkgdatadir@
+package=netcol
+pkgdatadir=/home/thurston/pkgs/netcol/share/netcol
 
 CN=$package
 SUBJ="/C=CA/ST=Ontario/O=Colm Networks Inc./OU=Development/CN=$CN/emailAddress=info@colm.net/"
 
 if [ '!' -f $pkgdatadir/key.pem ]; then
+	umask 0077
+
 	openssl req \
 		-newkey rsa:2048 \
 		-nodes -keyout $pkgdatadir/key.pem \

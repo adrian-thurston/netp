@@ -5,6 +5,7 @@ lib_LTLIBRARIES = libgenf.la
 
 include_HEADERS =
 
+
 libgenf_la_SOURCES = \
 	list.h \
 	thread.h \
@@ -32,8 +33,7 @@ pkgdata_DATA = \
 	genf.mk \
 	genf.h.in \
 	sedsubst \
-	init.d.sh \
-	bootstrap.sh
+	init.d.sh
 
 with-aapl:
 	echo $(WITH_AAPL) > with-aapl
@@ -68,3 +68,8 @@ include/genf:
 
 genf$(EXEEXT): genf.lm $(LM_DEPS)
 	$(COLM) -o genf $<
+
+INSTALL_DIRS = $(logdir) $(piddir) $(pkgdatadir) $(sysconfdir)
+
+install-data-local:
+	for D in $(INSTALL_DIRS); do bash -c "set -x; $(MKDIR_P) $(DESTDIR)$$D"; done
