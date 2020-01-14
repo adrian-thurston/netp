@@ -27,8 +27,8 @@ void generateMainHeader( P: program )
 	~{
 	~	MainGen()
 	~	:
-	~		MainBase("main"),
-	~		usePid(true)
+	~		MainBase( PACKAGE, "main" ),
+	~		usePid( true )
 	~	{}
 	~
 	~	void init( int argc, char *const*argv )

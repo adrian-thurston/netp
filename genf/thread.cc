@@ -102,7 +102,7 @@ std::ostream &operator <<( std::ostream &out, const log_prefix & )
 
 std::ostream &operator <<( std::ostream &out, const Thread &thread )
 {
-	out << log_time() << ": " << thread.type << "(" << thread.tid << "): ";
+	out << log_time() << ": " << thread.program << "-" << thread.type << "(" << thread.tid << "): ";
 	return out;
 }
 

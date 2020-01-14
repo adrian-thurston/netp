@@ -396,8 +396,9 @@ struct Process
 
 struct Thread
 {
-	Thread( const char *type )
+	Thread( const char *program, const char *type )
 	:
+		program( program ),
 		type( type ),
 		pthread_this( 0 ),
 		pthread_parent( 0 ),
@@ -414,6 +415,7 @@ struct Thread
 	{
 	}
 
+	const char *program;
 	const char *type;
 	struct endp {};
 	typedef List<Thread> ThreadList;
@@ -569,8 +571,8 @@ struct MainBase
 :
 	public Thread
 {
-	MainBase( const char *type )
-		: Thread( type ) {}
+	MainBase( const char *package, const char *type )
+		: Thread( package, type ) {}
 
 	void handleSignal( int sig );
 	void signalSetup();
