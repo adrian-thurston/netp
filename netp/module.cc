@@ -14,15 +14,34 @@ void (*_fetchAllocFetchObjs)( FetchList *fetchList, NetpConfigure *npc, Thread *
 void ModuleList::loadModule( const char *fn )
 {
 	void *dl = dlopen( fn, RTLD_NOW );
+	if ( dl == NULL )
+		log_FATAL( dlerror() );
 
 	Module *module = new Module;
 
 	module->loadProxyHostNames = (ModuleLoadProxyHostNames) dlsym( dl, "loadProxyHostNames" );
+	if ( module->loadProxyHostNames == NULL )
+		log_FATAL( dlerror() );
+
 	module->sniffConfigureContext = (ModuleSniffConfigureContext) dlsym( dl, "sniffConfigureContext" );
+	if ( module->sniffConfigureContext == NULL )
+		log_FATAL( dlerror() );
+
 	module->proxyConfigureContext = (ModuleProxyConfigureContext) dlsym( dl, "proxyConfigureContext" );
+	if ( module->proxyConfigureContext == NULL )
+		log_FATAL( dlerror() );
+
 	module->fetchConfigureContext = (ModuleFetchConfigureContext) dlsym( dl, "fetchConfigureContext" );
+	if ( module->fetchConfigureContext == NULL )
+		log_FATAL( dlerror() );
+
 	module->brokerDispatchPacket = (ModuleBrokerDispatchPacket) dlsym( dl, "brokerDispatchPacket" );
+	if ( module->brokerDispatchPacket == NULL )
+		log_FATAL( dlerror() );
+
 	module->fetchAllocFetchObjs = (ModuleFetchAllocFetchObjs) dlsym( dl, "fetchAllocFetchObjs" );
+	if ( module->fetchAllocFetchObjs == NULL )
+		log_FATAL( dlerror() );
 
 	moduleList.append( module );
 }
