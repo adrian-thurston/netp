@@ -75,11 +75,6 @@ if test -n "$DH_SEL"; then
 	AC_SUBST(DH_KEYS)
 fi
 
-dnl
-dnl postgres DB
-dnl
-AC_CHECK_POSTGRES
-
 BROKER_BIN="\$(abs_top_builddir)/broker/broker"
 SNIFF_BIN="\$(abs_top_builddir)/sniff/sniff"
 TLSPROXY_BIN="\$(abs_top_builddir)/tlsproxy/tlsproxy"

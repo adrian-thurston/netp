@@ -8,7 +8,6 @@
 #include <aapl/bstset.h>
 #include <aapl/astring.h>
 #include <string>
-#include <libpq-fe.h>
 
 struct MainThread;
 
@@ -88,14 +87,6 @@ struct MainThread
 
 	BrokerConnectionList connList;
 	LastList lastList;
-
-	void notify( PGconn *conn );
-
-	void clearQuotes( PGconn *conn );
-	void clearBalance( PGconn *conn, const char *account );
-	void clearHoldings( PGconn *conn, const char *account );
-	void clearCorpBalance( PGconn *conn );
-	void clearActivity( PGconn *conn );
 };
 
 #endif
