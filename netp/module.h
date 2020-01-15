@@ -14,6 +14,7 @@ struct FetchList;
 struct Thread;
 struct PacketConnection;
 
+typedef void (*ModuleInitModule)();
 typedef void (*ModuleLoadProxyHostNames)( LookupSet *lookupSet );
 typedef void (*ModuleSniffConfigureContext)( NetpConfigure *npc, Context *ctx );
 typedef void (*ModuleProxyConfigureContext)( NetpConfigure *npc, Context *ctx );
@@ -25,6 +26,7 @@ typedef void (*ModuleBrokerDispatchPacket)( SelectFd *fd, Recv &recv );
 
 struct Module
 {
+	ModuleInitModule initModule;
 	ModuleLoadProxyHostNames loadProxyHostNames;
 	ModuleSniffConfigureContext sniffConfigureContext;
 	ModuleProxyConfigureContext proxyConfigureContext;
@@ -38,6 +40,8 @@ struct Module
 struct ModuleList
 {
 	void loadModule( const char *fn );
+
+	void initModules();
 
 	void loadProxyHostNames( LookupSet *lookupSet );
 
@@ -55,6 +59,7 @@ struct ModuleList
 
 extern "C" {
 
+	void initModule();
 	void loadProxyHostNames( LookupSet *lookupSet );
 
 	void brokerDispatchPacket( SelectFd *fd, Recv &recv );

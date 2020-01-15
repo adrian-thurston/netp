@@ -214,6 +214,8 @@ int MainThread::service()
 
 	for ( OptStringEl *opt = moduleArgs.head; opt != 0; opt = opt->next )
 		moduleList.loadModule( opt->data );
+			
+	moduleList.initModules();
 
 	tlsStartup();
 	SSL_CTX *sslCtx = sslCtxServerInternal();

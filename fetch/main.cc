@@ -66,6 +66,8 @@ int MainThread::main()
 
 	for ( OptStringEl *opt = moduleArgs.head; opt != 0; opt = opt->next )
 		moduleList.loadModule( opt->data );
+
+	moduleList.initModules();
 	
 	tlsStartup();
 	SSL_CTX *ctxPublic = sslCtxClientPublic();

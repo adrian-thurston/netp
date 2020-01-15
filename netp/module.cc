@@ -2,15 +2,6 @@
 #include <genf/thread.h>
 #include "module.h"
 
-/* Not sure if this belongs in genf or netp, but here for now. */
-
-void (*_loadProxyHostNames)( LookupSet *lookupSet ) = 0;
-void (*_sniffConfigureContext)( NetpConfigure *npc, Context *ctx ) = 0;
-void (*_proxyConfigureContext)( NetpConfigure *npc, Context *ctx ) = 0;
-void (*_fetchConfigureContext)( NetpConfigure *npc, Context *ctx ) = 0;
-void (*_brokerDispatchPacket)( SelectFd *fd, Recv &recv ) = 0;
-void (*_fetchAllocFetchObjs)( FetchList *fetchList, NetpConfigure *npc, Thread *thread, SSL_CTX *sslCtx, PacketConnection *brokerConn ) = 0;
-
 void ModuleList::loadModule( const char *fn )
 {
 	void *dl = dlopen( fn, RTLD_NOW );
@@ -18,6 +9,10 @@ void ModuleList::loadModule( const char *fn )
 		log_FATAL( dlerror() );
 
 	Module *module = new Module;
+
+	module->initModule = (ModuleInitModule) dlsym( dl, "initModule" );
+	if ( module->initModule == NULL )
+		log_FATAL( dlerror() );
 
 	module->loadProxyHostNames = (ModuleLoadProxyHostNames) dlsym( dl, "loadProxyHostNames" );
 	if ( module->loadProxyHostNames == NULL )
@@ -44,6 +39,12 @@ void ModuleList::loadModule( const char *fn )
 		log_FATAL( dlerror() );
 
 	moduleList.append( module );
+}
+
+void ModuleList::initModules()
+{
+	for ( Module *module = moduleList.head; module != 0; module = module->next )
+		module->initModule();
 }
 
 void ModuleList::loadProxyHostNames( LookupSet *lookupSet )
