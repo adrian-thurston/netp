@@ -93,6 +93,31 @@ void MainThread::recvPing( SelectFd *fd, Record::Ping *pkt )
 {
 }
 
+void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
+{
+	static bool done = false;
+	if ( done )
+		return;
+	done = true;
+		
+	Struct *s = new Struct;
+
+	s->ID = pkt->numId;
+	for ( Record::PacketField f(pkt->rope, pkt->head_fields); f.valid(); f.advance() ) {
+		Field *field = new Field;
+		field->name = f.name;
+		field->type = f.type;
+		field->size = f.size;
+		field->offset = f.foffset;
+
+		log_message( field->name << ":" << field->type << ":" << field->offset );
+
+		s->fieldList.append( field );
+	}
+
+	structList.append( s );
+}
+
 void MainThread::recvSetRetain( SelectFd *fd, Record::SetRetain *pkt )
 {
 	Last *found = 0;
@@ -178,6 +203,21 @@ void MainThread::resendPacket( SelectFd *fd, Recv &recv )
 
 void MainThread::dispatchPacket( SelectFd *fd, Recv &recv )
 {
+	for ( Struct *s = structList.head; s != 0; s = s->next ) {
+		if ( s->ID == (int)recv.head->msgId ) {
+			for ( Field *f = s->fieldList.head; f != 0; f = f->next ) {
+				if ( f->type == 6 ) {
+					char *overlay = Thread::pktFind( &recv.buf,
+						sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+					char *str = Thread::pktFind( &recv.buf,
+						*((uint32_t*)(overlay + f->offset )) );
+	
+					log_message( f->name << ": " << str );
+				}
+			}
+		}
+	}
+
 	if ( replay != 0 ) {
 		//log_message( "dispatching packet" );
 		attached->selectFd->wantReadSet( false );
@@ -187,16 +227,19 @@ void MainThread::dispatchPacket( SelectFd *fd, Recv &recv )
 	}
 	else {
 		if ( recv.head->msgId == Record::Ping::ID ||
-				recv.head->msgId == Record::WantId::ID )
+				recv.head->msgId == Record::WantId::ID ||
+				recv.head->msgId == Record::PacketType::ID )
 		{
 			MainGen::dispatchPacket( fd, recv );
 		}
 		else {
 			moduleList.brokerDispatchPacket( fd, recv );
 
+			/* Warning: this consumes the rope! */
 			resendPacket( fd, recv );
 		}
 	}
+
 }
 
 void MainThread::handleTimer()

@@ -50,11 +50,31 @@ void generateCode( P: program )
 void addDefaultDefs( P: ref<program> )
 {
 	require P [DefList: definition*]
+
+	cons PacketType: packet_def
+		"packet PacketType
+		"{
+		"	int numId;
+		"	list<PacketField> fields;
+		"};
+	
+	PacketType.GlobalPacketId = 1
+
 	P = cons program [
 		"option bool background: -b --background;
 		"option string __debug: -D;
 		"option string list moduleArgs: --module;
 		"thread Main;
+		"
+		"struct PacketField
+		"{
+		"	string name;
+		"	int type;
+		"	int size;
+		"	int foffset;
+		"};
+		"
+		PacketType
 		DefList
 	]
 }

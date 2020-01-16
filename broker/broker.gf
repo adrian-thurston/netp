@@ -25,3 +25,4 @@ packet SetRetain       3;
 Main receives WantId;
 Main receives Ping;
 Main receives SetRetain;
+Main receives PacketType;

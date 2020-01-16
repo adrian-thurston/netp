@@ -80,8 +80,8 @@ def record_field_type
 |	[`long]     :Long
 |	[`ulong]    :UnsignedLong
 |	[`string]   :String
-|	[list_type] :List
 |	[`char `( number `)] :Char
+|	[list_type] :List
 
 def record_field_def
 	Offset: int
@@ -89,6 +89,9 @@ def record_field_def
 	[record_field_type id `;]
 
 def packet_def
+	# Can be used internally to define packets that every application can
+	# understand.
+	GlobalPacketId: int
 	[`packet id `{ record_field_def* `} `;]
 
 def packet_id

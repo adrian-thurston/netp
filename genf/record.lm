@@ -26,6 +26,99 @@ void definePack()
 	~	*((type*)(dest + off))
 }
 
+int fieldTypeCode( FD: record_field_def )
+{
+	Code: int
+	switch FD.record_field_type
+	case Bool
+		Code = 1
+	case Int
+		Code = 2
+	case UnsignedInt
+		Code = 3
+	case Long
+		Code = 4
+	case UnsignedLong
+		Code = 5
+	case String
+		Code = 6
+	case Char
+		Code = 7
+	case List
+		Code = 8
+	return Code
+}
+
+str fieldSize( FD: record_field_def )
+{
+	Size: str
+	switch FD.record_field_type
+	case Bool
+		Size = "sizeof(bool)"
+	case Int
+		Size = "sizeof(int)"
+	case UnsignedInt
+		Size = "sizeof(unsigned int)"
+	case Long
+		Size = "sizeof(long)"
+	case UnsignedLong
+		Size = "sizeof(unsigned long)"
+	case String
+		Size = "0"
+	case Char
+		Size = sprintf( "%d", FD.CharSize )
+	case List {
+		# If we are describing a list, then the size is the number of fields. They
+		# will appear immediately after this node in the field list description.
+		El: _struct = findStruct( FD.record_field_type.list_type.id )
+		Size = sprintf( "%d", El->NumFields )
+	}
+	return Size
+}
+
+int fieldTypeCode2( FD: struct_field_def )
+{
+	Code: int
+	switch FD.struct_field_type
+	case Bool
+		Code = 1
+	case Int
+		Code = 2
+	case UnsignedInt
+		Code = 3
+	case Long
+		Code = 4
+	case UnsignedLong
+		Code = 5
+	case String
+		Code = 6
+	case Char
+		Code = 7
+	return Code
+}
+
+str fieldSize2( FD: struct_field_def )
+{
+	Size: str
+	switch FD.struct_field_type
+	case Bool
+		Size = "sizeof(bool)"
+	case Int
+		Size = "sizeof(int)"
+	case UnsignedInt
+		Size = "sizeof(unsigned int)"
+	case Long
+		Size = "sizeof(long)"
+	case UnsignedLong
+		Size = "sizeof(unsigned long)"
+	case String
+		Size = "0"
+	case Char
+		Size = sprintf( "%d", FD.CharSize )
+	return Size
+}
+
+
 void generatePacketHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -57,6 +150,7 @@ void generatePacketHeader( P: program )
 	#
 
 	~namespace Packer {
+	~	struct PacketType;
 
 	for Struct: _struct in StructMap {
 		"struct [Struct->Id]
@@ -148,6 +242,9 @@ void generatePacketHeader( P: program )
 		"	{
 		"		PacketBase::send( &writer );
 		"	}
+		"
+		"	static void describe( Packer::PacketType &dest );
+		"
 		"	char *overlay;
 		"	void open( PacketWriter *writer );
 		"	static const unsigned short ID = [Packet->AppID * 1000 + Packet->NumID];
@@ -373,10 +470,35 @@ void generatePacketCode( P: program )
 
 		Lower: str = packet_name::makeLower( Packet->Id )
 
+
 		"const char Packer::[Packet->Id]::name\[\] = \"[Packet->Id]\";
 		"const char Packer::[Packet->Id]::lower\[\] = \"[Lower]\";
 		"
+		"void Packer::[Packet->Id]::describe( Packer::PacketType &dest )
+		"{
+			"	PacketField field;
+			"	dest.set_numId( [Packet->Id]::ID );
 
+			for FD: record_field_def in Packet->PacketDef {
+				"	dest.alloc_fields( field );
+				"	field.set_name( \"[FD.id]\" );
+				"	field.set_type( [fieldTypeCode( FD )] );
+				"	field.set_size( [fieldSize( FD )] );
+				"	field.set_foffset( [FD.Offset] );
+
+				if match FD.record_field_type [LT: list_type] {
+					El: _struct = findStruct( LT.id )
+					for FSD: struct_field_def in El->StructDef {
+						"	dest.alloc_fields( field );
+						"	field.set_name( \"[FSD.id]\" );
+						"	field.set_type( [fieldTypeCode2( FSD )] );
+						"	field.set_size( [fieldSize2( FSD )] );
+						"	field.set_foffset( [FSD.Offset] );
+						
+					}
+				}
+			}
+		"}
 	}
 
 	for Struct: _struct in StructMap {

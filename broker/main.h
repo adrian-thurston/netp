@@ -63,6 +63,27 @@ struct Last
 
 typedef DList<Last> LastList;
 
+struct Struct;
+struct Field
+{
+	std::string name;
+	int type;
+	int size;
+	int offset;
+	Struct *listOf;
+
+	Field *prev, *next;
+};
+
+struct Struct
+{
+	int ID;
+	DList<Field> fieldList;
+
+	Struct *prev, *next;
+};
+
+typedef DList<Struct> StructList;
 
 struct MainThread
 	: public MainGen
@@ -82,11 +103,13 @@ struct MainThread
 	void recvWantId( SelectFd *fd, Record::WantId *pkt );
 	void recvPing( SelectFd *fd, Record::Ping *pkt );
 	void recvSetRetain( SelectFd *fd, Record::SetRetain *pkt );
+	void recvPacketType( SelectFd *fd, Record::PacketType *pkt );
 
 	virtual void checkOptions();
 
 	BrokerConnectionList connList;
 	LastList lastList;
+	StructList structList;
 };
 
 #endif

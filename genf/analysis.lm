@@ -20,6 +20,7 @@ context _struct
 	StructDef: struct_def
 	NumID: int
 	AppID: int
+	NumFields: int
 	NextOffset: int
 	Size: int
 end
@@ -29,6 +30,7 @@ context packet
 	PacketDef: packet_def
 	NumID: int
 	AppID: int
+	NumFields: int
 	Size: int
 end
 
@@ -129,6 +131,7 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 	Struct->Id = $StructDef.id
 	Struct->AppID = ApplicationId
 
+	NumFields: int = 0
 	Offset: int = 0
 	for FD: struct_field_def in StructDef {
 		switch FD.struct_field_type
@@ -162,6 +165,7 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 			FD.Offset = Offset
 			Offset = Offset + FD.CharSize
 		}
+		NumFields = NumFields + 1
 	}
 
 	Struct->NextOffset = Offset
@@ -169,9 +173,9 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 	# Next pointer
 	Offset = Offset + 4
 
-	Struct->Size = Offset
-
 	Struct->StructDef = StructDef
+	Struct->NumFields = NumFields
+	Struct->Size = Offset
 
 	return Struct
 }
@@ -195,10 +199,19 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 {
 	Packet: packet = new packet()
 	Packet->Id = $PacketDef.id
-	Packet->AppID = ApplicationId
+
+	if PacketDef.GlobalPacketId != 0 {
+		Packet->AppID = 0
+		Packet->NumID = PacketDef.GlobalPacketId
+	}
+	else {
+		Packet->AppID = ApplicationId
+	}
+
 	Packet->PacketDef = PacketDef
 
 	Offset: int = 0
+	NumFields: int = 0
 	for FD: record_field_def in PacketDef {
 		switch FD.record_field_type
 		case Bool {
@@ -235,10 +248,12 @@ packet consPacket( PacketDef: packet_def, ApplicationId: int )
 			FD.Offset = Offset
 			Offset = Offset + FD.CharSize
 		}
+		NumFields = NumFields + 1
 	}
 
-	Packet->Size = Offset
 	Packet->PacketDef = PacketDef
+	Packet->NumFields = NumFields
+	Packet->Size = Offset
 
 	return Packet
 }
