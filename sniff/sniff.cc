@@ -142,10 +142,6 @@ void SniffThread::matchedDns( Packet *packet, char *toa )
 	struct kring_user *kring = &sniffThread->cmd;
 	kctrl_write_plain( kring, (char*)ss.str().c_str(), ss.str().size() + 1 );
 
-	Packer::PacketType type( sniffThread->sendsPassthru->writer );
-	Packer::KringRedirect::describe( type );
-	type.send();
-
 	/* Send out notification of the redirect. */
 	Packer::KringRedirect bkr( sniffThread->sendsPassthru->writer );
 	bkr.set_ip( toa );
