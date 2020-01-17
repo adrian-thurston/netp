@@ -104,6 +104,8 @@ AC_CONFIG_FILES([
 	tlsproxy/Makefile
 	fetch/Makefile
 	updown/Makefile
+	test/Makefile
+	test/describe1/Makefile
 ])
 
 AC_OUTPUT

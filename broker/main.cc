@@ -67,6 +67,7 @@ ClientConnection *BrokerListener::connectionFactory( int fd )
 	return bc;
 }
 
+
 void MainThread::recvWantId( SelectFd *fd, Record::WantId *pkt )
 {
 	//log_message( "recording want id: " << pkt->wantId );
@@ -95,11 +96,11 @@ void MainThread::recvPing( SelectFd *fd, Record::Ping *pkt )
 
 void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
 {
-	static bool done = false;
-	if ( done )
-		return;
-	done = true;
-		
+	StructMapEl *structMapEl = 0;
+	structMap.insert( pkt->numId, 0, &structMapEl );
+	if ( structMapEl->value != 0 )
+		delete structMapEl->value;
+
 	Struct *s = new Struct;
 
 	s->ID = pkt->numId;
@@ -110,12 +111,10 @@ void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
 		field->size = f.size;
 		field->offset = f.foffset;
 
-		log_message( field->name << ":" << field->type << ":" << field->offset );
-
 		s->fieldList.append( field );
 	}
 
-	structList.append( s );
+	structMapEl->value = s;
 }
 
 void MainThread::recvSetRetain( SelectFd *fd, Record::SetRetain *pkt )
@@ -135,7 +134,6 @@ void MainThread::recvSetRetain( SelectFd *fd, Record::SetRetain *pkt )
 
 	found->retain = pkt->retain;
 }
-
 
 void MainThread::resendPacket( SelectFd *fd, Recv &recv )
 {
@@ -203,17 +201,17 @@ void MainThread::resendPacket( SelectFd *fd, Recv &recv )
 
 void MainThread::dispatchPacket( SelectFd *fd, Recv &recv )
 {
-	for ( Struct *s = structList.head; s != 0; s = s->next ) {
-		if ( s->ID == (int)recv.head->msgId ) {
-			for ( Field *f = s->fieldList.head; f != 0; f = f->next ) {
-				if ( f->type == 6 ) {
-					char *overlay = Thread::pktFind( &recv.buf,
-						sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
-					char *str = Thread::pktFind( &recv.buf,
-						*((uint32_t*)(overlay + f->offset )) );
+	StructMapEl *db = structMap.find( recv.head->msgId );
+	if ( db != 0 ) {
+		Struct *s = db->value;
+		for ( Field *f = s->fieldList.head; f != 0; f = f->next ) {
+			if ( f->type == 6 ) {
+				char *overlay = Thread::pktFind( &recv.buf,
+					sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+				char *str = Thread::pktFind( &recv.buf,
+					*((uint32_t*)(overlay + f->offset )) );
 	
-					log_message( f->name << ": " << str );
-				}
+				log_message( f->name << ": " << str );
 			}
 		}
 	}

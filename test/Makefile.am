@@ -1,4 +1,4 @@
-SUBDIRS = app1
+SUBDIRS = describe1
 noinst_SCRIPTS = runtests
 
 runtests: runtests.sh Makefile

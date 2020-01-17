@@ -7,11 +7,15 @@
 #include <aapl/dlist.h>
 #include <aapl/bstset.h>
 #include <aapl/astring.h>
+#include <aapl/avlmap.h>
 #include <string>
 
+struct Struct;
 struct MainThread;
 
 typedef BstSet<long> WantIdSet;
+typedef AvlMap<int, Struct*> StructMap;
+typedef AvlMapEl<int, Struct*> StructMapEl;
 
 struct ClientConnection
 :
@@ -63,7 +67,6 @@ struct Last
 
 typedef DList<Last> LastList;
 
-struct Struct;
 struct Field
 {
 	std::string name;
@@ -109,7 +112,7 @@ struct MainThread
 
 	BrokerConnectionList connList;
 	LastList lastList;
-	StructList structList;
+	StructMap structMap;
 };
 
 #endif
