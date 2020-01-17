@@ -25,11 +25,18 @@ struct BrokerSendConnection
 	public PacketConnection
 {
 	BrokerSendConnection( MainThread *thread )
-		: PacketConnection(thread), mainThread(thread) {}
+	:
+		PacketConnection(thread),
+		mainThread(thread),
+		ready(false)
+	{}
 
 	MainThread *mainThread;
 
 	virtual void connectComplete();
+
+	void store();
+	bool ready;
 };
 
 void BrokerSendConnection::connectComplete()
@@ -42,17 +49,31 @@ void BrokerSendConnection::connectComplete()
 	Packer::StoreMe::describe( pt );
 	pt.send();
 
+	ready = true;
+
+	store();
+}
+
+void BrokerSendConnection::store()
+{
+	if ( !ready )
+		return;
+
 	Packer::StoreMe storeMe( this );
-	storeMe.set_field1( "hello" );
-	storeMe.set_field2( "friend" );
+	storeMe.set_b( true );
+	storeMe.set_i( -1 );
+	storeMe.set_ui( 2 );
+	storeMe.set_l( -3 );
+	storeMe.set_ul( 4 );
+	storeMe.set_s( "hello" );
+	storeMe.set_c( "1234567890" );
 	storeMe.send();
 }
 
 void MainThread::handleTimer()
 {
 	log_message( "timer" );
-	brokerConn->close();
-	breakLoop();
+	brokerConn->store();
 }
 
 int MainThread::main()

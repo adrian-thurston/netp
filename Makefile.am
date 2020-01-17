@@ -8,6 +8,7 @@ SUBDIRS =  \
 	sniff \
 	tlsproxy \
 	fetch \
-	updown
+	updown \
+	test
 
 ACLOCAL_AMFLAGS = -I m4

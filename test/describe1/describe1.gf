@@ -2,8 +2,13 @@ appid 51;
 
 packet StoreMe
 {
-	string field1;
-	string field2;
+	bool   b;
+	int    i;
+	uint   ui;
+	long   l;
+	ulong  ul;
+	string s;
+	char(10) c;
 };
 
 packet StoreMe 1;

@@ -11,13 +11,15 @@
 
 #include <iostream>
 
+struct BrokerSendConnection;
+
 struct MainThread
 :
 	public MainGen
 {
 	int main();
 
-	PacketConnection *brokerConn;
+	BrokerSendConnection *brokerConn;
 
 	virtual void handleTimer();
 };

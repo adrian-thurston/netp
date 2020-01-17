@@ -10,6 +10,8 @@
 #include <math.h>
 #include <netp/module.h>
 
+#include <curl/curl.h>
+
 Last::Last()
 :
 	retain(1),
@@ -98,13 +100,14 @@ void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
 {
 	/* Create the struct representation of the object. */
 	Struct *s = new Struct;
+	s->name = pkt->_name;
 	s->ID = pkt->numId;
 	for ( Record::PacketField f(pkt->rope, pkt->head_fields); f.valid(); f.advance() ) {
 		Field *field = new Field;
 		field->name = f.name;
 		field->type = f.type;
 		field->size = f.size;
-		field->offset = f.foffset;
+		field->offset = f._offset;
 
 		s->fieldList.append( field );
 	}
@@ -199,22 +202,190 @@ void MainThread::resendPacket( SelectFd *fd, Recv &recv )
 	feed.close();
 }
 
+void MainThread::stashBool( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	log_message( "fetching bool at " << f->offset );
+	bool b = *((bool*)(overlay + f->offset));
+
+	post << sep << f->name << "=\"" << ( b ? 't' : 'f' ) << "\"";
+
+	sep = ',';
+}
+
+void MainThread::stashInt( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	log_message( "fetching int at " << f->offset );
+	int i = *((int*)(overlay + f->offset));
+
+	post << sep << f->name << "=\"" << i << "\"";
+
+	sep = ',';
+}
+
+void MainThread::stashUnsignedInt( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	log_message( "fetching unsigned int at " << f->offset );
+	unsigned int ui = *((unsigned int*)(overlay + f->offset));
+
+	post << sep << f->name << "=\"" << ui << "\"";
+
+	sep = ',';
+}
+
+void MainThread::stashLong( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	log_message( "fetching long at " << f->offset );
+	long l = *((long*)(overlay + f->offset));
+
+	post << sep << f->name << "=\"" << l << "\"";
+
+	sep = ',';
+}
+
+void MainThread::stashUnsignedLong( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	log_message( "fetching unsgiend long at " << f->offset );
+	unsigned long ul = *((unsigned long*)(overlay + f->offset));
+
+	post << sep << f->name << "=\"" << ul << "\"";
+
+	sep = ',';
+}
+
+void MainThread::stashString( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	char *str = Thread::pktFind( &recv.buf,
+			*((uint32_t*)(overlay + f->offset)) );
+
+	post << sep << f->name << "=\"";
+
+	for ( char *p = str; *p != 0; p++ ) {
+		if ( *p == '"' )
+			post << '\\' << '"';
+		else
+			post << *p;
+	}
+	
+	post << "\"";
+	sep = ',';
+}
+
+void MainThread::stashChar( std::ostream &post, char &sep, Field *f, Recv &recv )
+{
+	char *overlay = Thread::pktFind( &recv.buf,
+			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+
+	char *str = ((char*)(overlay + f->offset));
+
+	post << sep << f->name << "=\"";
+
+	for ( int i = 0; i < f->size; i++ ) {
+		if ( str[i] == '"' )
+			post << '\\' << '"';
+		else
+			post << str[i];
+	}
+
+	post << "\"";
+	sep = ',';
+}
+
+void MainThread::stashInflux( Struct *_struct, Recv &recv )
+{
+	std::ostringstream post;
+	std::string writeUrl = "http://127.0.0.1:9999/api/v2/write"
+		"?org=thurston&bucket=curltest&precision=s";
+
+	char sep = ' ';
+	post << _struct->name;
+	for ( Field *f = _struct->fieldList.head; f != 0; f = f->next ) {
+		switch ( f->type ) {
+			case FieldTypeBool:
+				stashBool( post, sep, f, recv );
+				break;
+			case FieldTypeInt:
+				stashInt( post, sep, f, recv );
+				break;
+			case FieldTypeUnsignedInt:
+				stashUnsignedInt( post, sep, f, recv );
+				break;
+			case FieldTypeLong:
+				stashLong( post, sep, f, recv );
+				break;
+			case FieldTypeUnsignedLong:
+				stashUnsignedLong( post, sep, f, recv );
+				break;
+			case FieldTypeString:
+				stashString( post, sep, f, recv );
+				break;
+			case FieldTypeChar:
+				stashChar( post, sep, f, recv );
+				break;
+			case FieldTypeList:
+				break;
+		}
+	}
+
+	CURL *writeHandle = curl_easy_init();
+	curl_easy_setopt( writeHandle, CURLOPT_URL, writeUrl.c_str() );
+	curl_easy_setopt( writeHandle, CURLOPT_CONNECTTIMEOUT, 10 );
+	curl_easy_setopt( writeHandle, CURLOPT_TIMEOUT, 10 );
+	curl_easy_setopt( writeHandle, CURLOPT_POST, 1 );
+	curl_easy_setopt( writeHandle, CURLOPT_TCP_KEEPIDLE, 120L );
+	curl_easy_setopt( writeHandle, CURLOPT_TCP_KEEPINTVL, 60L );
+	FILE *devnull = fopen( "/dev/null", "w+" );
+	curl_easy_setopt( writeHandle, CURLOPT_WRITEDATA, devnull );
+
+	std::string auth = 
+		std::string("Authorization: Token ") + influxToken;
+
+	struct curl_slist *chunk = NULL;
+	chunk = curl_slist_append( chunk, auth.c_str() );
+								 
+	curl_easy_setopt( writeHandle, CURLOPT_HTTPHEADER, chunk );
+
+	CURLcode response;
+	long responseCode;
+
+	std::string str = post.str();
+
+	curl_easy_setopt( writeHandle, CURLOPT_POSTFIELDS, str.c_str() );
+	curl_easy_setopt( writeHandle, CURLOPT_POSTFIELDSIZE, (long) str.size() );
+	response = curl_easy_perform( writeHandle );
+	curl_easy_getinfo(writeHandle, CURLINFO_RESPONSE_CODE, &responseCode);
+	if ( response != CURLE_OK ) {
+		log_ERROR( "curl perform failed: " << response );
+	}
+	if ( responseCode < 200 || responseCode > 206 ) {
+		log_ERROR( "curl perform response code: " << responseCode );
+	}
+
+	curl_easy_cleanup( writeHandle );
+}
+
 void MainThread::dispatchPacket( SelectFd *fd, Recv &recv )
 {
 	StructMapEl *db = structMap.find( recv.head->msgId );
-	if ( db != 0 ) {
-		Struct *s = db->value;
-		for ( Field *f = s->fieldList.head; f != 0; f = f->next ) {
-			if ( f->type == 6 ) {
-				char *overlay = Thread::pktFind( &recv.buf,
-					sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
-				char *str = Thread::pktFind( &recv.buf,
-					*((uint32_t*)(overlay + f->offset )) );
-	
-				log_message( f->name << ": " << str );
-			}
-		}
-	}
+	if ( db != 0 )
+		stashInflux( db->value, recv );
 
 	if ( replay != 0 ) {
 		//log_message( "dispatching packet" );

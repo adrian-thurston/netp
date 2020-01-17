@@ -54,6 +54,7 @@ void addDefaultDefs( P: ref<program> )
 	cons PacketType: packet_def
 		"packet PacketType
 		"{
+		"	string _name;
 		"	int numId;
 		"	list<PacketField> fields;
 		"};
@@ -71,7 +72,7 @@ void addDefaultDefs( P: ref<program> )
 		"	string name;
 		"	int type;
 		"	int size;
-		"	int foffset;
+		"	int _offset;
 		"};
 		"
 		PacketType

@@ -85,6 +85,12 @@ SED_SUBST="$SED_SUBST -e 's|[@]SNIFF_BIN[@]|$SNIFF_BIN|g'"
 SED_SUBST="$SED_SUBST -e 's|[@]TLSPROXY_BIN[@]|$TLSPROXY_BIN|g'"
 SED_SUBST="$SED_SUBST -e 's|[@]FETCH_BIN[@]|$FETCH_BIN|g'"
 
+dnl
+dnl Curl Support.
+dnl
+AC_CHECK_HEADER([curl/curl.h], [], [AC_ERROR([unable to include curl/curl.h])])
+AC_CHECK_LIB([curl], [curl_global_init], [], [AC_ERROR([unable to link with -lcurl])])
+
 AC_SUBST(GENF)
 AC_SUBST(GENFFLAGS)
 AC_SUBST(KRING_SYMVERS)

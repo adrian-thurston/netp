@@ -13,6 +13,18 @@ struct PacketHeader
 
 typedef uint32_t PacketBlockHeader;
 
+enum PacketFieldType
+{
+	FieldTypeBool          = 1,
+	FieldTypeInt           = 2,
+	FieldTypeUnsignedInt   = 3,
+	FieldTypeLong          = 4,
+	FieldTypeUnsignedLong  = 5,
+	FieldTypeString        = 6,
+	FieldTypeChar          = 7,
+	FieldTypeList          = 8,
+};
+
 struct Recv
 {
 	Recv()

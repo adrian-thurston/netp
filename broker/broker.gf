@@ -2,6 +2,7 @@ appid 2;
 
 option string external: --external;
 option string replay: --replay;
+option string influxToken: --influx-token;
 
 packet Ping
 {

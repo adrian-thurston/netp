@@ -54,6 +54,7 @@ struct Field
 
 struct Struct
 {
+	std::string name;
 	int ID;
 	DList<Field> fieldList;
 
@@ -98,6 +99,7 @@ struct BrokerListener
 
 typedef DList<ClientConnection> BrokerConnectionList;
 
+
 struct MainThread
 	: public MainGen
 {
@@ -117,6 +119,15 @@ struct MainThread
 	void recvPing( SelectFd *fd, Record::Ping *pkt );
 	void recvSetRetain( SelectFd *fd, Record::SetRetain *pkt );
 	void recvPacketType( SelectFd *fd, Record::PacketType *pkt );
+
+	void stashBool( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashInt( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashUnsignedInt( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashLong( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashUnsignedLong( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashString( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashChar( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashInflux( Struct *_struct, Recv &recv );
 
 	virtual void checkOptions();
 
