@@ -133,8 +133,8 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 
 	NumFields: int = 0
 	Offset: int = 0
-	for FD: struct_field_def in StructDef {
-		switch FD.struct_field_type
+	for FD: record_field_def in StructDef {
+		switch FD.record_field_type
 		case Bool {
 			FD.Offset = Offset
 			Offset = Offset + 1

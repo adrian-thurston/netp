@@ -13,7 +13,54 @@
 struct Struct;
 struct MainThread;
 
+/* The set of messages a client wants to receive. */
 typedef BstSet<long> WantIdSet;
+
+/*
+ * Tracking most recently received messages so we can retransmit when a new
+ * client connects.
+ */
+
+struct Last
+{
+	Last();
+	~Last();
+
+	uint32_t msgId;
+	int retain;
+	Rope *msg;
+	int dest;
+	int have;
+
+	Last *prev, *next;
+};
+
+typedef DList<Last> LastList;
+
+/*
+ * Recording the structure of messages for writing to databases.
+ */
+
+struct Field
+{
+	std::string name;
+	int type;
+	int size;
+	int offset;
+	Struct *listOf;
+
+	Field *prev, *next;
+};
+
+struct Struct
+{
+	int ID;
+	DList<Field> fieldList;
+
+	Struct *prev, *next;
+};
+
+typedef DList<Struct> StructList;
 typedef AvlMap<int, Struct*> StructMap;
 typedef AvlMapEl<int, Struct*> StructMapEl;
 
@@ -50,43 +97,6 @@ struct BrokerListener
 };
 
 typedef DList<ClientConnection> BrokerConnectionList;
-
-struct Last
-{
-	Last();
-	~Last();
-
-	uint32_t msgId;
-	int retain;
-	Rope *msg;
-	int dest;
-	int have;
-
-	Last *prev, *next;
-};
-
-typedef DList<Last> LastList;
-
-struct Field
-{
-	std::string name;
-	int type;
-	int size;
-	int offset;
-	Struct *listOf;
-
-	Field *prev, *next;
-};
-
-struct Struct
-{
-	int ID;
-	DList<Field> fieldList;
-
-	Struct *prev, *next;
-};
-
-typedef DList<Struct> StructList;
 
 struct MainThread
 	: public MainGen

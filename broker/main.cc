@@ -96,13 +96,8 @@ void MainThread::recvPing( SelectFd *fd, Record::Ping *pkt )
 
 void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
 {
-	StructMapEl *structMapEl = 0;
-	structMap.insert( pkt->numId, 0, &structMapEl );
-	if ( structMapEl->value != 0 )
-		delete structMapEl->value;
-
+	/* Create the struct representation of the object. */
 	Struct *s = new Struct;
-
 	s->ID = pkt->numId;
 	for ( Record::PacketField f(pkt->rope, pkt->head_fields); f.valid(); f.advance() ) {
 		Field *field = new Field;
@@ -114,6 +109,11 @@ void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
 		s->fieldList.append( field );
 	}
 
+	/* Insert in the map. If it exists already, we replace it. */
+	StructMapEl *structMapEl = 0;
+	structMap.insert( pkt->numId, 0, &structMapEl );
+	if ( structMapEl->value != 0 )
+		delete structMapEl->value;
 	structMapEl->value = s;
 }
 

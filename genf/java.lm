@@ -95,8 +95,8 @@ void generateJava( P: program )
 		"			load();
 		"	}
 
-		for FD: struct_field_def in Struct->StructDef {
-			switch FD.struct_field_type
+		for FD: record_field_def in Struct->StructDef {
+			switch FD.record_field_type
 			case Bool {
 				"	public byte [FD.id];
 			}
@@ -145,8 +145,8 @@ void generateJava( P: program )
 		"	RecordPos recordPos = pktFind( this.record, this.offset );
 		"	
 
-		for FD: struct_field_def in Struct->StructDef {
-			switch FD.struct_field_type
+		for FD: record_field_def in Struct->StructDef {
+			switch FD.record_field_type
 			case Bool {
 				"	this.[FD.id] = recordPos.element\[[FD.Offset]\];
 			}
@@ -176,7 +176,7 @@ void generateJava( P: program )
 				"	}
 			}
 			case Char {
-				N: number = FD.struct_field_type.number
+				N: number = FD.record_field_type.number
 				"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
 				"		recordPos.offset + [FD.Offset],
 				"		recordPos.offset + [FD.Offset] + [N] );

@@ -53,23 +53,6 @@ def msg_field_def
 def message_def
 	[`message id `{ msg_field_def* `} `;]
 
-def struct_field_type
-	[`bool]    :Bool
-|	[`int]     :Int
-|	[`uint]    :UnsignedInt
-|	[`long]    :Long
-|	[`ulong]   :UnsignedLong
-|	[`string]  :String
-|	[`char `( number `)] :Char
-
-def struct_field_def
-	Offset: int
-	CharSize: int
-	[struct_field_type id `;]
-
-def struct_def
-	[`struct id `{ struct_field_def* `} `;]
-
 def list_type
 	[`list `< id `>]
 
@@ -87,6 +70,9 @@ def record_field_def
 	Offset: int
 	CharSize: int
 	[record_field_type id `;]
+
+def struct_def
+	[`struct id `{ record_field_def* `} `;]
 
 def packet_def
 	# Can be used internally to define packets that every application can

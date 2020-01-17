@@ -76,49 +76,6 @@ str fieldSize( FD: record_field_def )
 	return Size
 }
 
-int fieldTypeCode2( FD: struct_field_def )
-{
-	Code: int
-	switch FD.struct_field_type
-	case Bool
-		Code = 1
-	case Int
-		Code = 2
-	case UnsignedInt
-		Code = 3
-	case Long
-		Code = 4
-	case UnsignedLong
-		Code = 5
-	case String
-		Code = 6
-	case Char
-		Code = 7
-	return Code
-}
-
-str fieldSize2( FD: struct_field_def )
-{
-	Size: str
-	switch FD.struct_field_type
-	case Bool
-		Size = "sizeof(bool)"
-	case Int
-		Size = "sizeof(int)"
-	case UnsignedInt
-		Size = "sizeof(unsigned int)"
-	case Long
-		Size = "sizeof(long)"
-	case UnsignedLong
-		Size = "sizeof(unsigned long)"
-	case String
-		Size = "0"
-	case Char
-		Size = sprintf( "%d", FD.CharSize )
-	return Size
-}
-
-
 void generatePacketHeader( P: program )
 {
 	Output = new parser<out_c::out_c>()
@@ -156,8 +113,8 @@ void generatePacketHeader( P: program )
 		"struct [Struct->Id]
 		"{
 
-		for FD: struct_field_def in Struct->StructDef {
-			switch FD.struct_field_type
+		for FD: record_field_def in Struct->StructDef {
+			switch FD.record_field_type
 			case [`bool] {
 				"	void set_[FD.id]( long _[FD.id] )
 				"		{ _pack( bool, overlay, [FD.Offset] ) = _[FD.id]; }
@@ -268,8 +225,8 @@ void generatePacketHeader( P: program )
 		"{
 		"	[Struct->Id]( Rope *rope, long offset );
 
-		for FD: struct_field_def in Struct->StructDef {
-			switch FD.struct_field_type
+		for FD: record_field_def in Struct->StructDef {
+			switch FD.record_field_type
 			case [`bool] {
 				"	bool [FD.id];
 			}
@@ -406,8 +363,8 @@ void generatePacketCode( P: program )
 	definePack()
 
 	for Struct: _struct in StructMap {
-		for FD: struct_field_def in Struct->StructDef {
-			switch FD.struct_field_type
+		for FD: record_field_def in Struct->StructDef {
+			switch FD.record_field_type
 			case String {
 				"void Packer::[Struct->Id]::set_[FD.id]( const char *src )
 				"{
@@ -488,12 +445,12 @@ void generatePacketCode( P: program )
 
 				if match FD.record_field_type [LT: list_type] {
 					El: _struct = findStruct( LT.id )
-					for FSD: struct_field_def in El->StructDef {
+					for SFD: record_field_def in El->StructDef {
 						"	dest.alloc_fields( field );
-						"	field.set_name( \"[FSD.id]\" );
-						"	field.set_type( [fieldTypeCode2( FSD )] );
-						"	field.set_size( [fieldSize2( FSD )] );
-						"	field.set_foffset( [FSD.Offset] );
+						"	field.set_name( \"[SFD.id]\" );
+						"	field.set_type( [fieldTypeCode( SFD )] );
+						"	field.set_size( [fieldSize( SFD )] );
+						"	field.set_foffset( [SFD.Offset] );
 						
 					}
 				}
@@ -524,11 +481,11 @@ void generatePacketCode( P: program )
 		"void Record::[Struct->Id]::load()
 		"{
 		
-		if struct_field_def in Struct->StructDef {
+		if record_field_def in Struct->StructDef {
 			"	char *overlay = Thread::pktFind( rope, offset );
 
-			for FD: struct_field_def in Struct->StructDef {
-				switch FD.struct_field_type
+			for FD: record_field_def in Struct->StructDef {
+				switch FD.record_field_type
 				case Bool
 					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
 				case Int
