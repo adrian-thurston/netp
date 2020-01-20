@@ -55,7 +55,7 @@ void addDefaultDefs( P: ref<program> )
 		"struct PacketField
 		"{
 		"	string name;
-		"	bool isKey;
+		"	bool _tag;
 		"	int type;
 		"	int size;
 		"	int _offset;

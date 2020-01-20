@@ -2,7 +2,7 @@ appid 51;
 
 struct Record
 {
-	key string t;
+	tag string t;
 
 	bool     b;
 	int      i;
@@ -15,7 +15,7 @@ struct Record
 
 packet StoreMe
 {
-	key string s;
+	tag string s;
 	list<Record> records;
 };
 

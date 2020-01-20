@@ -44,7 +44,7 @@ typedef DList<Last> LastList;
 struct Field
 {
 	std::string name;
-	bool key;
+	bool tag;
 	int type;
 	int size;
 	int offset;
@@ -134,10 +134,11 @@ struct MainThread
 	void stashUnsignedInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
 	void stashLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
 	void stashUnsignedLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
-	void stashString( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashString( std::ostream &post, char &sep, uint32_t base,
+			bool tags, Field *f, Recv &recv );
 	void stashChar( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
 	void stashFieldList( std::ostream &post, char &sep,
-			uint32_t base, bool keys,
+			uint32_t base, bool tags,
 			const FieldList &fieldList, Recv &recv );
 	void stashStruct( std::ostream &post, Struct *_struct, Recv &recv );
 
