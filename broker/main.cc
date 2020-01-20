@@ -99,10 +99,10 @@ void MainThread::recvPing( SelectFd *fd, Record::Ping *pkt )
 void MainThread::readStruct( Struct *s, Record::PacketField &fieldIter, int numFields  )
 {
 	while ( numFields > 0 && fieldIter.valid() ) {
-	
 		/* Collect the field. */
 		Field *field = new Field;
 		field->name = fieldIter.name;
+		field->key = fieldIter.isKey;
 		field->type = fieldIter.type;
 		field->size = fieldIter.size;
 		field->offset = fieldIter._offset;
@@ -326,86 +326,102 @@ void MainThread::stashChar( std::ostream &post, char &sep, uint32_t base, Field 
 }
 
 void MainThread::stashFieldList( std::ostream &post, char &sep,
-		uint32_t base, const FieldList &fieldList, Recv &recv )
+		uint32_t base, bool keys, const FieldList &fieldList, Recv &recv )
 {
 	for ( Field *f = fieldList.head; f != 0; f = f->next ) {
-		switch ( f->type ) {
-			case FieldTypeBool:
-				stashBool( post, sep, base, f, recv );
-				break;
-			case FieldTypeInt:
-				stashInt( post, sep, base, f, recv );
-				break;
-			case FieldTypeUnsignedInt:
-				stashUnsignedInt( post, sep, base, f, recv );
-				break;
-			case FieldTypeLong:
-				stashLong( post, sep, base, f, recv );
-				break;
-			case FieldTypeUnsignedLong:
-				stashUnsignedLong( post, sep, base, f, recv );
-				break;
-			case FieldTypeString:
-				stashString( post, sep, base, f, recv );
-				break;
-			case FieldTypeChar:
-				stashChar( post, sep, base, f, recv );
-				break;
-			case FieldTypeList:
-				/* Not including these explicitly. */
-				break;
+		if ( ! ( keys xor f->key ) ) {
+			switch ( f->type ) {
+				case FieldTypeBool:
+					stashBool( post, sep, base, f, recv );
+					break;
+				case FieldTypeInt:
+					stashInt( post, sep, base, f, recv );
+					break;
+				case FieldTypeUnsignedInt:
+					stashUnsignedInt( post, sep, base, f, recv );
+					break;
+				case FieldTypeLong:
+					stashLong( post, sep, base, f, recv );
+					break;
+				case FieldTypeUnsignedLong:
+					stashUnsignedLong( post, sep, base, f, recv );
+					break;
+				case FieldTypeString:
+					stashString( post, sep, base, f, recv );
+					break;
+				case FieldTypeChar:
+					stashChar( post, sep, base, f, recv );
+					break;
+				case FieldTypeList:
+					/* Not including these explicitly. */
+					break;
+			}
 		}
 	}
 }
 
-void MainThread::stashStruct( std::ostream &post, Struct *_struct, Recv &recv )
+void MainThread::stashStruct( std::ostream &post, Struct *strct, Recv &recv )
 {
+	char sep;
 	const uint32_t headerSize = sizeof(PacketBlockHeader) + sizeof(PacketHeader);
 
-	if ( _struct->hasList != 0 ) {
+	if ( strct->hasList != 0 ) {
 
+		/* Locate offset of the head by reading the field. */
 		char *overlay = Thread::pktFind( &recv.buf, headerSize );
+		uint32_t itemOffset = *((uint32_t*)( overlay + strct->hasList->offset ));
 
-		uint32_t offset = *((uint32_t*)( overlay + _struct->hasList->offset ));
+		while ( itemOffset != 0 ) {
+			log_message( "stash item from " << itemOffset );
 
-		while ( offset != 0 ) {
-			log_message( "stash item from " << offset );
+			post << strct->name;
 
-			post << _struct->name;
+			sep = ',';
 
-			char firstSep = ' ';
+			stashFieldList( post, sep, headerSize,
+					true, strct->fieldList, recv );
 
-			stashFieldList( post, firstSep, headerSize,
-					_struct->fieldList, recv );
+			stashFieldList( post, sep, itemOffset,
+					true, strct->hasList->listOf->fieldList, recv );
 
-			overlay = Thread::pktFind( &recv.buf, offset );
+			sep = ' ';
 
-			stashFieldList( post, firstSep, offset,
-					_struct->hasList->listOf->fieldList, recv );
+			stashFieldList( post, sep, headerSize,
+					false, strct->fieldList, recv );
+
+			stashFieldList( post, sep, itemOffset,
+					false, strct->hasList->listOf->fieldList, recv );
 
 			post << "\n";
 
-			/* Next pointer offset 0 */
-			offset = *((uint32_t*)( overlay + 0 ));
+			/* Next pointer is offset 0 from the offset of the item. */
+			char *overlay = Thread::pktFind( &recv.buf, itemOffset );
+			itemOffset = *((uint32_t*)( overlay + 0 ));
 		}
 	}
 	else {
-		post << _struct->name;
-		char firstSep = ' ';
-		stashFieldList( post, firstSep, headerSize,
-				_struct->fieldList, recv );
+		post << strct->name;
+		sep = ',';
+
+		stashFieldList( post, sep, headerSize,
+				false, strct->fieldList, recv );
+
+		sep = ' ';
+
+		stashFieldList( post, sep, headerSize,
+				false, strct->fieldList, recv );
 	}
 }
 
-void MainThread::stashInflux( Struct *_struct, Recv &recv )
+void MainThread::stashInflux( Struct *strct, Recv &recv )
 {
 	std::ostringstream post;
 	std::string writeUrl = "http://127.0.0.1:9999/api/v2/write"
 		"?org=thurston&bucket=curltest&precision=s";
 
-	stashStruct( post, _struct, recv );
+	stashStruct( post, strct, recv );
 
-	//log_message( "posting:\n" << post.str() );
+	log_message( "posting:\n" << post.str() );
 
 	CURL *writeHandle = curl_easy_init();
 	curl_easy_setopt( writeHandle, CURLOPT_URL, writeUrl.c_str() );

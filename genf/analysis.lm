@@ -133,7 +133,10 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 
 	Offset: int = 0
 
-	# Put the next pointer at the head of the struct.
+	# Put the next pointer at the head of the struct. We will depend on this
+	# behaviour when we iterate generic. We only do this when the packet is
+	# described, so an alternative would be to include the next pointer offset
+	# in the packet description.
 	Struct->NextOffset = Offset
 	Offset = Offset + 4
 

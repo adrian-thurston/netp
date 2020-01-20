@@ -50,6 +50,16 @@ void generateCode( P: program )
 void addDefaultDefs( P: ref<program> )
 {
 	require P [DefList: definition*]
+	
+	cons PacketField: struct_def
+		"struct PacketField
+		"{
+		"	string name;
+		"	bool isKey;
+		"	int type;
+		"	int size;
+		"	int _offset;
+		"};
 
 	cons PacketType: packet_def
 		"packet PacketType
@@ -68,14 +78,8 @@ void addDefaultDefs( P: ref<program> )
 		"option string list moduleArgs: --module;
 		"thread Main;
 		"
-		"struct PacketField
-		"{
-		"	string name;
-		"	int type;
-		"	int size;
-		"	int _offset;
-		"};
 		"
+		PacketField
 		PacketType
 		DefList
 	]

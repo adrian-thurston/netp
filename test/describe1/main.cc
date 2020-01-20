@@ -65,6 +65,7 @@ void BrokerSendConnection::store()
 	Packer::Record record;
 
 	storeMe.alloc_records( record );
+	record.set_t( "calgary" );
 	record.set_b( true );
 	record.set_i( -1 );
 	record.set_ui( 2 );
@@ -74,6 +75,7 @@ void BrokerSendConnection::store()
 	record.set_c( "1234567890" );
 
 	storeMe.alloc_records( record );
+	record.set_t( "vancouver" );
 	record.set_b( false );
 	record.set_i( -10 );
 	record.set_ui( 20 );

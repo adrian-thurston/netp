@@ -4,6 +4,7 @@ lex
 	literal `bool `string `int `uint `long `ulong `attribute
 	literal `starts `sends `to `receives `show `store `kobj
 	literal `debug `use `import `appid `list `caps `struct
+	literal `key
 	literal `: `; `{ `} `, `( `) `* `< `>
 
 	token id /[_a-zA-Z][_a-zA-Z0-9]*/
@@ -66,10 +67,14 @@ def record_field_type
 |	[`char `( number `)] :Char
 |	[list_type] :List
 
+def opt_key
+	[`key]
+|	[]
+
 def record_field_def
 	Offset: int
 	CharSize: int
-	[record_field_type id `;]
+	[opt_key record_field_type id `;]
 
 def struct_def
 	[`struct id `{ record_field_def* `} `;]

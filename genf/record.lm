@@ -428,7 +428,6 @@ void generatePacketCode( P: program )
 
 		Lower: str = packet_name::makeLower( Packet->Id )
 
-
 		"const char Packer::[Packet->Id]::name\[\] = \"[Packet->Id]\";
 		"const char Packer::[Packet->Id]::lower\[\] = \"[Lower]\";
 		"
@@ -445,6 +444,9 @@ void generatePacketCode( P: program )
 				"	dest.alloc_fields( field );
 				"	field.set_name( \"[FD.id]\" );
 				"	field.set_type( [fieldTypeCode( FD )] );
+				if ! match FD.opt_key [] {
+					"	field.set_isKey( true );
+				}
 				"	field.set_size( [fieldSize( FD )] );
 				"	field.set__offset( [FD.Offset] );
 
@@ -454,6 +456,9 @@ void generatePacketCode( P: program )
 						"	dest.alloc_fields( field );
 						"	field.set_name( \"[SFD.id]\" );
 						"	field.set_type( [fieldTypeCode( SFD )] );
+						if ! match SFD.opt_key [] {
+							"	field.set_isKey( true );
+						}
 						"	field.set_size( [fieldSize( SFD )] );
 						"	field.set__offset( [SFD.Offset] );
 					}
