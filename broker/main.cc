@@ -96,21 +96,45 @@ void MainThread::recvPing( SelectFd *fd, Record::Ping *pkt )
 {
 }
 
+void MainThread::readStruct( Struct *s, Record::PacketField &fieldIter, int numFields  )
+{
+	while ( numFields > 0 && fieldIter.valid() ) {
+	
+		/* Collect the field. */
+		Field *field = new Field;
+		field->name = fieldIter.name;
+		field->type = fieldIter.type;
+		field->size = fieldIter.size;
+		field->offset = fieldIter._offset;
+
+		log_message( "read: " << field->name );
+
+		s->fieldList.append( field );
+
+		numFields -= 1;
+		fieldIter.advance();
+
+		/* If the field type is list, the fields of the list's structure appear
+		 * immediately after the field descriptor. The size tells us how many
+		 * fields. */
+		if ( field->type == FieldTypeList ) {
+			log_message( "going into list" );
+			field->listOf = new Struct;
+			readStruct( field->listOf, fieldIter, field->size );
+			s->hasList = field;
+		}
+	}
+}
+
 void MainThread::recvPacketType( SelectFd *fd, Record::PacketType *pkt )
 {
 	/* Create the struct representation of the object. */
 	Struct *s = new Struct;
 	s->name = pkt->_name;
 	s->ID = pkt->numId;
-	for ( Record::PacketField f(pkt->rope, pkt->head_fields); f.valid(); f.advance() ) {
-		Field *field = new Field;
-		field->name = f.name;
-		field->type = f.type;
-		field->size = f.size;
-		field->offset = f._offset;
 
-		s->fieldList.append( field );
-	}
+	Record::PacketField fieldIter(pkt->rope, pkt->head_fields);
+	readStruct( s, fieldIter, pkt->numFields );
 
 	/* Insert in the map. If it exists already, we replace it. */
 	StructMapEl *structMapEl = 0;
@@ -202,10 +226,9 @@ void MainThread::resendPacket( SelectFd *fd, Recv &recv )
 	feed.close();
 }
 
-void MainThread::stashBool( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashBool( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	log_message( "fetching bool at " << f->offset );
 	bool b = *((bool*)(overlay + f->offset));
@@ -215,10 +238,9 @@ void MainThread::stashBool( std::ostream &post, char &sep, Field *f, Recv &recv 
 	sep = ',';
 }
 
-void MainThread::stashInt( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	log_message( "fetching int at " << f->offset );
 	int i = *((int*)(overlay + f->offset));
@@ -228,10 +250,9 @@ void MainThread::stashInt( std::ostream &post, char &sep, Field *f, Recv &recv )
 	sep = ',';
 }
 
-void MainThread::stashUnsignedInt( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashUnsignedInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	log_message( "fetching unsigned int at " << f->offset );
 	unsigned int ui = *((unsigned int*)(overlay + f->offset));
@@ -241,10 +262,9 @@ void MainThread::stashUnsignedInt( std::ostream &post, char &sep, Field *f, Recv
 	sep = ',';
 }
 
-void MainThread::stashLong( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	log_message( "fetching long at " << f->offset );
 	long l = *((long*)(overlay + f->offset));
@@ -254,10 +274,9 @@ void MainThread::stashLong( std::ostream &post, char &sep, Field *f, Recv &recv 
 	sep = ',';
 }
 
-void MainThread::stashUnsignedLong( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashUnsignedLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	log_message( "fetching unsgiend long at " << f->offset );
 	unsigned long ul = *((unsigned long*)(overlay + f->offset));
@@ -267,10 +286,9 @@ void MainThread::stashUnsignedLong( std::ostream &post, char &sep, Field *f, Rec
 	sep = ',';
 }
 
-void MainThread::stashString( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashString( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	char *str = Thread::pktFind( &recv.buf,
 			*((uint32_t*)(overlay + f->offset)) );
@@ -288,10 +306,9 @@ void MainThread::stashString( std::ostream &post, char &sep, Field *f, Recv &rec
 	sep = ',';
 }
 
-void MainThread::stashChar( std::ostream &post, char &sep, Field *f, Recv &recv )
+void MainThread::stashChar( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
 {
-	char *overlay = Thread::pktFind( &recv.buf,
-			sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
+	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	char *str = ((char*)(overlay + f->offset));
 
@@ -308,41 +325,87 @@ void MainThread::stashChar( std::ostream &post, char &sep, Field *f, Recv &recv 
 	sep = ',';
 }
 
+void MainThread::stashFieldList( std::ostream &post, char &sep,
+		uint32_t base, const FieldList &fieldList, Recv &recv )
+{
+	for ( Field *f = fieldList.head; f != 0; f = f->next ) {
+		switch ( f->type ) {
+			case FieldTypeBool:
+				stashBool( post, sep, base, f, recv );
+				break;
+			case FieldTypeInt:
+				stashInt( post, sep, base, f, recv );
+				break;
+			case FieldTypeUnsignedInt:
+				stashUnsignedInt( post, sep, base, f, recv );
+				break;
+			case FieldTypeLong:
+				stashLong( post, sep, base, f, recv );
+				break;
+			case FieldTypeUnsignedLong:
+				stashUnsignedLong( post, sep, base, f, recv );
+				break;
+			case FieldTypeString:
+				stashString( post, sep, base, f, recv );
+				break;
+			case FieldTypeChar:
+				stashChar( post, sep, base, f, recv );
+				break;
+			case FieldTypeList:
+				/* Not including these explicitly. */
+				break;
+		}
+	}
+}
+
+void MainThread::stashStruct( std::ostream &post, Struct *_struct, Recv &recv )
+{
+	const uint32_t headerSize = sizeof(PacketBlockHeader) + sizeof(PacketHeader);
+
+	if ( _struct->hasList != 0 ) {
+
+		char *overlay = Thread::pktFind( &recv.buf, headerSize );
+
+		uint32_t offset = *((uint32_t*)( overlay + _struct->hasList->offset ));
+
+		while ( offset != 0 ) {
+			log_message( "stash item from " << offset );
+
+			post << _struct->name;
+
+			char firstSep = ' ';
+
+			stashFieldList( post, firstSep, headerSize,
+					_struct->fieldList, recv );
+
+			overlay = Thread::pktFind( &recv.buf, offset );
+
+			stashFieldList( post, firstSep, offset,
+					_struct->hasList->listOf->fieldList, recv );
+
+			post << "\n";
+
+			/* Next pointer offset 0 */
+			offset = *((uint32_t*)( overlay + 0 ));
+		}
+	}
+	else {
+		post << _struct->name;
+		char firstSep = ' ';
+		stashFieldList( post, firstSep, headerSize,
+				_struct->fieldList, recv );
+	}
+}
+
 void MainThread::stashInflux( Struct *_struct, Recv &recv )
 {
 	std::ostringstream post;
 	std::string writeUrl = "http://127.0.0.1:9999/api/v2/write"
 		"?org=thurston&bucket=curltest&precision=s";
 
-	char sep = ' ';
-	post << _struct->name;
-	for ( Field *f = _struct->fieldList.head; f != 0; f = f->next ) {
-		switch ( f->type ) {
-			case FieldTypeBool:
-				stashBool( post, sep, f, recv );
-				break;
-			case FieldTypeInt:
-				stashInt( post, sep, f, recv );
-				break;
-			case FieldTypeUnsignedInt:
-				stashUnsignedInt( post, sep, f, recv );
-				break;
-			case FieldTypeLong:
-				stashLong( post, sep, f, recv );
-				break;
-			case FieldTypeUnsignedLong:
-				stashUnsignedLong( post, sep, f, recv );
-				break;
-			case FieldTypeString:
-				stashString( post, sep, f, recv );
-				break;
-			case FieldTypeChar:
-				stashChar( post, sep, f, recv );
-				break;
-			case FieldTypeList:
-				break;
-		}
-	}
+	stashStruct( post, _struct, recv );
+
+	//log_message( "posting:\n" << post.str() );
 
 	CURL *writeHandle = curl_easy_init();
 	curl_easy_setopt( writeHandle, CURLOPT_URL, writeUrl.c_str() );
@@ -384,8 +447,14 @@ void MainThread::stashInflux( Struct *_struct, Recv &recv )
 void MainThread::dispatchPacket( SelectFd *fd, Recv &recv )
 {
 	StructMapEl *db = structMap.find( recv.head->msgId );
-	if ( db != 0 )
-		stashInflux( db->value, recv );
+	if ( db != 0 ) {
+		if ( influxToken != 0 ) {
+			stashInflux( db->value, recv );
+		}
+		else {
+			log_ERROR( "received packet for influx, but --influx-token specied" );
+		}
+	}
 
 	if ( replay != 0 ) {
 		//log_message( "dispatching packet" );

@@ -131,8 +131,13 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 	Struct->Id = $StructDef.id
 	Struct->AppID = ApplicationId
 
-	NumFields: int = 0
 	Offset: int = 0
+
+	# Put the next pointer at the head of the struct.
+	Struct->NextOffset = Offset
+	Offset = Offset + 4
+
+	NumFields: int = 0
 	for FD: record_field_def in StructDef {
 		switch FD.record_field_type
 		case Bool {
@@ -167,11 +172,6 @@ _struct consStruct( StructDef: struct_def, ApplicationId: int )
 		}
 		NumFields = NumFields + 1
 	}
-
-	Struct->NextOffset = Offset
-
-	# Next pointer
-	Offset = Offset + 4
 
 	Struct->StructDef = StructDef
 	Struct->NumFields = NumFields

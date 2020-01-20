@@ -60,13 +60,28 @@ void BrokerSendConnection::store()
 		return;
 
 	Packer::StoreMe storeMe( this );
-	storeMe.set_b( true );
-	storeMe.set_i( -1 );
-	storeMe.set_ui( 2 );
-	storeMe.set_l( -3 );
-	storeMe.set_ul( 4 );
-	storeMe.set_s( "hello" );
-	storeMe.set_c( "1234567890" );
+	storeMe.set_s( "vilnius" );
+
+	Packer::Record record;
+
+	storeMe.alloc_records( record );
+	record.set_b( true );
+	record.set_i( -1 );
+	record.set_ui( 2 );
+	record.set_l( -3 );
+	record.set_ul( 4 );
+	record.set_s( "hello" );
+	record.set_c( "1234567890" );
+
+	storeMe.alloc_records( record );
+	record.set_b( false );
+	record.set_i( -10 );
+	record.set_ui( 20 );
+	record.set_l( -30 );
+	record.set_ul( 40 );
+	record.set_s( "there" );
+	record.set_c( "9876543210" );
+
 	storeMe.send();
 }
 

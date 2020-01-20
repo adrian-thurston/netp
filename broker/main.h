@@ -52,11 +52,17 @@ struct Field
 	Field *prev, *next;
 };
 
+typedef DList<Field> FieldList;
+
 struct Struct
 {
+	Struct()
+		: ID(0), hasList(0) {}
+
 	std::string name;
 	int ID;
-	DList<Field> fieldList;
+	FieldList fieldList;
+	Field *hasList;
 
 	Struct *prev, *next;
 };
@@ -118,15 +124,21 @@ struct MainThread
 	void recvWantId( SelectFd *fd, Record::WantId *pkt );
 	void recvPing( SelectFd *fd, Record::Ping *pkt );
 	void recvSetRetain( SelectFd *fd, Record::SetRetain *pkt );
+
+	void readStruct( Struct *s, Record::PacketField &iter, int numFields );
 	void recvPacketType( SelectFd *fd, Record::PacketType *pkt );
 
-	void stashBool( std::ostream &post, char &sep, Field *f, Recv &recv );
-	void stashInt( std::ostream &post, char &sep, Field *f, Recv &recv );
-	void stashUnsignedInt( std::ostream &post, char &sep, Field *f, Recv &recv );
-	void stashLong( std::ostream &post, char &sep, Field *f, Recv &recv );
-	void stashUnsignedLong( std::ostream &post, char &sep, Field *f, Recv &recv );
-	void stashString( std::ostream &post, char &sep, Field *f, Recv &recv );
-	void stashChar( std::ostream &post, char &sep, Field *f, Recv &recv );
+	void stashBool( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashUnsignedInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashUnsignedLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashString( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashChar( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
+	void stashFieldList( std::ostream &post, char &sep,
+			uint32_t base, const FieldList &fieldList, Recv &recv );
+	void stashStruct( std::ostream &post, Struct *_struct, Recv &recv );
+
 	void stashInflux( Struct *_struct, Recv &recv );
 
 	virtual void checkOptions();
