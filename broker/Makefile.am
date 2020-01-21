@@ -10,7 +10,7 @@ broker_SOURCES = \
 	main.h main.cc itq.h \
 	$(BUILT_SOURCES)
 
-broker_LDADD = -lgenf -lpthread -lssl -lcrypto -lnetp -lpcap
+broker_LDADD = -lgenf -lpthread -lssl -lcrypto -lparse -lpcap
 
 BUILT_SOURCES = \
 	main_gen.h \

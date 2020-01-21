@@ -15,7 +15,7 @@ fetch_SOURCES = \
 	$(BUILT_SOURCES) \
 	main.h main.cc itq.h fetch.h 
 
-fetch_LDADD = -lnetp -lgenf -lpthread -lssl -lcrypto -lpcap -lkring -ldl
+fetch_LDADD = -lparse -lgenf -lpthread -lssl -lcrypto -lpcap -lkring -ldl
   
 BUILT_SOURCES = \
 	itq_gen.h \

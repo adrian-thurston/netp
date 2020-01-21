@@ -1,7 +1,7 @@
 #ifndef _NETP_PATTERN_H
 #define _NETP_PATTERN_H
 
-#include "netp.h"
+#include "parse.h"
 #include <aapl/dlist.h>
 
 struct PatNode

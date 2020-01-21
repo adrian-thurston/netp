@@ -23,7 +23,7 @@ sniff_BUILT_SOURCES = \
 
 BUILT_SOURCES = $(sniff_BUILT_SOURCES) genf.h
 
-sniff_LDADD = -lnetp -lgenf -lpthread -lssl -lcrypto -lpcap -lkring
+sniff_LDADD = -lparse -lgenf -lpthread -lssl -lcrypto -lpcap -lkring
 
 pkgdata_DATA = sniff.gf
 

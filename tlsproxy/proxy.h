@@ -12,7 +12,7 @@
 #include <aapl/astring.h>
 #include <aapl/avlmap.h>
 #include <kring/kring.h>
-#include <netp/netp.h>
+#include <parse/parse.h>
 
 #define EC_SOCKET_CONNECT_FAILED        104
 #define EC_SSL_PEER_FAILED_VERIFY       100

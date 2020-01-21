@@ -23,7 +23,7 @@ tlsproxy_SOURCES = \
 	crypto.cc itq.h \
 	$(BUILT_SOURCES)
 
-tlsproxy_LDADD = -lnetp -lgenf -lgenf -lpthread -lssl -lcrypto -lpcap -lkring
+tlsproxy_LDADD = -lparse -lgenf -lgenf -lpthread -lssl -lcrypto -lpcap -lkring
 
 BUILT_SOURCES = \
 	main_gen.h main_gen.cc \

@@ -1,7 +1,7 @@
 #include "main.h"
 #include "itq_gen.h"
 #include "packet_gen.h"
-#include "netp.h"
+#include "parse.h"
 #include "pattern.h"
 
 #include <unistd.h>

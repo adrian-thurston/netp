@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iomanip>
 
-#include "netp.h"
+#include "parse.h"
 #include "itq_gen.h"
 
 void ParseReport::dumpRoot( std::ostream &out, Node *node )

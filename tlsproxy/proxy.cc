@@ -1,7 +1,7 @@
 #include "proxy.h"
 #include "main.h"
-#include <netp/pattern.h>
-#include <netp/module.h>
+#include <parse/pattern.h>
+#include <parse/module.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>

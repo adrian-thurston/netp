@@ -2,7 +2,7 @@
 #define _SNIFF_H
 
 #include <kring/kring.h>
-#include <netp/netp.h>
+#include <parse/parse.h>
 
 #include "sniff_gen.h"
 #include "packet.h"

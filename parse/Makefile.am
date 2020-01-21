@@ -3,24 +3,24 @@ GENF = @GENF@
 RAGEL = @RAGEL@
 COLM = @COLM@
 
-noinst_PROGRAMS = netp
+noinst_PROGRAMS = parse
 
-lib_LTLIBRARIES = libnetp.la
+lib_LTLIBRARIES = libparse.la
 
-netpincdir = $(includedir)/netp
+parseincdir = $(includedir)/parse
 
-netpinc_HEADERS = netp.h pattern.h packet.h json.h fmt.h fetch.h module.h
+parseinc_HEADERS = parse.h pattern.h packet.h json.h fmt.h fetch.h module.h
 
-libnetp_la_SOURCES = \
-	netp.h netp.cc \
+libparse_la_SOURCES = \
+	parse.h parse.cc \
 	handler.cc \
 	udp.cc tcp.cc decrypted.cc \
 	gzip.cc blockexec.cc \
 	brotli.cc report.cc node.cc \
 	connection.cc module.cc \
-	$(libnetp_la_BUILT_SOURCES)
+	$(libparse_la_BUILT_SOURCES)
 
-libnetp_la_BUILT_SOURCES = \
+libparse_la_BUILT_SOURCES = \
 	dns.cc httpreq.cc httprsp.cc \
 	ident.cc html.cc json.cc jsontree.cc \
 	itq_gen.h \
@@ -29,19 +29,19 @@ libnetp_la_BUILT_SOURCES = \
 	packet_gen.cc \
 	genf.h
 
-BUILT_SOURCES = $(libnetp_la_BUILT_SOURCES)
+BUILT_SOURCES = $(libparse_la_BUILT_SOURCES)
 
-libnetp_la_LIBADD = ../genf/libgenf.la 
+libparse_la_LIBADD = ../genf/libgenf.la 
 
-netp_BUILT_SOURCES = main_gen.cc
+parse_BUILT_SOURCES = main_gen.cc
 
-netp_SOURCES = main.cc $(netp_BUILT_SOURCES)
-netp_LDADD = libnetp.la ../genf/libgenf.la -lpcap
+parse_SOURCES = main.cc $(parse_BUILT_SOURCES)
+parse_LDADD = libparse.la ../genf/libgenf.la -lpcap
 
-pkgdata_DATA = netp.gf
+pkgdata_DATA = parse.gf
 
 CLEANFILES = $(BUILT_SOURCES)
-EXTRA_DIST = netp.gf ident.rl dns.lm dns.rl httpreq.rl httprsp.rl html.rl
+EXTRA_DIST = parse.gf ident.rl dns.lm dns.rl httpreq.rl httprsp.rl html.rl
 
 ident.cc: ident.rl
 	$(RAGEL) -o $@ $<
@@ -64,7 +64,7 @@ jsontree.cc: jsontree.rl
 html.cc: html.rl
 	$(RAGEL) -o $@ $<
 
-main_gen.cc: netp.gf
+main_gen.cc: parse.gf
 	$(GENF) $(GENFFLAGS) $<
 
 main_gen.cc: $(GENF)
@@ -75,10 +75,10 @@ packet_gen.h: main_gen.cc
 packet_gen.cc: main_gen.cc
 
 genf.h: $(top_srcdir)/genf/genf.h.in
-	$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w,+x" $(SED_SUBST)
+	$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w,-x" $(SED_SUBST)
 
-BUILT_SOURCES += include/netp
+BUILT_SOURCES += include/parse
 
-include/netp:
+include/parse:
 	mkdir -p include
-	ln -s .. include/netp
+	ln -s .. include/parse

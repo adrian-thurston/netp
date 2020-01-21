@@ -1,5 +1,5 @@
-#include <netp/fmt.h>
-#include <netp/module.h>
+#include <parse/fmt.h>
+#include <parse/module.h>
 #include "sniff.h"
 #include "main.h"
 #include "itq_gen.h"
@@ -9,7 +9,7 @@
 #include <kring/kring.h>
 #include <aapl/vector.h>
 #include <sstream>
-#include <netp/pattern.h>
+#include <parse/pattern.h>
 
 struct MatchDnsAnswer
 {

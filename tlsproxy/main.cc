@@ -2,7 +2,7 @@
 #include "listen.h"
 #include "service.h"
 #include "genf.h"
-#include <netp/netp.h>
+#include <parse/parse.h>
 
 #include <unistd.h>
 #include <signal.h>
@@ -10,7 +10,7 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <netp/module.h>
+#include <parse/module.h>
 
 using std::endl;
 using std::ofstream;

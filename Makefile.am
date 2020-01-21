@@ -3,7 +3,7 @@ SUBDIRS =  \
 	genf \
 	kring \
 	shuttle \
-	netp \
+	parse \
 	broker \
 	sniff \
 	tlsproxy \

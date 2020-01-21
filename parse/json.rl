@@ -2,7 +2,7 @@
 
 #include "json.h"
 #include "itq_gen.h"
-#include "netp.h"
+#include "parse.h"
 
 int *grow_stack2( int *stack, int *psd )
 {

@@ -7,7 +7,7 @@ describe1_SOURCES = \
 	main.h main.cc itq.h
 
 describe1_LDADD = \
-	-lnetp -lgenf -lpthread -lssl \
+	-lparse -lgenf -lpthread -lssl \
 	-lcrypto -lpcap -lkring -ldl
 
 BUILT_SOURCES = \

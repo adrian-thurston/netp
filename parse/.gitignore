@@ -31,9 +31,9 @@
 /request.cc
 /json.cc
 /jsontree.cc
-/libnetp.la
+/libparse.la
 /.libs
 
 /tags
-/netp
+/parse
 /include

@@ -1,4 +1,4 @@
-use NetP "netp.gf";
+use NetP "parse.gf";
 appid 5;
 
 debug PROXY;

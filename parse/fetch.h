@@ -1,7 +1,7 @@
 #ifndef NETP_FETCH_H
 #define NETP_FETCH_H
 
-#include "netp.h"
+#include "parse.h"
 
 struct PacketConnection;
 

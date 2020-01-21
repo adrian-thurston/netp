@@ -1,4 +1,4 @@
-AC_INIT([netcol], [0.1.0], [thurston@colm.net])
+AC_INIT([netp], [0.1.0], [thurston@colm.net])
 AM_INIT_AUTOMAKE()
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -53,11 +53,11 @@ SHUTTLE_MOD="\$(abs_top_builddir)/shuttle/shuttle.ko"
 SHUTTLE_SYMVERS="\$(abs_top_builddir)/shuttle/Module.symvers"
 SED_SUBST="$SED_SUBST -e 's|[@]SHUTTLE_MOD[@]|$SHUTTLE_MOD|g'"
 
-dnl For building against netp.
-NETP_GENF="\$(abs_top_srcdir)/netp/netp.gf"
-GENFFLAGS="${GENFFLAGS} -I\$(abs_top_srcdir)/netp"
-CPPFLAGS="-I\$(abs_top_srcdir)/netp/include ${CPPFLAGS}"
-LDFLAGS="-L\$(abs_top_srcdir)/netp ${LDFLAGS}"
+dnl For building against parse library.
+PARSE_GENF="\$(abs_top_srcdir)/parse/parse.gf"
+GENFFLAGS="${GENFFLAGS} -I\$(abs_top_srcdir)/parse"
+CPPFLAGS="-I\$(abs_top_srcdir)/parse/include ${CPPFLAGS}"
+LDFLAGS="-L\$(abs_top_srcdir)/parse ${LDFLAGS}"
 
 dnl
 dnl OpenVPN support
@@ -86,6 +86,11 @@ SED_SUBST="$SED_SUBST -e 's|[@]TLSPROXY_BIN[@]|$TLSPROXY_BIN|g'"
 SED_SUBST="$SED_SUBST -e 's|[@]FETCH_BIN[@]|$FETCH_BIN|g'"
 
 dnl
+dnl Postgres
+dnl
+AC_CHECK_POSTGRES
+
+dnl
 dnl Curl Support.
 dnl
 AC_CHECK_HEADER([curl/curl.h], [], [AC_ERROR([unable to include curl/curl.h])])
@@ -104,7 +109,7 @@ AC_CONFIG_FILES([
 	genf/Makefile
 	kring/Makefile
 	shuttle/Makefile
-	netp/Makefile
+	parse/Makefile
 	broker/Makefile
 	sniff/Makefile
 	tlsproxy/Makefile

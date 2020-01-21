@@ -6,7 +6,7 @@
 
 #include <unistd.h>
 #include <signal.h>
-#include <netp/module.h>
+#include <parse/module.h>
 
 extern const char *_PIDFILE;
 
