@@ -7,8 +7,9 @@ package=@PACKAGE@
 pkgdatadir=@pkgdatadir@
 pkglibexecdir=@pkglibexecdir@
 pkgstatedir=@pkgstatedir@
+pkgconfdir=@pkgconfdir@
 
-if [ '!' -f $pkgdatadir/key.pem ]; then
+if [ '!' -f $pkgconfdir/key.pem ]; then
 	CN=$package
 	SUBJ="/C=CA/ST=Ontario/O=Colm Networks Inc./OU=Development/CN=$CN/emailAddress=info@colm.net/"
 
@@ -16,11 +17,11 @@ if [ '!' -f $pkgdatadir/key.pem ]; then
 
 	openssl req \
 		-newkey rsa:2048 \
-		-nodes -keyout $pkgdatadir/key.pem \
-		-x509 -days 730 -out $pkgdatadir/cert.pem \
+		-nodes -keyout $pkgconfdir/key.pem \
+		-x509 -days 730 -out $pkgconfdir/cert.pem \
 		-subj "$SUBJ"
 	
-	cp $pkgdatadir/cert.pem $pkgdatadir/verify.pem
+	cp $pkgconfdir/cert.pem $pkgconfdir/verify.pem
 fi
 
 if [ '!' -f $pkgstatedir/CA/cakey.pem ]; then

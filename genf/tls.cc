@@ -66,9 +66,9 @@ SSL_CTX *Thread::sslCtxClientPublic()
 
 SSL_CTX *Thread::sslCtxClientInternal()
 {
-	String verify = String(pkgDataDir()) + "/verify.pem";
-	String key    = String(pkgDataDir()) + "/key.pem";
-	String cert   = String(pkgDataDir()) + "/cert.pem";
+	String verify = String(pkgConfDir()) + "/verify.pem";
+	String key    = String(pkgConfDir()) + "/key.pem";
+	String cert   = String(pkgConfDir()) + "/cert.pem";
 	return sslCtxClient( TLSv1_client_method(), verify, key, cert );
 }
 
@@ -108,9 +108,9 @@ SSL_CTX *Thread::sslCtxClient( const SSL_METHOD *method, const char *verify, con
 
 SSL_CTX *Thread::sslCtxServerInternal()
 {
-	String key    = String(pkgDataDir()) + "/key.pem";
-	String cert   = String(pkgDataDir()) + "/cert.pem";
-	String verify = String(pkgDataDir()) + "/verify.pem";
+	String key    = String(pkgConfDir()) + "/key.pem";
+	String cert   = String(pkgConfDir()) + "/cert.pem";
+	String verify = String(pkgConfDir()) + "/verify.pem";
 
 	return sslCtxServer( key, cert, verify );
 }

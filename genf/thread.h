@@ -474,6 +474,7 @@ public:
 
 	virtual const char *pkgDataDir() = 0;
 	virtual const char *pkgStateDir() = 0;
+	virtual const char *pkgConfDir() = 0;
 
 	virtual	bool poll() = 0;
 	int inetListen( uint16_t port, bool transparent = false );

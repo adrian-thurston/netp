@@ -15,6 +15,13 @@ SED_SUBST="\
 "
 
 dnl
+dnl pkgconfidr
+dnl
+pkgconfdir='${sysconfdir}/${PACKAGE_NAME}'
+AC_SUBST(pkgconfdir)
+SED_SUBST="$SED_SUBST -e 's|[@]pkgconfdir[@]|$pkgconfdir|g'"
+
+dnl
 dnl pkgdatadir
 dnl
 pkgdatadir='${datadir}/${PACKAGE_NAME}'
@@ -50,7 +57,7 @@ AC_SUBST(piddir)
 SED_SUBST="$SED_SUBST -e 's|[@]piddir[@]|$piddir|g'"
 
 dnl
-dnl (netcol) modulesdir
+dnl (netp) modulesdir
 dnl
 modulesdir='${pkgdatadir}/modules'
 AC_SUBST(modulesdir)

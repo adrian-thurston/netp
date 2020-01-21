@@ -7,7 +7,7 @@ EXTRA_DIST = bootstrap.sh
 
 SUFFIXES = .in .sh
 
-INSTALL_DIRS = @piddir@ @logdir@ @sysconfdir@ @modulesdir@ @pkgstatedir@ @pkgdatadir@ 
+INSTALL_DIRS = @piddir@ @logdir@ @sysconfdir@ @modulesdir@ @pkgstatedir@ @pkgdatadir@ @pkgconfdir@
 
 .in:
 	$(top_srcdir)/sedsubst $(srcdir)/$< $@ "-w" $(SED_SUBST)

@@ -13,6 +13,7 @@
 #define PKGDATADIR "@pkgdatadir@"
 #define PKGSTATEDIR "@pkgstatedir@"
 #define PKGLIBEXECDIR "@pkglibexecdir@"
+#define PKGCONFDIR "@pkgconfdir@"
 
 #define RUN_AS "@RUN_AS@"
 
