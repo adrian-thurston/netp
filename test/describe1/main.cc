@@ -45,9 +45,7 @@ void BrokerSendConnection::connectComplete()
 
 	log_message( "have broker connection, sending" );
 
-	Packer::PacketType pt( this );
-	Packer::StoreMe::describe( pt );
-	pt.send();
+	Packer::StoreMe::describe( this );
 
 	ready = true;
 

@@ -2,6 +2,7 @@
 #define __PACKET_H
 
 #include <aapl/rope.h>
+#include <aapl/bstset.h>
 #include "thread.h"
 
 struct PacketHeader
@@ -91,6 +92,7 @@ struct PacketConnection
 
 	Recv recv;
 	WriteBuffer writeBuffer;
+	BstSet<int> describedPackets;
 
 	void parsePacket( SelectFd *fd );
 

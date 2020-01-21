@@ -201,7 +201,7 @@ void generatePacketHeader( P: program )
 		"		PacketBase::send( &writer );
 		"	}
 		"
-		"	static void describe( Packer::PacketType &dest );
+		"	static void describe( PacketConnection *packetConn );
 		"
 		"	char *overlay;
 		"	void open( PacketWriter *writer );
@@ -431,8 +431,14 @@ void generatePacketCode( P: program )
 		"const char Packer::[Packet->Id]::name\[\] = \"[Packet->Id]\";
 		"const char Packer::[Packet->Id]::lower\[\] = \"[Lower]\";
 		"
-		"void Packer::[Packet->Id]::describe( Packer::PacketType &dest )
+		"void Packer::[Packet->Id]::describe( PacketConnection *packetConn )
 		"{
+		"	if ( packetConn->describedPackets.find( [Packet->Id]::ID ) )
+		"		return;
+		"	packetConn->describedPackets.insert( [Packet->Id]::ID );
+		"
+		"	Packer::PacketType dest( packetConn );
+
 			if Packet->NumFields > 0  {
 				"	PacketField field;
 			}
@@ -464,6 +470,7 @@ void generatePacketCode( P: program )
 					}
 				}
 			}
+			"	dest.send();
 		"}
 	}
 
