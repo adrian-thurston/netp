@@ -258,13 +258,13 @@ AC_DEFUN([AC_CHECK_KRING], [
 		[AC_HELP_STRING([--with-kring], [location of kring install])],
 		[
 			KRING_MOD="$withval/lib/kring.ko"
-			KRING_SYMVERS="$withval/share/netcol/Module.symvers"
+			KRING_SYMVERS="$withval/share/netp/Module.symvers"
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			LDFLAGS="-L$withval/lib ${LDFLAGS}"
 		],
 		[
 			KRING_MOD="$DEPS/lib/kring.ko"
-			KRING_SYMVERS="$DEPS/share/netcol/Module.symvers"
+			KRING_SYMVERS="$DEPS/share/netp/Module.symvers"
 			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
 			LDFLAGS="${LDFLAGS} -L$DEPS/lib"
 		]
@@ -293,11 +293,11 @@ AC_DEFUN([AC_CHECK_SHUTTLE], [
 		[AC_HELP_STRING([--with-shuttle], [location of shuttle install])],
 		[
 			SHUTTLE_MOD="$withval/lib/shuttle.ko"
-			SHUTTLE_SYMVERS="$withval/share/netcol/Module.symvers"
+			SHUTTLE_SYMVERS="$withval/share/netp/Module.symvers"
 		],
 		[
 			SHUTTLE_MOD="$DEPS/lib/shuttle.ko"
-			SHUTTLE_SYMVERS="$DEPS/share/netcol/Module.symvers"
+			SHUTTLE_SYMVERS="$DEPS/share/netp/Module.symvers"
 		]
 	)
 
@@ -320,14 +320,14 @@ AC_DEFUN([AC_CHECK_NETP], [
 	AC_ARG_WITH(netp,
 		[AC_HELP_STRING([--with-netp], [location of netp install])],
 		[
-			NETP_GENF="$withval/share/netcol/netp.gf"
-			GENFFLAGS="${GENFFLAGS} -I$withval/share/netcol"
+			NETP_GENF="$withval/share/netp/parse.gf"
+			GENFFLAGS="${GENFFLAGS} -I$withval/share/netp"
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			LDFLAGS="-L$withval/lib ${LDFLAGS}"
 		],
 		[
-			NETP_GENF="$DEPS/share/netcol/netp.gf"
-			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netcol"
+			NETP_GENF="$DEPS/share/netp/parse.gf"
+			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netp"
 			CPPFLAGS="${CPPFLAGS} -I$DEPS/include"
 			LDFLAGS="${LDFLAGS} -L$DEPS/lib"
 		]
@@ -336,8 +336,8 @@ AC_DEFUN([AC_CHECK_NETP], [
 	AC_CHECK_FILES( [$NETP_GENF], [],
 			[AC_ERROR([netp is required to build this module])] )
 
-	AC_CHECK_HEADER( [netp/netp.h], [], [AC_ERROR([netp/netp.h not found])] )
-	AC_CHECK_LIB([netp], [netp_open], [], [AC_ERROR([check netp: cannot link with -lnetp])])
+	AC_CHECK_HEADER( [parse/parse.h], [], [AC_ERROR([netp/parse.h not found])] )
+	AC_CHECK_LIB([parse], [netp_open], [], [AC_ERROR([check netp: cannot link with -lparse])])
 
 	AC_SUBST(NETP_GENF)
 	AC_SUBST(GENFFLAGS)
@@ -350,12 +350,12 @@ AC_DEFUN([AC_CHECK_BROKER], [
 	AC_ARG_WITH(broker,
 		[AC_HELP_STRING([--with-broker], [location of broker install])],
 		[
-			BROKER_GENF="$withval/share/netcol/broker.gf"
-			GENFFLAGS="${GENFFLAGS} -I$withval/share/netcol"
+			BROKER_GENF="$withval/share/netp/broker.gf"
+			GENFFLAGS="${GENFFLAGS} -I$withval/share/netp"
 		],
 		[
-			BROKER_GENF="$DEPS/share/netcol/broker.gf"
-			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netcol"
+			BROKER_GENF="$DEPS/share/netp/broker.gf"
+			GENFFLAGS="${GENFFLAGS} -I$DEPS/share/netp"
 		]
 	)
 
