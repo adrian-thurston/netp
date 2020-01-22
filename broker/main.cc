@@ -623,6 +623,11 @@ void MainThread::runReplay()
 
 int MainThread::main()
 {
+	CURLcode globalInitResult = curl_global_init( CURL_GLOBAL_ALL );
+	if ( globalInitResult != CURLE_OK ) {
+		log_FATAL( "curl_global_init failed with: " << globalInitResult );
+	}
+
 	if ( replay != 0 ) {
 		runReplay();
 		return 0;
