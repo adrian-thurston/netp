@@ -13,13 +13,13 @@ struct Record1
 	char(10) c;
 };
 
-packet StoreMeA
+packet StoreMe1
 {
 	tag string s;
 	list<Record1> records;
 };
 
-packet StoreMeB
+packet StoreMe2
 {
 	tag string t;
 	char(1)  c1;
@@ -27,5 +27,5 @@ packet StoreMeB
 	char(5)  c5;
 };
 
-packet StoreMeA 1;
-packet StoreMeB 2;
+packet StoreMe1 1;
+packet StoreMe2 2;

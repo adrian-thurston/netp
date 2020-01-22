@@ -1,7 +1,12 @@
 namespace packet_name
 	lex
 		literal `-
-		token component /[A-Z][a-z]*/
+		ignore / '_' /
+
+		token component /
+			[A-Za-z][a-z]* |
+			[0-9]+
+		/
 	end
 
 	def name
@@ -11,10 +16,23 @@ namespace packet_name
 	{
 		Lower: str = ""
 		parse PN: packet_name::name[Name]
+		if ! PN {
+			send stderr
+				"error: genf internal: failed to parse "
+				"[Name] for conversion to lowercase
+			exit(1)
+		}
 		for C: packet_name::component in PN {
 			if Lower.length > 0
 				Lower = Lower + "-"
 			Lower = Lower + tolower($C)
+		}
+
+		if Lower.length == 0 {
+			send stderr
+				"error: packet name [Name] "
+				"translates to zero-length string
+			exit(1)
 		}
 		return Lower
 	}
@@ -363,6 +381,7 @@ void generatePacketCode( P: program )
 	~
 
 	definePack()
+
 
 	for Struct: _struct in StructMap {
 		for FD: record_field_def in Struct->StructDef {

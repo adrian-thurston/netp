@@ -51,9 +51,9 @@ void BrokerSendConnection::connectComplete()
 
 void BrokerSendConnection::store1()
 {
-	Packer::StoreMeA::describe( this );
+	Packer::StoreMe1::describe( this );
 
-	Packer::StoreMeA storeMe( this );
+	Packer::StoreMe1 storeMe( this );
 	storeMe.set_s( "vilnius" );
 
 	Packer::Record1 record;
@@ -83,51 +83,51 @@ void BrokerSendConnection::store1()
 
 void BrokerSendConnection::store2()
 {
-	Packer::StoreMeB::describe( this );
+	Packer::StoreMe2::describe( this );
 
-	Packer::StoreMeB storeMe0( this );
+	Packer::StoreMe2 storeMe0( this );
 	storeMe0.set_t( "0" );
 	storeMe0.set_c1( "" );
 	storeMe0.set_c2( "" );
 	storeMe0.set_c5( "" );
 	storeMe0.send();
 
-	Packer::StoreMeB storeMe1( this );
+	Packer::StoreMe2 storeMe1( this );
 	storeMe1.set_t( "1" );
 	storeMe1.set_c1( "a" );
 	storeMe1.set_c2( "a" );
 	storeMe1.set_c5( "a" );
 	storeMe1.send();
 
-	Packer::StoreMeB storeMe2( this );
+	Packer::StoreMe2 storeMe2( this );
 	storeMe2.set_t( "2" );
 	storeMe2.set_c1( "aa" );
 	storeMe2.set_c2( "aa" );
 	storeMe2.set_c5( "aa" );
 	storeMe2.send();
 
-	Packer::StoreMeB storeMe3( this );
+	Packer::StoreMe2 storeMe3( this );
 	storeMe3.set_t( "3" );
 	storeMe3.set_c1( "aaa" );
 	storeMe3.set_c2( "aaa" );
 	storeMe3.set_c5( "aaa" );
 	storeMe3.send();
 
-	Packer::StoreMeB storeMe4( this );
+	Packer::StoreMe2 storeMe4( this );
 	storeMe4.set_t( "4" );
 	storeMe4.set_c1( "aaaa" );
 	storeMe4.set_c2( "aaaa" );
 	storeMe4.set_c5( "aaaa" );
 	storeMe4.send();
 
-	Packer::StoreMeB storeMe5( this );
+	Packer::StoreMe2 storeMe5( this );
 	storeMe5.set_t( "5" );
 	storeMe5.set_c1( "aaaaa" );
 	storeMe5.set_c2( "aaaaa" );
 	storeMe5.set_c5( "aaaaa" );
 	storeMe5.send();
 
-	Packer::StoreMeB storeMe6( this );
+	Packer::StoreMe2 storeMe6( this );
 	storeMe6.set_t( "6" );
 	storeMe6.set_c1( "aaaaaa" );
 	storeMe6.set_c2( "aaaaaa" );
