@@ -283,6 +283,16 @@ void MainThread::stashUnsignedLong( std::ostream &post, char &sep, uint32_t base
 	sep = ',';
 }
 
+void MainThread::lineProtocolStrEscape( std::ostream &post, char *str, int len )
+{
+	for ( char *p = str; len > 0; p++, len-- ) {
+		if ( *p == '"' )
+			post << '\\' << '"';
+		else
+			post << *p;
+	}
+}	
+
 void MainThread::stashString( std::ostream &post, char &sep, uint32_t base,
 		bool tags, Field *f, Recv &recv )
 {
@@ -296,35 +306,36 @@ void MainThread::stashString( std::ostream &post, char &sep, uint32_t base,
 	if ( !tags )
 		post << "\"";
 
-	for ( char *p = str; *p != 0; p++ ) {
-		if ( *p == '"' )
-			post << '\\' << '"';
-		else
-			post << *p;
-	}
-	
+	lineProtocolStrEscape( post, str, strlen( str ) );
+
 	if ( !tags )
 		post << "\"";
 
 	sep = ',';
 }
 
-void MainThread::stashChar( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv )
+void MainThread::stashChar( std::ostream &post, char &sep, uint32_t base,
+		bool tags, Field *f, Recv &recv )
 {
 	char *overlay = Thread::pktFind( &recv.buf, base );
 
 	char *str = ((char*)(overlay + f->offset));
 
-	post << sep << f->name << "=\"";
+	int size = f->size;
+	char *null = (char*)memchr( str, 0, f->size );
+	if ( null != 0 )
+		size = ( null - str );
 
-	for ( int i = 0; i < f->size; i++ ) {
-		if ( str[i] == '"' )
-			post << '\\' << '"';
-		else
-			post << str[i];
-	}
+	post << sep << f->name << "=";
+	
+	if ( !tags )
+		post << "\"";
 
-	post << "\"";
+	lineProtocolStrEscape( post, str, size );
+
+	if ( !tags )
+		post << "\"";
+
 	sep = ',';
 }
 
@@ -353,7 +364,7 @@ void MainThread::stashFieldList( std::ostream &post, char &sep,
 					stashString( post, sep, base, tags, f, recv );
 					break;
 				case FieldTypeChar:
-					stashChar( post, sep, base, f, recv );
+					stashChar( post, sep, base, tags, f, recv );
 					break;
 				case FieldTypeList:
 					/* Not including these explicitly. */
@@ -407,7 +418,7 @@ void MainThread::stashStruct( std::ostream &post, Struct *strct, Recv &recv )
 		sep = ',';
 
 		stashFieldList( post, sep, headerSize,
-				false, strct->fieldList, recv );
+				true, strct->fieldList, recv );
 
 		sep = ' ';
 
@@ -416,15 +427,12 @@ void MainThread::stashStruct( std::ostream &post, Struct *strct, Recv &recv )
 	}
 }
 
-void MainThread::stashInflux( Struct *strct, Recv &recv )
+void MainThread::writeInflux( std::string post )
 {
-	std::ostringstream post;
+	// log_message( "posting:\n" << post() );
+
 	std::string writeUrl = "http://127.0.0.1:9999/api/v2/write"
 		"?org=thurston&bucket=curltest&precision=s";
-
-	stashStruct( post, strct, recv );
-
-	// log_message( "posting:\n" << post.str() );
 
 	CURL *writeHandle = curl_easy_init();
 	curl_easy_setopt( writeHandle, CURLOPT_URL, writeUrl.c_str() );
@@ -447,10 +455,8 @@ void MainThread::stashInflux( Struct *strct, Recv &recv )
 	CURLcode response;
 	long responseCode;
 
-	std::string str = post.str();
-
-	curl_easy_setopt( writeHandle, CURLOPT_POSTFIELDS, str.c_str() );
-	curl_easy_setopt( writeHandle, CURLOPT_POSTFIELDSIZE, (long) str.size() );
+	curl_easy_setopt( writeHandle, CURLOPT_POSTFIELDS, post.c_str() );
+	curl_easy_setopt( writeHandle, CURLOPT_POSTFIELDSIZE, (long) post.size() );
 	response = curl_easy_perform( writeHandle );
 	curl_easy_getinfo(writeHandle, CURLINFO_RESPONSE_CODE, &responseCode);
 	if ( response != CURLE_OK ) {
@@ -461,6 +467,14 @@ void MainThread::stashInflux( Struct *strct, Recv &recv )
 	}
 
 	curl_easy_cleanup( writeHandle );
+}
+
+void MainThread::stashInflux( Struct *strct, Recv &recv )
+{
+	std::ostringstream post;
+
+	stashStruct( post, strct, recv );
+	writeInflux( post.str() );
 }
 
 void MainThread::dispatchPacket( SelectFd *fd, Recv &recv )

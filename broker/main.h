@@ -129,6 +129,8 @@ struct MainThread
 	void readStruct( Struct *s, Record::PacketField &iter, int numFields );
 	void recvPacketType( SelectFd *fd, Record::PacketType *pkt );
 
+	void lineProtocolStrEscape( std::ostream &post, char *str, int len );
+
 	void stashBool( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
 	void stashInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
 	void stashUnsignedInt( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
@@ -136,13 +138,14 @@ struct MainThread
 	void stashUnsignedLong( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
 	void stashString( std::ostream &post, char &sep, uint32_t base,
 			bool tags, Field *f, Recv &recv );
-	void stashChar( std::ostream &post, char &sep, uint32_t base, Field *f, Recv &recv );
-	void stashFieldList( std::ostream &post, char &sep,
-			uint32_t base, bool tags,
-			const FieldList &fieldList, Recv &recv );
+	void stashChar( std::ostream &post, char &sep, uint32_t base,
+			bool tags, Field *f, Recv &recv );
+	void stashFieldList( std::ostream &post, char &sep, uint32_t base,
+			bool tags, const FieldList &fieldList, Recv &recv );
 	void stashStruct( std::ostream &post, Struct *_struct, Recv &recv );
 
 	void stashInflux( Struct *_struct, Recv &recv );
+	void writeInflux( std::string post );
 
 	virtual void checkOptions();
 

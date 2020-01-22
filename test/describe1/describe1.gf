@@ -1,6 +1,6 @@
 appid 51;
 
-struct Record
+struct Record1
 {
 	tag string t;
 
@@ -13,10 +13,19 @@ struct Record
 	char(10) c;
 };
 
-packet StoreMe
+packet StoreMeA
 {
 	tag string s;
-	list<Record> records;
+	list<Record1> records;
 };
 
-packet StoreMe 1;
+packet StoreMeB
+{
+	tag string t;
+	char(1)  c1;
+	char(2)  c2;
+	char(5)  c5;
+};
+
+packet StoreMeA 1;
+packet StoreMeB 2;

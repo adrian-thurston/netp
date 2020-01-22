@@ -92,6 +92,7 @@ void generatePacketHeader( P: program )
 	~#include <sys/types.h>
 	~#include <sys/socket.h>
 	~#include <errno.h>
+	~#include <string.h>
 	~
 	~#include <genf/packet.h>
 	~#include <genf/thread.h>
@@ -141,7 +142,7 @@ void generatePacketHeader( P: program )
 			}
 			case [`char `( N: number `)] {
 				"	void set_[FD.id]( const char *s )
-				"		{ memcpy( overlay + [FD.Offset], s, [FD.CharSize] ); }
+				"		{ strncpy( overlay + [FD.Offset], s, [FD.CharSize] ); }
 			}
 		}
 
@@ -439,38 +440,40 @@ void generatePacketCode( P: program )
 		"
 		"	Packer::PacketType dest( packetConn );
 
-			if Packet->NumFields > 0  {
-				"	PacketField field;
+		if Packet->NumFields > 0  {
+			"	PacketField field;
+		}
+
+		"	dest.set__name( [Packet->Id]::lower );
+		"	dest.set_numId( [Packet->Id]::ID );
+		"	dest.set_numFields( [Packet->NumFields] );
+
+		for FD: record_field_def in Packet->PacketDef {
+			"	dest.alloc_fields( field );
+			"	field.set_name( \"[FD.id]\" );
+			"	field.set_type( [fieldTypeCode( FD )] );
+			if ! match FD.opt_tag [] {
+				"	field.set__tag( true );
 			}
-			"	dest.set__name( [Packet->Id]::lower );
-			"	dest.set_numId( [Packet->Id]::ID );
-			"	dest.set_numFields( [Packet->NumFields] );
+			"	field.set_size( [fieldSize( FD )] );
+			"	field.set__offset( [FD.Offset] );
 
-			for FD: record_field_def in Packet->PacketDef {
-				"	dest.alloc_fields( field );
-				"	field.set_name( \"[FD.id]\" );
-				"	field.set_type( [fieldTypeCode( FD )] );
-				if ! match FD.opt_tag [] {
-					"	field.set__tag( true );
-				}
-				"	field.set_size( [fieldSize( FD )] );
-				"	field.set__offset( [FD.Offset] );
-
-				if match FD.record_field_type [LT: list_type] {
-					El: _struct = findStruct( LT.id )
-					for SFD: record_field_def in El->StructDef {
-						"	dest.alloc_fields( field );
-						"	field.set_name( \"[SFD.id]\" );
-						"	field.set_type( [fieldTypeCode( SFD )] );
-						if ! match SFD.opt_tag [] {
-							"	field.set__tag( true );
-						}
-						"	field.set_size( [fieldSize( SFD )] );
-						"	field.set__offset( [SFD.Offset] );
+			if match FD.record_field_type [LT: list_type] {
+				El: _struct = findStruct( LT.id )
+				for SFD: record_field_def in El->StructDef {
+					"	dest.alloc_fields( field );
+					"	field.set_name( \"[SFD.id]\" );
+					"	field.set_type( [fieldTypeCode( SFD )] );
+					if ! match SFD.opt_tag [] {
+						"	field.set__tag( true );
 					}
+					"	field.set_size( [fieldSize( SFD )] );
+					"	field.set__offset( [SFD.Offset] );
 				}
 			}
-			"	dest.send();
+		}
+
+		"	dest.send();
 		"}
 	}
 
