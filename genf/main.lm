@@ -8,6 +8,7 @@ void generateMainHeader( P: program )
 	_ = Output
 	Thread: thread = ThreadMap->find( 'Main' )
 
+	<<
 	~/*
 	~ * main_gen.h
 	~ */
@@ -22,6 +23,7 @@ void generateMainHeader( P: program )
 
 	threadForwards( Thread )
 
+	<<
 	~struct MainGen
 	~	: public MainBase
 	~{
@@ -57,6 +59,7 @@ void generateMainHeader( P: program )
 
 	threadCommonHeader( Thread )
 
+	<<
 	~};
 	~
 	~#endif
@@ -67,25 +70,30 @@ void generateMainHeader( P: program )
 
 void optString( P: program )
 {
+	<<
 	"const char optstring\[\] = \":"
 
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`- short]
 
+			<<
 			[OS.short]
 
 			if !match OD.option_type [`bool]
+				<<
 				":"
 		}
 	}
 
+	<<
 	"\";
 	"
 }
 
 void longOpts( P: ref<program> )
 {
+	<<
 	"const option longopts\[\] = {
 
 	Ind: int = 0
@@ -93,15 +101,19 @@ void longOpts( P: ref<program> )
 		for OS: option_spec in OD {
 			require OS [`-- long]
 
+			<<
 			"	{ \"[OS.long]\", "
 
 			if match OD.option_type [`bool] {
+				<<
 				"no_argument"
 			}
 			else {
+				<<
 				"required_argument"
 			}
 
+			<<
 			", 0, 0 },
 
 			# Save the index.
@@ -110,6 +122,7 @@ void longOpts( P: ref<program> )
 		}
 	}
 
+	<<
 	"	{ 0, 0, 0, 0 }
 	"};
 	"
@@ -121,15 +134,19 @@ void optDefine( P: program )
 	for OD: option_def in P {
 		switch OD.option_type
 		case [`bool] {
+			<<
 			"static bool [OD.id];
 		}
 		case [`string] {
+			<<
 			"static const char *[OD.id];
 		}
 		case [`long] {
+			<<
 			"static long [OD.id];
 		}
 		case [`string `list] {
+			<<
 			"static OptStringList [OD.id];
 		}
 	}
@@ -143,19 +160,24 @@ void optDeclare( P: program )
 	for OD: option_def in P {
 		switch OD.option_type
 		case [`bool] {
+			<<
 			"bool MainGen::[OD.id] = false;
 		}
 		case [`string] {
+			<<
 			"const char *MainGen::[OD.id] = 0;
 		}
 		case [`long] {
+			<<
 			"long MainGen::[OD.id] = 0;
 		}
 		case [`string `list] {
+			<<
 			"OptStringList MainGen::[OD.id];
 		}
 	}
 
+	<<
 	"
 }
 
@@ -164,6 +186,7 @@ void parseOption( P: program, OD: option_def, Src: str )
 	if $OD.id == "__debug" {
 		# Handle debug realms directly, rather than collecting into program
 		# state.
+		<<
 		"	if ( strcmp( [Src], \"THREAD\" ) == 0 )
 		"		enabledRealms\[0\] |= DBG_REALM(DBG_THREAD);
 		"	else if ( strcmp( [Src], \"PACKET\" ) == 0 )
@@ -174,6 +197,7 @@ void parseOption( P: program, OD: option_def, Src: str )
 		"		enabledRealms\[0\] |= DBG_REALM(DBG_TLS);
 
 		for D: debug_def in P {
+			<<
 			"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
 			"		enabledRealms\[DBG_APP_ID(DBG_[D.id])\] |= DBG_REALM(DBG_[D.id]);
 		}
@@ -183,11 +207,13 @@ void parseOption( P: program, OD: option_def, Src: str )
 			UseId: int = findApplicationId( UseP )
 
 			for D: debug_def in UseP {
+				<<
 				"	else if ( strcmp( [Src], \"[D.id]\" ) == 0 )
 				"		enabledRealms\[DBG_APP_ID(DBG_[D.id])\] |= DBG_REALM(DBG_[D.id]);
 			}
 		}
 
+		<<
 		"	else {
 		"		log_FATAL( \"unrecognized debug realm: \" << [Src] );
 		"	}
@@ -195,12 +221,15 @@ void parseOption( P: program, OD: option_def, Src: str )
 	else {
 		switch OD.option_type
 		case [`bool] {
+			<<
 			"[OD.id] = true;
 		}
 		case [`string] {
+			<<
 			"[OD.id] = [Src];
 		}
 		case [`long] {
+			<<
 			"char *eptr;
 			"if ( *[Src] == 0 )
 			"	log_FATAL( \"no characters found in [OD.id] (long) value\" );
@@ -215,6 +244,7 @@ void parseOption( P: program, OD: option_def, Src: str )
 			"	log_FATAL( \"failed to parse [OD.id] (long): \" << [Src] );
 		}	
 		case [`string `list] {
+			<<
 			"{
 			"	OptStringEl *el = new OptStringEl;
 			"	el->data = [Src];
@@ -233,6 +263,7 @@ void parseOption( P: program, OD: option_def, Src: str )
 
 void parseOptions( P: ref<program> )
 {
+	<<
 	"void MainGen::parseOptions()
 	"{
 	"	while ( true ) {
@@ -246,6 +277,7 @@ void parseOptions( P: ref<program> )
 		for OS: option_spec in OD {
 			require OS [`- short]
 
+			<<
 			"			case '[OS.short]': {
 			"				[parseOption( P, OD, 'optarg' )]
 			"				break;
@@ -253,18 +285,21 @@ void parseOptions( P: ref<program> )
 		}
 	}
 	
+	<<
 	"			case 0: {
 	"				switch ( option_index ) {
 
 	for OD: option_def in P {
 		for OS: option_spec in OD {
 			require OS [`-- long]
+			<<
 			"				case [OS.Ind]:
 			"					[parseOption( P, OD, '(argv[optind-1])' )]
 			"					break;
 		}
 	}
 
+	<<
 	"				}
 	"				break;
 	"			}
@@ -291,6 +326,7 @@ void generateMainCode( P: ref<program> )
 	_ = Output
 	Thread: thread = ThreadMap->find( 'Main' )
 
+	<<
 	~/*
 	~ * main_gen.cc
 	~ */
@@ -316,6 +352,7 @@ void generateMainCode( P: ref<program> )
 
 	threadIncludes( Thread )
 
+	<<
 	~
 	
 	optString( P )
@@ -323,9 +360,11 @@ void generateMainCode( P: ref<program> )
 	optDeclare( P )
 	parseOptions( P )
 
+	<<
 	~#define LOGFILE LOGDIR "/" PACKAGE ".log"
 	~#define PIDFILE PIDDIR "/" PACKAGE ".pid"
 
+	<<
 	~extern const char *_PIDFILE;
 	~extern const char *_LOGFILE;
 	~void on_exit(void);
@@ -338,6 +377,7 @@ void generateMainCode( P: ref<program> )
 
 	threadCommonCode( Thread )
 
+	<<
 	~int MainGen::start()
 	~{
 	~	_PIDFILE = PIDFILE;
@@ -356,9 +396,11 @@ void generateMainCode( P: ref<program> )
 
 	threadRecveives( Thread )
 
+	<<
 	~Thread *getThis();
 	~
 	
+	<<
 	~void reportCaps()
 	~{
 	~	ssize_t len = 0;
@@ -400,6 +442,7 @@ void generateMainCode( P: ref<program> )
 	~
 	
 	if GblNumCaps > 0  {
+		<<
 		~void dropCaps()
 		~{
 		~	int r = 0;
@@ -433,6 +476,7 @@ void generateMainCode( P: ref<program> )
 		~
 	}
 	else {
+		<<
 		~void dropCaps()
 		~{
 		~	if ( getuid() == 0 || getgid() == 0 )
@@ -440,6 +484,7 @@ void generateMainCode( P: ref<program> )
 		~}
 	}
 
+	<<
 	~int main( int argc, char *const*argv )
 	~{
 	~	memset( MainThread::enabledRealms, 0, sizeof(MainThread::RealmSet) * NUM_APP_ID );

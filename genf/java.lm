@@ -3,6 +3,7 @@ void generateJava( P: program )
 	Output = new parser<out_c::out_c>()
 	_ = Output
 
+	<<
 	~/*
 	~ * RecordGen.java
 	~ */
@@ -21,28 +22,36 @@ void generateJava( P: program )
 	~{
 
 	for Packet: packet in PacketMap {
+		<<
 		"void send[Packet->Id]( "
 
 		Comma: str = ""
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case Bool
+				<<
 				"[Comma]boolean [FD.id]"
 			case Int
+				<<
 				"[Comma]int [FD.id]"
 			case UnsignedInt
+				<<
 				"[Comma]int [FD.id]"
 			case Long
+				<<
 				"[Comma]long [FD.id]"
 			case UnsignedLong
+				<<
 				"[Comma]long [FD.id]"
 			case String
+				<<
 				"[Comma]String [FD.id]"
 			case List { }
 			case Char { }
 			Comma = ", "
 		}
 			
+		<<
 		" )
 		"{
 		"	byte\[\] b = new byte\[[16 + Packet->Size]\];
@@ -59,20 +68,26 @@ void generateJava( P: program )
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case Bool
+				<<
 				"bbb.putByte( [16 + FD.Offset], [FD.id] );
 			case Int
+				<<
 				"bbb.putInt( [16 + FD.Offset], [FD.id] );
 			case UnsignedInt
+				<<
 				"bbb.putInt( [16 + FD.Offset], [FD.id] );
 			case Long
+				<<
 				"bbb.putLong( [16 + FD.Offset], [FD.id] );
 			case UnsignedLong
+				<<
 				"bbb.putLong( [16 + FD.Offset], [FD.id] );
 			case String { }
 			case List { }
 			case Char { }
 		}
 
+		<<
 		"	OutputStream output = null;
 		"	try {
 		"		output = socket.getOutputStream();
@@ -85,6 +100,7 @@ void generateJava( P: program )
 	}
 
 	for Struct: _struct in StructMap {
+		<<
 		"public static class [Struct->Id]
 		"{
 		"	public [Struct->Id]( Record record, int offset )
@@ -98,32 +114,41 @@ void generateJava( P: program )
 		for FD: record_field_def in Struct->StructDef {
 			switch FD.record_field_type
 			case Bool {
+				<<
 				"	public byte [FD.id];
 			}
 			case Int {
+				<<
 				"	public int [FD.id];
 			}
 			case UnsignedInt {
+				<<
 				"	public int [FD.id];
 			}
 			case Long {
+				<<
 				"	public long [FD.id];
 			}
 			case UnsignedLong {
+				<<
 				"	public long [FD.id];
 			}
 			case String {
+				<<
 				"	public String [FD.id];
 			}
 			case Char {
+				<<
 				"	public byte\[\] [FD.id];
 			}
 		}
 
+		<<
 		"	int next;
 		"	Record record;
 		"	int offset;
 
+		<<
 		"public void advance()
 		"{
 		"	offset = next;
@@ -137,6 +162,7 @@ void generateJava( P: program )
 		"}
 		"
 
+		<<
 		"void load()
 		"{
 		"	int len;
@@ -148,21 +174,27 @@ void generateJava( P: program )
 		for FD: record_field_def in Struct->StructDef {
 			switch FD.record_field_type
 			case Bool {
+				<<
 				"	this.[FD.id] = recordPos.element\[[FD.Offset]\];
 			}
 			case Int {
+				<<
 				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 			case UnsignedInt {
+				<<
 				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 			case Long {
+				<<
 				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
 			case UnsignedLong {
+				<<
 				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
 			case String {
+				<<
 				"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 				"	strPos = pktFind( record, stroff );
 				"	len = packetStrLen( strPos );
@@ -177,12 +209,14 @@ void generateJava( P: program )
 			}
 			case Char {
 				N: number = FD.record_field_type.number
+				<<
 				"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
 				"		recordPos.offset + [FD.Offset],
 				"		recordPos.offset + [FD.Offset] + [N] );
 			}
 		}
 
+		<<
 		"	this.next = recordPos.block.getInt( recordPos.offset + [Struct->NextOffset] );
 		"}
 		"
@@ -190,39 +224,50 @@ void generateJava( P: program )
 	}
 
 	for Packet: packet in PacketMap {
+		<<
 		"public static class [Packet->Id]
 		"{
 
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case Bool {
+				<<
 				"	public boolean [FD.id];
 			}
 			case Int {
+				<<
 				"	public int [FD.id];
 			}
 			case UnsignedInt {
+				<<
 				"	public int [FD.id];
 			}
 			case Long {
+				<<
 				"	public long [FD.id];
 			}
 			case UnsignedLong {
+				<<
 				"	public long [FD.id];
 			}
 			case String {
+				<<
 				"	public String [FD.id];
 			}
 			case List {
+				<<
 				"	public int [FD.id];
 			}
 			case Char {
+				<<
 				"	public byte\[\] [FD.id];
 			}
 		}
 
+		<<
 		"	public Record record;
 
+		<<
 		"void read( Record record, int offset )
 		"{
 		"	int len;
@@ -235,21 +280,27 @@ void generateJava( P: program )
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case Bool {
+				<<
 				"	this.[FD.id] = recordPos.block.getByte( recordPos.offset + [FD.Offset] );
 			}
 			case Int {
+				<<
 				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 			case UnsignedInt {
+				<<
 				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 			case Long {
+				<<
 				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
 			case UnsignedLong {
+				<<
 				"	this.[FD.id] = recordPos.block.getLong( recordPos.offset + [FD.Offset] );
 			}
 			case String {
+				<<
 				"	stroff = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 				"	strPos = pktFind( record, stroff );
 				"	len = packetStrLen( strPos );
@@ -263,49 +314,53 @@ void generateJava( P: program )
 			}
 			case Char {
 				N: number = FD.record_field_type.number
+				<<
 				"	this.[FD.id] = Arrays.copyOfRange( recordPos.element,
 				"		recordPos.offset + [FD.Offset],
 				"		recordPos.offset + [FD.Offset] + [N] );
 			}
 			case List {
+				<<
 				"	this.[FD.id] = recordPos.block.getInt( recordPos.offset + [FD.Offset] );
 			}
 		}
 
+		<<
 		"	}
 		"	static final int ID = [Packet->AppID * 1000 + Packet->NumID];
 		"	static final int Size = [Packet->Size];
 		"}
 	}
 
-	~void dispatch( Record record )
-	~{
-	~	// Log.i( LOG_TAG, "dispatching record parsing" );
-	~	// System.out.println( record.totalLen );
-	~
-	~	switch ( record.msgId ) {
+	<<	~void dispatch( Record record )
+		~{
+		~	// Log.i( LOG_TAG, "dispatching record parsing" );
+		~	// System.out.println( record.totalLen );
+		~
+		~	switch ( record.msgId ) {
 
 	for Packet: packet in PacketMap {
-		"	case [Packet->Id].ID: {
-		"		[Packet->Id] p = new [Packet->Id]();
-		"		p.read( record, 16 );
+		<<		"case [Packet->Id].ID: {
+				"	[Packet->Id] p = new [Packet->Id]();
+				"	p.read( record, 16 );
 			
 		if ( Packet->Id == "MonitorDisp" ) {
-			"	callback.received( p.content );
+			<<	"	callback.received( p.content );
 		}
 
 		if ( Packet->Id == "QuoteList" ) {
-			"	callback.received( p );
+			<<	"	callback.received( p );
 		}
 
-		"		break;
-		"	}
+		<<		"	break;
+				"}
 	}
 
-	~	}
-	~}
-
-	~}
+	<<	~	}
+		~}
+	
+	# Close the class.
+	<<	~}
 
 	send Output [] eos
 

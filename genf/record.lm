@@ -40,6 +40,7 @@ end
 
 void definePack()
 {
+	<<
 	~#define _pack( type, dest, off ) \
 	~	*((type*)(dest + off))
 }
@@ -100,6 +101,7 @@ void generatePacketHeader( P: program )
 	Output = new parser<out_c::out_c>()
 	_ = Output
 
+	<<
 	~/*
 	~ * packet_gen.h
 	~ */
@@ -126,44 +128,54 @@ void generatePacketHeader( P: program )
 	# Packing structs
 	#
 
+	<<
 	~namespace Packer {
 	~	struct PacketType;
 
 	for Struct: _struct in StructMap {
+		<<
 		"struct [Struct->Id]
 		"{
 
 		for FD: record_field_def in Struct->StructDef {
 			switch FD.record_field_type
 			case [`bool] {
+				<<
 				"	void set_[FD.id]( long _[FD.id] )
 				"		{ _pack( bool, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`int] {
+				<<
 				"	void set_[FD.id]( int _[FD.id] )
 				"		{ _pack( int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`uint] {
+				<<
 				"	void set_[FD.id]( unsigned int _[FD.id] )
 				"		{ _pack( unsigned int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`long] {
+				<<
 				"	void set_[FD.id]( long _[FD.id] )
 				"		{ _pack( long, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`ulong] {
+				<<
 				"	void set_[FD.id]( unsigned long _[FD.id] )
 				"		{ _pack( unsigned long, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`string] {
+				<<
 				"	void set_[FD.id]( const char *s );
 			}
 			case [`char `( N: number `)] {
+				<<
 				"	void set_[FD.id]( const char *s )
 				"		{ strncpy( overlay + [FD.Offset], s, [FD.CharSize] ); }
 			}
 		}
 
+		<<
 		"	char *overlay;
 		"	PacketWriter *writer;
 		"};
@@ -171,6 +183,7 @@ void generatePacketHeader( P: program )
 	}
 
 	for Packet: packet in PacketMap {
+		<<
 		"struct [Packet->Id]
 		"	: public PacketBase
 		"{
@@ -181,40 +194,49 @@ void generatePacketHeader( P: program )
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case [`bool] {
+				<<
 				"	void set_[FD.id]( bool _[FD.id] )
 				"		{ _pack( bool, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`int] {
+				<<
 				"	void set_[FD.id]( int _[FD.id] )
 				"		{ _pack( int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`uint] {
+				<<
 				"	void set_[FD.id]( unsigned int _[FD.id] )
 				"		{ _pack( unsigned int, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`long] {
+				<<
 				"	void set_[FD.id]( long _[FD.id] )
 				"		{ _pack( long, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`ulong] {
+				<<
 				"	void set_[FD.id]( unsigned long _[FD.id] )
 				"		{ _pack( unsigned long, overlay, [FD.Offset] ) = _[FD.id]; }
 			}
 			case [`string] {
+				<<
 				"	void set_[FD.id]( const char *d );
 			}
 			case [list_type] {
 				TypeId: id = FD.record_field_type.list_type.id
+				<<
 				"	char *tail_[FD.id];
 				"	void alloc_[FD.id]( [TypeId] &el );
 
 			}
 			case [`char `( N: number `)] {
+				<<
 				"	void set_[FD.id]( const char *s )
 				"		{ memcpy( overlay + [FD.Offset], s, [FD.CharSize] ); }
 			}
 		}
 
+		<<
 		"	void send()
 		"	{
 		"		PacketBase::send( &writer );
@@ -231,6 +253,7 @@ void generatePacketHeader( P: program )
 		"
 	}
 
+	<<
 	~}
 	~
 
@@ -238,9 +261,11 @@ void generatePacketHeader( P: program )
 	# Reading structs structs
 	#
 
+	<<
 	~namespace Record {
 
 	for Struct: _struct in StructMap {
+		<<
 		"struct [Struct->Id]
 		"{
 		"	[Struct->Id]( Rope *rope, long offset );
@@ -248,28 +273,36 @@ void generatePacketHeader( P: program )
 		for FD: record_field_def in Struct->StructDef {
 			switch FD.record_field_type
 			case [`bool] {
+				<<
 				"	bool [FD.id];
 			}
 			case [`int] {
+				<<
 				"	int [FD.id];
 			}
 			case [`uint] {
+				<<
 				"	unsigned int [FD.id];
 			}
 			case [`long] {
+				<<
 				"	long [FD.id];
 			}
 			case [`ulong] {
+				<<
 				"	unsigned long [FD.id];
 			}
 			case [`string] {
+				<<
 				"	char *[FD.id];
 			}
 			case [`char `( N: number `)] {
+				<<
 				"	char [FD.id]\[[FD.CharSize]\];
 			}
 		}
 
+		<<
 		"	void advance();
 		"	bool valid();
 		"	void load();
@@ -281,6 +314,7 @@ void generatePacketHeader( P: program )
 	}
 
 	for Packet: packet in PacketMap {
+		<<
 		"struct [Packet->Id]
 		"	: public PacketBase
 		"{
@@ -289,32 +323,41 @@ void generatePacketHeader( P: program )
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case [`bool] {
+				<<
 				"	bool [FD.id];
 			}
 			case [`int] {
+				<<
 				"	int [FD.id];
 			}
 			case [`uint] {
+				<<
 				"	unsigned int [FD.id];
 			}
 			case [`long] {
+				<<
 				"	long [FD.id];
 			}
 			case [`ulong] {
+				<<
 				"	unsigned long [FD.id];
 			}
 			case [`string] {
+				<<
 				"	char *[FD.id];
 			}
 			case [list_type] {
 				TypeId: id = FD.record_field_type.list_type.id
+				<<
 				"	uint32_t head_[FD.id];
 			}
 			case [`char `( N: number `)] {
+				<<
 				"	char [FD.id]\[[FD.CharSize]\];
 			}
 		}
 
+		<<
 		"	Rope *rope;
 		"	static const unsigned short ID = [Packet->AppID * 1000 + Packet->NumID];
 		"	static const char name\[\];
@@ -323,6 +366,7 @@ void generatePacketHeader( P: program )
 		"
 	}
 
+	<<
 	~}
 	~
 	~const char *packetLowerName( unsigned short id );
@@ -338,20 +382,24 @@ void generatePacketHeader( P: program )
 
 void packetRecvDecls( Thread: thread )
 {
+	<<
 	"	virtual void dispatchPacket( SelectFd *fd, Recv &recv );
 
 	for Packet: packet in Thread->RecvsPktList {
+		<<
 		"	virtual void recv[Packet->Id]( SelectFd *fd, Record::[Packet->Id] *pkt ) = 0;
 	}
 }
 
 void packetReceives( Thread: thread )
 {
+	<<
 	"void [Thread->Id]Gen::dispatchPacket( SelectFd *fd, Recv &recv )
 	"{
 	"		switch ( recv.head->msgId ) {
 
 	for Packet: packet in Thread->RecvsPktList {
+		<<
 		"			case (int) Record::[Packet->Id]::ID: {
 		"				Record::[Packet->Id] rec( &recv.buf,
 		"					sizeof(PacketBlockHeader) + sizeof(PacketHeader) );
@@ -360,6 +408,7 @@ void packetReceives( Thread: thread )
 		"			}
 	}
 
+	<<
 	"		}
 	"}
 	"
@@ -371,6 +420,7 @@ void generatePacketCode( P: program )
 	Output = new parser<out_c::out_c>()
 	_ = Output
 
+	<<
 	~/*
 	~ * packet_gen.cc
 	~ */
@@ -387,6 +437,7 @@ void generatePacketCode( P: program )
 		for FD: record_field_def in Struct->StructDef {
 			switch FD.record_field_type
 			case String {
+				<<
 				"void Packer::[Struct->Id]::set_[FD.id]( const char *src )
 				"{
 				"	int length = strlen( src ) + 1;
@@ -404,6 +455,7 @@ void generatePacketCode( P: program )
 		for FD: record_field_def in Packet->PacketDef {
 			switch FD.record_field_type
 			case String {
+				<<
 				"void Packer::[Packet->Id]::set_[FD.id]( const char *src )
 				"{
 				"	int length = strlen( src ) + 1;
@@ -418,6 +470,7 @@ void generatePacketCode( P: program )
 				TypeId: id = L.id
 				El: _struct = findStruct( TypeId )
 
+				<<
 				"void Packer::[Packet->Id]::alloc_[FD.id]( [TypeId] &el )
 				"{
 				"	uint32_t offset = 0;
@@ -438,6 +491,7 @@ void generatePacketCode( P: program )
 			}
 		}
 
+		<<
 		"void Packer::[Packet->Id]::open( PacketWriter *writer )
 		"{
 		"	this->overlay = (char*)
@@ -448,6 +502,7 @@ void generatePacketCode( P: program )
 
 		Lower: str = packet_name::makeLower( Packet->Id )
 
+		<<
 		"const char Packer::[Packet->Id]::name\[\] = \"[Packet->Id]\";
 		"const char Packer::[Packet->Id]::lower\[\] = \"[Lower]\";
 		"
@@ -460,43 +515,53 @@ void generatePacketCode( P: program )
 		"	Packer::PacketType dest( packetConn );
 
 		if Packet->NumFields > 0  {
+			<<
 			"	PacketField field;
 		}
 
+		<<
 		"	dest.set__name( [Packet->Id]::lower );
 		"	dest.set_numId( [Packet->Id]::ID );
 		"	dest.set_numFields( [Packet->NumFields] );
 
 		for FD: record_field_def in Packet->PacketDef {
+			<<
 			"	dest.alloc_fields( field );
 			"	field.set_name( \"[FD.id]\" );
 			"	field.set_type( [fieldTypeCode( FD )] );
 			if ! match FD.opt_tag [] {
+				<<
 				"	field.set__tag( true );
 			}
+			<<
 			"	field.set_size( [fieldSize( FD )] );
 			"	field.set__offset( [FD.Offset] );
 
 			if match FD.record_field_type [LT: list_type] {
 				El: _struct = findStruct( LT.id )
 				for SFD: record_field_def in El->StructDef {
+					<<
 					"	dest.alloc_fields( field );
 					"	field.set_name( \"[SFD.id]\" );
 					"	field.set_type( [fieldTypeCode( SFD )] );
 					if ! match SFD.opt_tag [] {
+						<<
 						"	field.set__tag( true );
 					}
+					<<
 					"	field.set_size( [fieldSize( SFD )] );
 					"	field.set__offset( [SFD.Offset] );
 				}
 			}
 		}
 
+		<<
 		"	dest.send();
 		"}
 	}
 
 	for Struct: _struct in StructMap {
+		<<
 		"Record::[Struct->Id]::[Struct->Id]( Rope *rope, long offset )
 		"	: rope(rope), offset(offset) 
 		"{
@@ -520,78 +585,101 @@ void generatePacketCode( P: program )
 		"{
 		
 		if record_field_def in Struct->StructDef {
+			<<
 			"	char *overlay = Thread::pktFind( rope, offset );
 
 			for FD: record_field_def in Struct->StructDef {
 				switch FD.record_field_type
 				case Bool
+					<<
 					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
 				case Int
+					<<
 					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
 				case UnsignedInt
+					<<
 					"	this->[FD.id] = _pack( unsigned int, overlay, [FD.Offset] );
 				case Long
+					<<
 					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
 				case UnsignedLong
+					<<
 					"	this->[FD.id] = _pack( unsigned long, overlay, [FD.Offset] );
 				case String
+					<<
 					"	this->[FD.id] = Thread::pktFind( rope,
 					"		_pack( uint32_t, overlay, [FD.Offset] ) );
 				case Char
+					<<
 					"	memcpy( this->[FD.id], overlay + [FD.Offset], [FD.CharSize] );
 			}
 		}
 
+		<<
 		"	this->next = _pack( uint32_t, overlay, [Struct->NextOffset] );
 		"}
 	}
 
 	for Packet: packet in PacketMap {
+		<<
 		"Record::[Packet->Id]::[Packet->Id]( Rope *rope, long offset )
 		"{
 		"	this->rope = rope;
 			
 		if record_field_def in Packet->PacketDef {
+			<<
 			"	char *overlay = Thread::pktFind( rope, offset );;
 			for FD: record_field_def in Packet->PacketDef {
 				switch FD.record_field_type
 				case Bool
+					<<
 					"	this->[FD.id] = _pack( bool, overlay, [FD.Offset] );
 				case Int
+					<<
 					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
 				case UnsignedLong
+					<<
 					"	this->[FD.id] = _pack( int, overlay, [FD.Offset] );
 				case Long
+					<<
 					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
 				case UnsignedLong
+					<<
 					"	this->[FD.id] = _pack( long, overlay, [FD.Offset] );
 				case String
+					<<
 					"	this->[FD.id] = Thread::pktFind( rope,
 					"		_pack( uint32_t, overlay, [FD.Offset] ) );
 				case [L: list_type] {
 					TypeId: id = L.id
+					<<
 					"	this->head_[FD.id] = _pack( uint32_t, overlay, [FD.Offset] );
 				}
 			}
 		}
 
+		<<
 		"}
 
 		Lower: str = packet_name::makeLower( Packet->Id )
+		<<
 		"const char Record::[Packet->Id]::name\[\] = \"[Packet->Id]\";
 		"const char Record::[Packet->Id]::lower\[\] = \"[Lower]\";
 		"
 
 	}
 
+	<<
 	"const char *packetLowerName( unsigned short id )
 	"{
 	"	switch ( id ) {
 
 	for Packet: packet in PacketMap {
+		<<
 		"	case Record::[Packet->Id]::ID: return Record::[Packet->Id]::lower;
 	}
 
+	<<
 	"	}
 	"	return \"unknown\";
 	"}

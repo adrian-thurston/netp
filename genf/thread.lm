@@ -1,5 +1,6 @@
 void sendsToDecls( Thread: thread )
 {
+	<<
 	"struct SendsPassthru
 	"{
 	"	ItWriter *writer;
@@ -9,17 +10,20 @@ void sendsToDecls( Thread: thread )
 	"
 
 	for Sends: sends in Thread->SendsMap {
+		<<
 		"struct SendsTo[Sends->Receiver->Id]
 		"{
 		"	ItWriter *writer;
 
 		for Message: message in Sends->MessageList {
+			<<
 			"	Message::[Message->Id] *open[Message->Id]()
 			"		{ return Message::[Message->Id]::open( writer ); }
 			"	Writer::[Message->Id]::Cons cons[Message->Id]()
 			"		{ return Writer::[Message->Id]::Cons( writer ); }
 		}
 
+		<<
 		"	void send( bool signal = false ) { writer->queue->send( writer, signal ); }
 		"};
 		"
@@ -31,12 +35,14 @@ void sendsToDecls( Thread: thread )
 void recvDecls( Thread: thread )
 {
 	for Message: message in Thread->RecvsList {
+		<<
 		"	virtual void recv[Message->Id]( Message::[Message->Id] * ) = 0;
 	}
 }
 
 void sendsToCode( Thread: thread )
 {
+	<<
 	"[Thread->Id]Thread::SendsPassthru *[Thread->Id]Gen::"
 			"registerSendsPassthru( Thread *recv )
 	"{
@@ -46,6 +52,7 @@ void sendsToCode( Thread: thread )
 	"}
 
 	for Sends: sends in Thread->SendsMap {
+		<<
 		"[Thread->Id]Thread::SendsTo[Sends->Receiver->Id] *[Thread->Id]Gen::"
 				"registerSendsTo[Sends->Receiver->Id]( "
 				"[Sends->Receiver->Id]Thread *recv )
@@ -65,6 +72,7 @@ void threadCommonHeader( Thread: thread )
 	recvDecls( Thread )
 	packetRecvDecls( Thread )
 	
+	<<
 	"	virtual const char *pkgDataDir();
 	"	virtual const char *pkgStateDir();
 	"	virtual const char *pkgConfDir();
@@ -76,6 +84,7 @@ void generateThreadHeader( Thread: thread )
 	Output = new parser<out_c::out_c>()
 	_ = Output
 
+	<<
 	"/*
 	" * [Thread->Lower]_gen.h
 	" */
@@ -84,6 +93,7 @@ void generateThreadHeader( Thread: thread )
 	"#define _[Thread->Upper]_GEN_H
 	"
 
+	<<
 	~#include <genf/thread.h>
 	~#include "itq_gen.h"
 	~#include "packet_gen.h"
@@ -92,6 +102,7 @@ void generateThreadHeader( Thread: thread )
 
 	threadForwards( Thread )
 
+	<<
 	"struct [Thread->Id]Gen
 	"	: public Thread
 	"{
@@ -111,6 +122,7 @@ void generateThreadHeader( Thread: thread )
 
 	threadCommonHeader( Thread )
 
+	<<
 	"};
 	"#endif
 
@@ -121,14 +133,17 @@ void generateThreadHeader( Thread: thread )
 void createChildDecls( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
+		<<
 		"	void create( [Child->Id]Thread *child );
 	}
+	<<
 	"
 }
 
 void createChildDefs( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
+		<<
 		"void [Thread->Id]Gen::create( [Child->Id]Thread *child )
 		"{
 		"	childList.append( child );
@@ -140,6 +155,7 @@ void createChildDefs( Thread: thread )
 
 void joinDef( Thread: thread )
 {
+	<<
 	"void [Thread->Id]Gen::join()
 	"{
 	"	for ( Thread *child = childList.head;
@@ -156,35 +172,42 @@ void joinDef( Thread: thread )
 void threadIncludes( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
+		<<
 		"#include \"[Child->Lower].h\"
 	}
 
 	for Sends: sends in Thread->SendsMap {
+		<<
 		"#include \"[Sends->Receiver->Lower].h\"
 	}
 
+	<<
 	"
 }
 
 void threadForwards( Thread: thread )
 {
 	for Child: thread in Thread->Starts {
+		<<
 		"struct [Child->Id]Gen;
 		"struct [Child->Id]Thread;
 	}
 
 	for Sends: sends in Thread->SendsMap {
 		for Message: message in Sends->MessageList {
+			<<
 			"struct [Message->Id];
 			"struct [Sends->Receiver->Id]Thread;
 		}
 	}
 
+	<<
 	"
 }
 
 void threadRecveives( Thread: thread )
 {
+	<<
 	"void [Thread->Id]Gen::recvHeader( ItQueue *queue, ItHeader *header )
 	"{
 	"	switch ( header->msgId ) {
@@ -195,6 +218,7 @@ void threadRecveives( Thread: thread )
 	"		}
 
 	for Message: message in Thread->RecvsList {
+		<<
 		"		case Message::[Message->Id]::ID: {
 		"			Message::[Message->Id] *msg = Message::[Message->Id]::read( queue, header );
 		"			recv[Message->Id]( msg );
@@ -202,10 +226,12 @@ void threadRecveives( Thread: thread )
 		"		}
 	}
 
+	<<
 	"	}
 	"}
 	"
 
+	<<
 	"int [Thread->Id]Gen::recvLoop()
 	"{
 	"	loop = true;
@@ -218,6 +244,7 @@ void threadRecveives( Thread: thread )
 	"}
 	"
 
+	<<
 	"void [Thread->Id]Gen::recvSingle()
 	"{
 	"	ItHeader *header = control.wait();
@@ -226,6 +253,7 @@ void threadRecveives( Thread: thread )
 	"}
 	"
 
+	<<
 	"bool [Thread->Id]Gen::poll()
 	"{
 	"	if ( control.poll() ) {
@@ -241,6 +269,7 @@ void threadRecveives( Thread: thread )
 
 void threadCommonCode( Thread: thread )
 {
+	<<
 	"const char *[Thread->Id]Gen::pkgDataDir()
 	"	{ return PKGDATADIR; }
 	"
@@ -257,16 +286,19 @@ void generateThreadCode( Thread: thread )
 	Output = new parser<out_c::out_c>()
 	_ = Output
 
+	<<
 	"/*
 	" * [Thread->Lower]_gen.cc
 	" */
 	"
 
+	<<
 	"#include \"[Thread->Lower].h\"
 
 	threadIncludes( Thread )
 	threadForwards( Thread )
 
+	<<
 	"
 
 	createChildDefs( Thread )
@@ -277,6 +309,7 @@ void generateThreadCode( Thread: thread )
 
 	threadCommonCode( Thread )
 
+	<<
 	"int [Thread->Id]Gen::start()
 	"{
 	"	return main();
