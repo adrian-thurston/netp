@@ -18,7 +18,7 @@ AC_CHECK_ZLIB()
 AC_CHECK_BROTLIDEC()
 
 dnl Colm
-AC_CHECK_COLM([0.14])
+AC_CHECK_COLM([0.14.1])
 
 dnl ragel
 AC_CHECK_RAGEL([7.0])
@@ -39,7 +39,7 @@ CPPFLAGS="-I\$(abs_top_srcdir)/genf/include ${CPPFLAGS}"
 LDFLAGS="-L\$(abs_top_builddir)/genf ${LDFLAGS}"
 GENF="\$(abs_top_builddir)/genf/genf"
 
-AC_CHECK_KERNDIR
+dnl AC_CHECK_KERNDIR
 
 dnl For building against kring and bringing up/down.
 KRING_MOD="\$(abs_top_builddir)/kring/kring.ko"

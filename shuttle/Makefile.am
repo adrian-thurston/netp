@@ -21,8 +21,14 @@ attribute.h: module.c
 module.c: shuttle.gf $(GENF)
 	$(GENF) --kernf shuttle.gf
 
+#shuttle.ko: Module.symvers $(SOURCES) $(DEPS)
+#	make CPPFLAGS="@CPPFLAGS@" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`
+#
+#Module.symvers: $(KRING_SYMVERS)
+#	cp $(KRING_SYMVERS) ./
+
 shuttle.ko: Module.symvers $(SOURCES) $(DEPS)
-	make CPPFLAGS="@CPPFLAGS@" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`  
+	touch $@
 
 Module.symvers: $(KRING_SYMVERS)
-	cp $(KRING_SYMVERS) ./
+	touch $@

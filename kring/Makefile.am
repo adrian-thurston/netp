@@ -23,18 +23,23 @@ SOURCES = attribute.c kdata.c kctrl.c socket.c module.c \
 	attribute.h kctrl.h kdata.h krdep.h kring.h krkern.h \
 	libkring.h module.h
 
-Module.symvers: kring.ko
-
 attribute.h: module.c
 
 module.c: kring.gf $(GENF)
 	$(GENF) --kernf kring.gf
 
+#Module.symvers: kring.ko
+#kring.ko: $(SOURCES)
+#	make CPPFLAGS="$(CPPFLAGS)" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`
+
 kring.ko: $(SOURCES)
-	make CPPFLAGS="$(CPPFLAGS)" MOBJS="$(MOBJS)" -C $(KERNDIR) M=`pwd`  
+	touch $@
+
+Module.symvers: kring.ko
+	touch $@
 
 BUILT_SOURCES += include/kring
-    
+
 include/kring:
 	mkdir -p include
 	ln -s .. include/kring

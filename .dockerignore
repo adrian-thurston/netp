@@ -1,0 +1,4 @@
+.*.swp
+.*.swo
+.gdb_history
+Dockerfile
