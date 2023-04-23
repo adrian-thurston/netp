@@ -81,7 +81,7 @@ dnl /opt/colm.
 dnl
 
 AC_ARG_WITH(deps,
-	[AC_HELP_STRING([--with-deps], [generic dependency location])],
+	[AS_HELP_STRING([--with-deps], [generic dependency location])],
 	[DEPS="$withval"],
 	[DEPS="/opt/colm"]
 )
@@ -91,7 +91,7 @@ dnl Aapl Library Check
 dnl
 AC_DEFUN([AC_CHECK_AAPL], [
 	AC_ARG_WITH(aapl,
-		[AC_HELP_STRING([--with-aapl], [location of aapl install])],
+		[AS_HELP_STRING([--with-aapl], [location of aapl install])],
 		[
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			WITH_AAPL=$withval
@@ -105,7 +105,7 @@ AC_DEFUN([AC_CHECK_AAPL], [
 	AC_CHECK_HEADER(
 		[aapl/avltree.h],
 		[],
-		[AC_ERROR([aapl is required to build this package])]
+		[AC_MSG_ERROR([aapl is required to build this package])]
 	)
 
 	AC_SUBST(GENF)
@@ -119,11 +119,11 @@ dnl
 AC_DEFUN([AC_CHECK_RAGEL], [
 	EXPECTED_VER=$1
 	if test -z "$EXPECTED_VER"; then
-		AC_ERROR( [check ragel: expected version not passed in] )
+		AC_MSG_ERROR( [check ragel: expected version not passed in] )
 	fi
 
 	AC_ARG_WITH(ragel,
-		[AC_HELP_STRING([--with-ragel], [location of ragel install])],
+		[AS_HELP_STRING([--with-ragel], [location of ragel install])],
 		[RAGEL="$withval/bin/ragel"],
 		[RAGEL="$DEPS/bin/ragel"]
 	)
@@ -131,13 +131,13 @@ AC_DEFUN([AC_CHECK_RAGEL], [
 	AC_CHECK_FILES(
 		[$RAGEL],
 		[],
-		[AC_ERROR([ragel is required to build this package])]
+		[AC_MSG_ERROR([ragel is required to build this package])]
 	)
 	AC_SUBST(RAGEL)
 
 	INSTALLED_VER=`$RAGEL -v | sed -n '1{s/^.*version //; s/ .*$//; p}'`
 	if test "x$INSTALLED_VER" != "x$EXPECTED_VER"; then
-		AC_ERROR( [check ragel: expected version $EXPECTED_VER, but $INSTALLED_VER is installed] )
+		AC_MSG_ERROR( [check ragel: expected version $EXPECTED_VER, but $INSTALLED_VER is installed] )
 	fi
 ])
 
@@ -147,11 +147,11 @@ dnl
 AC_DEFUN([AC_CHECK_COLM], [
 	EXPECTED_VER=$1
 	if test -z "$EXPECTED_VER"; then
-		AC_ERROR( [check colm: expected version not passed in] )
+		AC_MSG_ERROR( [check colm: expected version not passed in] )
 	fi
 
 	AC_ARG_WITH(colm,
-		[AC_HELP_STRING([--with-colm], [location of colm install])],
+		[AS_HELP_STRING([--with-colm], [location of colm install])],
 		[
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			LDFLAGS="-L$withval/lib ${LDFLAGS}"
@@ -167,13 +167,13 @@ AC_DEFUN([AC_CHECK_COLM], [
 	AC_CHECK_FILES(
 		[$COLM],
 		[],
-		[AC_ERROR([colm is required to build this package])]
+		[AC_MSG_ERROR([colm is required to build this package])]
 	)
 	AC_SUBST(COLM)
 
 	INSTALLED_VER=`$COLM -v | sed -n '1{s/^.*version //; s/ .*$//; p}'`
 	if test "x$INSTALLED_VER" != "x$EXPECTED_VER"; then
-		AC_ERROR( [check colm: expected version $EXPECTED_VER, but $INSTALLED_VER is installed] )
+		AC_MSG_ERROR( [check colm: expected version $EXPECTED_VER, but $INSTALLED_VER is installed] )
 	fi
 ])
 
@@ -184,17 +184,17 @@ dnl
 AC_DEFUN([AC_CHECK_GENF_DEPS], [
 
 	dnl pthread
-	AC_CHECK_HEADER([pthread.h], [], [AC_ERROR([check genf: pthread.h not found])])
-	AC_CHECK_LIB([pthread], [pthread_create], [], [AC_ERROR([check genf: cannot link with -lpthread])])
+	AC_CHECK_HEADER([pthread.h], [], [AC_MSG_ERROR([check genf: pthread.h not found])])
+	AC_CHECK_LIB([pthread], [pthread_create], [], [AC_MSG_ERROR([check genf: cannot link with -lpthread])])
 
 	dnl openssl
-	AC_CHECK_HEADER([openssl/ssl.h], [], [AC_ERROR([check genf: openssl/openssl.h not found])])
-	AC_CHECK_LIB([ssl], [SSL_library_init], [], [AC_ERROR([check genf: cannot link with -lssl])])
-	AC_CHECK_LIB([crypto], [CRYPTO_thread_id], [], [AC_ERROR([check genf: cannot link with -lcrypto])])
+	AC_CHECK_HEADER([openssl/ssl.h], [], [AC_MSG_ERROR([check genf: openssl/openssl.h not found])])
+	AC_CHECK_LIB([ssl], [SSL_library_init], [], [AC_MSG_ERROR([check genf: cannot link with -lssl])])
+	AC_CHECK_LIB([crypto], [CRYPTO_thread_id], [], [AC_MSG_ERROR([check genf: cannot link with -lcrypto])])
 
 	dnl c-ares (dns resolving)
-	AC_CHECK_HEADER([ares.h], [], [AC_ERROR([check genf: ares.h not found])])
-	AC_CHECK_LIB([cares], [ares_library_init], [], [AC_ERROR([check genf: cannot link with -lcares])])
+	AC_CHECK_HEADER([ares.h], [], [AC_MSG_ERROR([check genf: ares.h not found])])
+	AC_CHECK_LIB([cares], [ares_library_init], [], [AC_MSG_ERROR([check genf: cannot link with -lcares])])
 
 	AC_CHECK_AAPL()
 ])
@@ -205,11 +205,11 @@ dnl
 AC_DEFUN([AC_CHECK_GENF], [
 	EXPECTED_VER=$1
 	if test -z "$EXPECTED_VER"; then
-		AC_ERROR( [check genf: expected version not passed in] )
+		AC_MSG_ERROR( [check genf: expected version not passed in] )
 	fi
 
 	AC_ARG_WITH(genf,
-		[AC_HELP_STRING([--with-genf], [location of genf install])],
+		[AS_HELP_STRING([--with-genf], [location of genf install])],
 		[
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
 			LDFLAGS="-L$withval/lib ${LDFLAGS}"
@@ -232,7 +232,7 @@ AC_DEFUN([AC_CHECK_GENF], [
 	dnl Version check disabled
 	dnl	INSTALLED_VER=`$GENF -v | sed -n '1{s/^.*version //; s/ .*$//; p}'`
 	dnl	if test "x$INSTALLED_VER" != "x$EXPECTED_VER"; then
-	dnl		AC_ERROR( [check genf: expected version $EXPECTED_VER, but $INSTALLED_VER is installed] )
+	dnl		AC_MSG_ERROR( [check genf: expected version $EXPECTED_VER, but $INSTALLED_VER is installed] )
 	dnl	fi
 
 		
@@ -242,11 +242,11 @@ AC_DEFUN([AC_CHECK_GENF], [
 	AC_CHECK_GENF_DEPS
 
 	dnl GENF header and lib
-	AC_CHECK_HEADER([genf/thread.h], [], [AC_ERROR([check genf: main header thread.h not found])])
-	AC_CHECK_LIB([genf], [genf_thread_start], [], [AC_ERROR([check genf: cannot link with -lgenf])])
+	AC_CHECK_HEADER([genf/thread.h], [], [AC_MSG_ERROR([check genf: main header thread.h not found])])
+	AC_CHECK_LIB([genf], [genf_thread_start], [], [AC_MSG_ERROR([check genf: cannot link with -lgenf])])
 
 	dnl GENF binary
-	AC_CHECK_FILES([$GENF], [], [AC_ERROR([check genf: could not find genf binary])])
+	AC_CHECK_FILES([$GENF], [], [AC_MSG_ERROR([check genf: could not find genf binary])])
 	AC_SUBST(GENF)
 ])
 
@@ -255,7 +255,7 @@ dnl KRING check
 dnl
 AC_DEFUN([AC_CHECK_KRING], [
 	AC_ARG_WITH(kring,
-		[AC_HELP_STRING([--with-kring], [location of kring install])],
+		[AS_HELP_STRING([--with-kring], [location of kring install])],
 		[
 			KRING_MOD="$withval/lib/kring.ko"
 			KRING_SYMVERS="$withval/share/netp/Module.symvers"
@@ -271,13 +271,13 @@ AC_DEFUN([AC_CHECK_KRING], [
 	)
 
 	AC_CHECK_FILES( [$KRING_MOD], [],
-			[AC_ERROR([kring is required to build this module])] )
+			[AC_MSG_ERROR([kring is required to build this module])] )
 	AC_CHECK_FILES( [$KRING_SYMVERS], [],
-			[AC_ERROR([kring symvers not found in kring pkg])] )
+			[AC_MSG_ERROR([kring symvers not found in kring pkg])] )
 
-	AC_CHECK_HEADER([kring/kring.h], [], [AC_ERROR([check kring: header kring.h not found])])
+	AC_CHECK_HEADER([kring/kring.h], [], [AC_MSG_ERROR([check kring: header kring.h not found])])
 	AC_CHECK_LIB([kring], [kring_open], [],
-			[AC_ERROR([check kring: cannot link with -lkring])])
+			[AC_MSG_ERROR([check kring: cannot link with -lkring])])
 
 	SED_SUBST="$SED_SUBST -e 's|[@]KRING_MOD[@]|$KRING_MOD|g'"
 
@@ -290,7 +290,7 @@ dnl SHUTTLE check
 dnl
 AC_DEFUN([AC_CHECK_SHUTTLE], [
 	AC_ARG_WITH(shuttle,
-		[AC_HELP_STRING([--with-shuttle], [location of shuttle install])],
+		[AS_HELP_STRING([--with-shuttle], [location of shuttle install])],
 		[
 			SHUTTLE_MOD="$withval/lib/shuttle.ko"
 			SHUTTLE_SYMVERS="$withval/share/netp/Module.symvers"
@@ -302,9 +302,9 @@ AC_DEFUN([AC_CHECK_SHUTTLE], [
 	)
 
 	AC_CHECK_FILES( [$SHUTTLE_MOD], [],
-			[AC_ERROR([shuttle is required to build this module])] )
+			[AC_MSG_ERROR([shuttle is required to build this module])] )
 	AC_CHECK_FILES( [$SHUTTLE_SYMVERS], [],
-			[AC_ERROR([shuttle symvers not found in shuttle pkg])] )
+			[AC_MSG_ERROR([shuttle symvers not found in shuttle pkg])] )
 
 	SED_SUBST="$SED_SUBST -e 's|[@]SHUTTLE_MOD[@]|$SHUTTLE_MOD|g'"
 
@@ -318,7 +318,7 @@ dnl NETP check
 dnl
 AC_DEFUN([AC_CHECK_NETP], [
 	AC_ARG_WITH(netp,
-		[AC_HELP_STRING([--with-netp], [location of netp install])],
+		[AS_HELP_STRING([--with-netp], [location of netp install])],
 		[
 			NETP_GENF="$withval/share/netp/parse.gf"
 			GENFFLAGS="${GENFFLAGS} -I$withval/share/netp"
@@ -334,10 +334,10 @@ AC_DEFUN([AC_CHECK_NETP], [
 	)
 
 	AC_CHECK_FILES( [$NETP_GENF], [],
-			[AC_ERROR([netp is required to build this module])] )
+			[AC_MSG_ERROR([netp is required to build this module])] )
 
-	AC_CHECK_HEADER( [parse/parse.h], [], [AC_ERROR([netp/parse.h not found])] )
-	AC_CHECK_LIB([parse], [netp_open], [], [AC_ERROR([check netp: cannot link with -lparse])])
+	AC_CHECK_HEADER( [parse/parse.h], [], [AC_MSG_ERROR([netp/parse.h not found])] )
+	AC_CHECK_LIB([parse], [netp_open], [], [AC_MSG_ERROR([check netp: cannot link with -lparse])])
 
 	AC_SUBST(NETP_GENF)
 	AC_SUBST(GENFFLAGS)
@@ -348,7 +348,7 @@ dnl BROKER check
 dnl
 AC_DEFUN([AC_CHECK_BROKER], [
 	AC_ARG_WITH(broker,
-		[AC_HELP_STRING([--with-broker], [location of broker install])],
+		[AS_HELP_STRING([--with-broker], [location of broker install])],
 		[
 			BROKER_GENF="$withval/share/netp/broker.gf"
 			GENFFLAGS="${GENFFLAGS} -I$withval/share/netp"
@@ -360,7 +360,7 @@ AC_DEFUN([AC_CHECK_BROKER], [
 	)
 
 	AC_CHECK_FILES( [$BROKER_GENF], [],
-			[AC_ERROR([broker is required to build this module])] )
+			[AC_MSG_ERROR([broker is required to build this module])] )
 
 	AC_SUBST(BROKER_GENF)
 	AC_SUBST(GENFFLAGS)
@@ -371,7 +371,7 @@ dnl SCHEMA check
 dnl
 AC_DEFUN([AC_CHECK_SCHEMA], [
 	AC_ARG_WITH(schema,
-		[AC_HELP_STRING([--with-schema], [location of schema install])],
+		[AS_HELP_STRING([--with-schema], [location of schema install])],
 		[
 			SCHEMA_GENF="$withval/share/schema/schema.gf"
 			GENFFLAGS="${GENFFLAGS} -I$withval/share/schema"
@@ -383,7 +383,7 @@ AC_DEFUN([AC_CHECK_SCHEMA], [
 	)
 
 	AC_CHECK_FILES( [$SCHEMA_GENF], [],
-			[AC_ERROR([schema is required to build this module])] )
+			[AC_MSG_ERROR([schema is required to build this module])] )
 
 	AC_SUBST(SCHEMA_GENF)
 	AC_SUBST(GENFFLAGS)
@@ -394,7 +394,7 @@ dnl MODULE check
 dnl
 AC_DEFUN([AC_CHECK_MODULE], [
 	AC_ARG_WITH(module,
-		[AC_HELP_STRING([--with-module], [location of module install])],
+		[AS_HELP_STRING([--with-module], [location of module install])],
 		[
 			MODULE_GENF="$withval/share/module/module.gf"
 			GENFFLAGS="${GENFFLAGS} -I$withval/module/schema"
@@ -410,10 +410,10 @@ AC_DEFUN([AC_CHECK_MODULE], [
 	)
 
 	AC_CHECK_FILES( [$MODULE_GENF], [],
-			[AC_ERROR([module package is required to build this module])] )
+			[AC_MSG_ERROR([module package is required to build this module])] )
 
-	AC_CHECK_HEADER( [module/module.h], [], [AC_ERROR([module/module.h not found])] )
-	AC_CHECK_LIB([module], [module_open], [], [AC_ERROR([check netp: cannot link with -lmodule])])
+	AC_CHECK_HEADER( [module/module.h], [], [AC_MSG_ERROR([module/module.h not found])] )
+	AC_CHECK_LIB([module], [module_open], [], [AC_MSG_ERROR([check netp: cannot link with -lmodule])])
 
 	AC_SUBST(MODULE_GENF)
 	AC_SUBST(GENFFLAGS)
@@ -440,7 +440,7 @@ AC_DEFINE_UNQUOTED([KERNVER], [$MKERNVER], [major kernel version])
 
 AC_DEFUN([AC_CHECK_KERNDIR], [
 	AC_CHECK_FILE( [$KERNDIR/Module.symvers], [],
-		[AC_ERROR([could not locate kernel build dir at $KERNDIR] )] )
+		[AC_MSG_ERROR([could not locate kernel build dir at $KERNDIR] )] )
 	AC_SUBST([KERNDIR])
 ])
 
@@ -448,7 +448,7 @@ dnl
 dnl user to run as
 dnl
 AC_ARG_WITH(run-as,
-	[AC_HELP_STRING([--with-run-as], [user to run as when started as root])],
+	[AS_HELP_STRING([--with-run-as], [user to run as when started as root])],
 	[RUN_AS="$withval"],
 	[RUN_AS=`whoami`]
 )
@@ -459,30 +459,30 @@ dnl
 dnl Check for libcap. Require this in all applications dropping root and keeping necessary caps is built into genf.
 dnl
 AC_CHECK_LIB([cap], [cap_get_proc])
-AC_CHECK_HEADER( [sys/capability.h], [], [AC_ERROR([sys/capability.h not found])] )
+AC_CHECK_HEADER( [sys/capability.h], [], [AC_MSG_ERROR([sys/capability.h not found])] )
 
 dnl
 dnl Make a zlib check available.
 dnl
 AC_DEFUN([AC_CHECK_ZLIB], [
-	AC_CHECK_HEADER([zlib.h], [], [AC_ERROR([unable to include zlib.h])])
-	AC_CHECK_LIB([z], [inflate], [], [AC_ERROR([unable to link with -lz])])
+	AC_CHECK_HEADER([zlib.h], [], [AC_MSG_ERROR([unable to include zlib.h])])
+	AC_CHECK_LIB([z], [inflate], [], [AC_MSG_ERROR([unable to link with -lz])])
 ])
 
 dnl
 dnl Make a brotli check available.
 dnl
 AC_DEFUN([AC_CHECK_BROTLIDEC], [
-	AC_CHECK_HEADER([brotli/decode.h], [], [AC_ERROR([unable to include brotli/decode.h])])
-	AC_CHECK_LIB([brotlidec], [BrotliDecoderCreateInstance], [], [AC_ERROR([unable to link with -lbrotlidec])])
+	AC_CHECK_HEADER([brotli/decode.h], [], [AC_MSG_ERROR([unable to include brotli/decode.h])])
+	AC_CHECK_LIB([brotlidec], [BrotliDecoderCreateInstance], [], [AC_MSG_ERROR([unable to link with -lbrotlidec])])
 ])
 
 dnl
 dnl Make a sqlite3 check available.
 dnl
 AC_DEFUN([AC_CHECK_SQLITE3], [
-	AC_CHECK_HEADER([sqlite3.h], [], [AC_ERROR([unable to include sqlite3.h])])
-	AC_CHECK_LIB([sqlite3], [sqlite3_open], [], [AC_ERROR([unable to link with -lsqlite3])])
+	AC_CHECK_HEADER([sqlite3.h], [], [AC_MSG_ERROR([unable to include sqlite3.h])])
+	AC_CHECK_LIB([sqlite3], [sqlite3_open], [], [AC_MSG_ERROR([unable to link with -lsqlite3])])
 ])
 
 dnl
@@ -490,7 +490,7 @@ dnl Make a pipelinedb check available.
 dnl
 AC_DEFUN([AC_CHECK_PIPELINE], [
 	AC_ARG_WITH(pipeline,
-		[AC_HELP_STRING([--with-pipeline], [location of pipeline install])],
+		[AS_HELP_STRING([--with-pipeline], [location of pipeline install])],
 		[
 			PIPELINE_PREFIX="$withval"
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
@@ -506,11 +506,11 @@ AC_DEFUN([AC_CHECK_PIPELINE], [
 	AC_CHECK_FILES(
 		[$PIPELINE_PREFIX/libexec/pipeline/init.d],
 		[],
-		[AC_ERROR([pipeline DB is required to build this package])]
+		[AC_MSG_ERROR([pipeline DB is required to build this package])]
 	)
 
-	AC_CHECK_HEADER([libpq-fe.h], [], [AC_ERROR([unable to include libpq-fe.h])])
-	AC_CHECK_LIB([pq], [PQconnectdb], [], [AC_ERROR([unable to link with -lpq])])
+	AC_CHECK_HEADER([libpq-fe.h], [], [AC_MSG_ERROR([unable to include libpq-fe.h])])
+	AC_CHECK_LIB([pq], [PQconnectdb], [], [AC_MSG_ERROR([unable to link with -lpq])])
 
 	SED_SUBST="$SED_SUBST -e 's|[@]PIPELINE_PREFIX[@]|$PIPELINE_PREFIX|g'"
 	AC_SUBST(PIPELINE_PREFIX)
@@ -521,7 +521,7 @@ dnl Make a postgres check available.
 dnl
 AC_DEFUN([AC_CHECK_POSTGRES], [
 	AC_ARG_WITH(postgres,
-		[AC_HELP_STRING([--with-postgres], [location of postgres install])],
+		[AS_HELP_STRING([--with-postgres], [location of postgres install])],
 		[
 			POSTGRES_PREFIX="$withval"
 			CPPFLAGS="-I$withval/include ${CPPFLAGS}"
@@ -537,11 +537,11 @@ AC_DEFUN([AC_CHECK_POSTGRES], [
 	AC_CHECK_FILES(
 		[$POSTGRES_PREFIX/libexec/postgres/init.d],
 		[],
-		[AC_ERROR([postgres DB is required to build this package])]
+		[AC_MSG_ERROR([postgres DB is required to build this package])]
 	)
 
-	AC_CHECK_HEADER([libpq-fe.h], [], [AC_ERROR([unable to include libpq-fe.h])])
-	AC_CHECK_LIB([pq], [PQconnectdb], [], [AC_ERROR([unable to link with -lpq])])
+	AC_CHECK_HEADER([libpq-fe.h], [], [AC_MSG_ERROR([unable to include libpq-fe.h])])
+	AC_CHECK_LIB([pq], [PQconnectdb], [], [AC_MSG_ERROR([unable to link with -lpq])])
 
 	SED_SUBST="$SED_SUBST -e 's|[@]POSTGRES_PREFIX[@]|$POSTGRES_PREFIX|g'"
 	AC_SUBST(POSTGRES_PREFIX)

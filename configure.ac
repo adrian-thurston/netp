@@ -1,4 +1,4 @@
-AC_INIT([netp], [0.1.0], [thurston@colm.net])
+AC_INIT([netp],[0.1.0],[thurston@colm.net])
 AM_INIT_AUTOMAKE()
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -9,9 +9,9 @@ m4_include([m4/common.m4])
 
 AC_PROG_CC
 AC_PROG_CXX
-AC_PROG_LIBTOOL
+LT_INIT
 
-AC_LANG_CPLUSPLUS
+AC_LANG([C++])
 
 dnl zlib and brotli
 AC_CHECK_ZLIB()
@@ -28,7 +28,7 @@ AC_CHECK_GENF_DEPS()
 
 AC_CHECK_FUNC([X509_check_host],
 	[AC_DEFINE([HAVE_X509_CHECK_HOST], [1], [define if X509_check_host exists])],
-	dnl	[AC_ERROR([X509_check_host not found])]
+	dnl	[AC_MSG_ERROR(X509_check_host not found)]
 )
 
 # For taking in config.h
@@ -66,7 +66,7 @@ DH_PATH=/usr/share/doc/openvpn/examples/sample-keys
 DH_SEL=""
 AC_CHECK_FILE( [$DH_PATH/dh1024.pem], [DH_SEL=dh1024],
 	[AC_CHECK_FILE( [$DH_PATH/dh2048.pem], [DH_SEL=dh2048],
-		[AC_ERROR([could not find DH keys file])])]
+		[AC_MSG_ERROR(could not find DH keys file)])]
 )
 
 if test -n "$DH_SEL"; then
@@ -93,8 +93,8 @@ AC_CHECK_POSTGRES
 dnl
 dnl Curl Support.
 dnl
-AC_CHECK_HEADER([curl/curl.h], [], [AC_ERROR([unable to include curl/curl.h])])
-AC_CHECK_LIB([curl], [curl_global_init], [], [AC_ERROR([unable to link with -lcurl])])
+AC_CHECK_HEADER([curl/curl.h], [], [AC_MSG_ERROR(unable to include curl/curl.h)])
+AC_CHECK_LIB([curl], [curl_global_init], [], [AC_MSG_ERROR(unable to link with -lcurl)])
 
 AC_SUBST(GENF)
 AC_SUBST(GENFFLAGS)
